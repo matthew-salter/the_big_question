@@ -24,15 +24,15 @@ def handle_webhook():
     try:
         # Dynamically import the correct script from Scripts folder
         if prompt == "client_context":
-            module = importlib.import_module('Scripts.Client_Context.client_context')
+            module = importlib.import_module('Scripts.Client Context.client_context')
         elif prompt == "prompt_2a":
-            module = importlib.import_module('Scripts.Commodity_Report.prompt_2a')
+            module = importlib.import_module('Scripts.Commodity Report.prompt_2a')
         elif prompt == "prompt_2b":
-            module = importlib.import_module('Scripts.Commodity_Report.prompt_2b')
+            module = importlib.import_module('Scripts.Commodity Report.prompt_2b')
         elif prompt == "prompt_2c":
-            module = importlib.import_module('Scripts.Commodity_Report.prompt_2c')
+            module = importlib.import_module('Scripts.Commodity Report.prompt_2c')
         elif prompt == "prompt_3":
-            module = importlib.import_module('Scripts.Commodity_Report.prompt_3')
+            module = importlib.import_module('Scripts.Commodity Report.prompt_3')
         else:
             return jsonify({"error": f"Unknown prompt: {prompt}"}), 400
 
