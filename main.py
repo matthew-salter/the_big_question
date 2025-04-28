@@ -24,7 +24,7 @@ def handle_webhook():
     try:
         # Dynamically import the correct script from Scripts folder
         if prompt == "client_context":
-            module = importlib.import_module('Scripts.Client_Content.client_context')
+            module = importlib.import_module('Scripts.Client_Context.client_context')
         elif prompt == "prompt_2a":
             module = importlib.import_module('Scripts.Commodity_Report.prompt_2a')
         elif prompt == "prompt_2b":
