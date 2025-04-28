@@ -7,7 +7,7 @@ def run_prompt(data):
     client_website_url = data.get('client_website_url')
 
     # Load the correct prompt template
-    prompt_path = 'Prompts/Client Content/client_context.txt'
+    prompt_path = 'Prompts/Client Context/client_context.txt'
     with open(prompt_path, 'r') as f:
         prompt_template = f.read()
 
