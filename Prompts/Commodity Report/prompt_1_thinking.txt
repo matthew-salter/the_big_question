@@ -64,7 +64,7 @@ You must:
 
 ### ADDITIONAL NOTES
 - Be meticulous with calculations.
-- Fully populate all {{number_sections}} and {{number_sub_sections}}.
+- Fully populate all {{number_sections}} sections and {{number_sub_sections}} sub-sections.
 - If uncertainty exists around any factor, make the best reasoned judgment possible — do not leave blanks.
 - This stage is only the **thinking and structuring** phase.
 
