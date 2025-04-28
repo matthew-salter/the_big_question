@@ -1,1 +1,112 @@
+### INSTRUCTION & CONTEXT  
+You are helping to prepare a structured, data-driven report by completing an internal strategic thinking phase first.  
+Use your understanding of the client context, the main question, and the main question context to **think deeply**, identify key influencing factors, and build the full logical structure needed to later write the report.
 
+You are **NOT** writing the report or producing final report assets yet — this stage is only for analysis, structuring, and internal calculations.
+
+**CLIENT NAME**  
+{{client}}
+
+**CLIENT CONTEXT**  
+{{client_context}}
+
+**MAIN QUESTION**  
+{{main_question}}
+
+**QUESTION CONTEXT**  
+{{question_context}}
+
+---
+
+### OBJECTIVE  
+You must:  
+- Identify the {{number_sections}} most significant **sections** influencing {{target_variable}} of {{commodity}} in the {{region}} over the next {{time_range}}.  
+  - Assign each section a percentage **makeup** toward the overall **change** (total = 100%).  
+  - Use multiple sources (where available) to determine the makeup. Do not rely on a single article.
+
+- For each section, identify {{number_sub_sections}} **sub-sections** that influence it:  
+  - Assign each a percentage **makeup** contribution within its parent section (sum = 100% within section).  
+  - Base predictions and percentages on aggregated reasoning from multiple sources (where available).
+
+- For each sub-section:  
+  - Estimate the **low and high bounds** for the expected percentage **change** over the defined time range.  
+  - If pressure is **negative** (e.g. rising cost, falling supply), the **change** must be expressed as a **positive percentage range** (e.g. `+4.25% to +6.80%`).  
+  - If pressure is **positive** (e.g. falling cost, rising supply), the **change** must be expressed as a **negative percentage range** (e.g. `-2.00% to -4.15%`).  
+  - **Do not flip or reinterpret the sign based on assumptions — strictly follow this rule.**
+  - Calculate the corresponding **effect range** using this formula:  
+    - `Effect Low = Makeup × Change Low`  
+    - `Effect High = Makeup × Change High`
+  - Round sub-section values to **2 decimal places**.
+
+- For each section:  
+  - Sum all sub-section effects to calculate `Section Change Low` and `Section Change High`.  
+  - Multiply by `Section Makeup` to calculate `Section Effect Low` and `Section Effect High`.  
+  - Round section values to **1 decimal place**.
+  - **Do not flip or reinterpret the sign based on assumptions — strictly follow this rule.**
+
+- Finally, calculate the report-wide projection range:  
+  - `Report Change Low` = Sum of all Section Effect Lows  
+  - `Report Change High` = Sum of all Section Effect Highs  
+  - **Use post-sum rounding only. Do not round components before summing.**
+
+---
+
+### RULES
+- You are not producing final output yet — only internal structured thinking.  
+- Apply rigorous reasoning, use multi-source evaluation, and do not bias your analysis toward any single document or event.
+- Be self-critical — if sources conflict, use reasoned judgment to pick the stronger or broader-supported perspective.
+- Do not select or assign final reference articles yet — reference source selection will occur in later stages (after thinking is complete).
+- Ensure all sections, sub-sections, makeups, changes, and effects are internally consistent and mathematically correct.
+- You must still ensure each Section and Sub-Section is meaningfully titled and thematically coherent.
+- Maintain strict adherence to objective definitions: **do not invert or reinterpret** positive/negative pressure logic.
+
+---
+
+### ADDITIONAL NOTES
+- Be meticulous with calculations.
+- Fully populate all {{number_sections}} and {{number_sub_sections}}.
+- If uncertainty exists around any factor, make the best reasoned judgment possible — do not leave blanks.
+- This stage is only the **thinking and structuring** phase.
+
+---
+
+### OUTPUT REQUIREMENTS
+- Output only the structured JSON below.
+- No commentary, no report writing, no analysis text outside the JSON.
+- This output will feed into later writing stages.
+- You must output the complete internal logical map in the following structure:
+
+```json
+{
+  "Thinking": {
+    "Report Change Low": "+/-X.X%",
+    "Report Change High": "+/-X.X%",
+    "Sections": [
+      {
+        "Section Title": "...",
+        "Section Summary Idea": "...",
+        "Section Makeup": "X.X%",
+        "Section Change Low": "+/-X.X%",
+        "Section Change High": "+/-X.X%",
+        "Section Effect Low": "+/-X.X%",
+        "Section Effect High": "+/-X.X%",
+        "Sub-Sections": [
+          {
+            "Sub-Section Title": "...",
+            "Sub-Section Summary Idea": "...",
+            "Sub-Section Makeup": "X.XX%",
+            "Sub-Section Change Low": "+/-X.XX%",
+            "Sub-Section Change High": "+/-X.XX%",
+            "Sub-Section Effect Low": "+/-X.XX%",
+            "Sub-Section Effect High": "+/-X.XX%"
+          },
+          { ... },
+          { ... }
+        ]
+      },
+      { ... },
+      { ... }
+    ]
+  }
+}
+```
