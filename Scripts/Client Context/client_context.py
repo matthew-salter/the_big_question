@@ -18,7 +18,7 @@ def run_prompt(data):
     )
 
     # Send to OpenAI
-    response = openai.ChatCompletion.create(
+    response = openai.chat.completions.create(
         model="gpt-4-turbo",
         messages=[
             {"role": "system", "content": "You are a professional, commodity report writing analyst."},
@@ -28,5 +28,5 @@ def run_prompt(data):
     )
 
     # Extract and return only the assistant's reply
-    output = response['choices'][0]['message']['content']
+    output = response.choices[0].message.content
     return {"output": output}
