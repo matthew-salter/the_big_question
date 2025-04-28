@@ -7,7 +7,6 @@ You are **NOT** writing the report or producing final report assets yet — this
 **CLIENT NAME**  
 {{client}}
 
-**CLIENT CONTEXT**  
 {{client_context}}
 
 **MAIN QUESTION**  
