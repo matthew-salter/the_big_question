@@ -1,6 +1,7 @@
 import openai
 import time
 import os
+import json
 
 def run_prompt(data):
     # Extract the incoming variables
@@ -52,7 +53,7 @@ def run_prompt(data):
         thread_id=thread_id,
         assistant_id=assistant_id,
         temperature=0.2,
-        response_format="json_object"
+        response_format="text"
     )
 
     # Step 3: Poll until Run is complete
@@ -70,8 +71,12 @@ def run_prompt(data):
     for msg in messages.data:
         if msg.role == "assistant":
             for content in msg.content:
-                if content.type == "json_object":
-                    return {"output": content.json}
+                if content.type == "text":
+                    try:
+                        parsed_json = json.loads(content.text.value)
+                        return {"output": parsed_json}
+                    except json.JSONDecodeError:
+                        return {"error": "Invalid JSON format returned by Assistant.", "raw": content.text.value}
 
     # If nothing found
     return {"error": "No valid JSON object returned from Assistant."}
