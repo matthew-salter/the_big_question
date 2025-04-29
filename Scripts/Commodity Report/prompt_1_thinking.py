@@ -44,12 +44,15 @@ def run_prompt(data):
         content=prompt
     )
 
+    # Step 1.5: Wait to allow backend to register the message
+    time.sleep(1)
+
     # Step 2: Run the Assistant on that Thread
     run = openai.beta.threads.runs.create(
         thread_id=thread_id,
         assistant_id=assistant_id,
         temperature=0.2,
-        response_format="json_object",
+        response_format="json_object"
     )
 
     # Step 3: Poll until Run is complete
