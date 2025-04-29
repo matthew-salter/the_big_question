@@ -77,12 +77,12 @@ You must:
 - You must output the complete internal logical map in the following structure:
 
 ```json
-{
-  "Thinking": {
+{{
+  "Thinking": {{
     "Report Change Low": "+/-X.X%",
     "Report Change High": "+/-X.X%",
     "Sections": [
-      {
+      {{
         "Section Title": "...",
         "Section Summary Idea": "...",
         "Section Makeup": "X.X%",
@@ -91,7 +91,7 @@ You must:
         "Section Effect Low": "+/-X.X%",
         "Section Effect High": "+/-X.X%",
         "Sub-Sections": [
-          {
+          {{
             "Sub-Section Title": "...",
             "Sub-Section Summary Idea": "...",
             "Sub-Section Makeup": "X.XX%",
@@ -99,14 +99,14 @@ You must:
             "Sub-Section Change High": "+/-X.XX%",
             "Sub-Section Effect Low": "+/-X.XX%",
             "Sub-Section Effect High": "+/-X.XX%"
-          },
-          { ... },
-          { ... }
+          }},
+          {{ ... }},
+          {{ ... }}
         ]
-      },
-      { ... },
-      { ... }
+      }},
+      {{ ... }},
+      {{ ... }}
     ]
-  }
-}
+  }}
+}}
 ```
