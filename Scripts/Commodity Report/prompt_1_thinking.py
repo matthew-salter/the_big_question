@@ -1,8 +1,12 @@
 import openai
+import time
 import os
 
 def run_prompt(data):
     # Extract the incoming variables
+    assistant_id = data.get('assistant_id')
+    thread_id = data.get('thread_id')
+
     client = data.get('client')
     client_context = data.get('client_context')
     main_question = data.get('main_question')
@@ -33,16 +37,35 @@ def run_prompt(data):
         time_range=time_range
     )
 
-    # Send to OpenAI
-    response = openai.chat.completions.create(
-        model="gpt-4-turbo",
-        messages=[
-            {"role": "system", "content": "You are a professional, commodity report writing analyst."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.2
+    # Step 1: Add message to existing Thread
+    openai.beta.threads.messages.create(
+        thread_id=thread_id,
+        role="user",
+        content=prompt
     )
 
-    # Extract and return only the assistant's reply
-    output = response.choices[0].message.content
-    return {"output": output}
+    # Step 2: Run the Assistant on that Thread
+    run = openai.beta.threads.runs.create(
+        thread_id=thread_id,
+        assistant_id=assistant_id,
+        temperature=0.2,
+        response_format="json_object",
+    )
+
+    # Step 3: Poll until Run is complete
+    while True:
+        run_status = openai.beta.threads.runs.retrieve(
+            thread_id=thread_id,
+            run_id=run.id
+        )
+        if run_status.status == "completed":
+            break
+        time.sleep(1)  # wait 1 second between checks
+
+    # Step 4: Retrieve the final message from the Thread
+    messages = openai.beta.threads.messages.list(
+        thread_id=thread_id
+    )
+    last_message = messages.data[0].content[0].text.value  # should be valid JSON
+
+    return {"output": last_message}
