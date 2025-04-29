@@ -4,7 +4,6 @@ import time
 import json
 
 def safe_escape(value):
-    """Safely escape and flatten incoming Zapier field values."""
     if value is None:
         return ""
     if isinstance(value, (dict, list)):
@@ -30,7 +29,6 @@ def run_prompt(data):
     region = safe_escape(data.get('region'))
     time_range = safe_escape(data.get('time_range'))
 
-    # Print sanitized fields
     print("=== Sanitized Variables ===")
     print(f"client: {client}")
     print(f"client_context: {client_context}")
@@ -48,9 +46,15 @@ def run_prompt(data):
     try:
         with open(prompt_path, 'r') as f:
             prompt_template = f.read()
+        print("=== RAW PROMPT TEMPLATE CONTENT ===")
+        print(prompt_template)
     except Exception as e:
         print(f"ERROR: Failed to load prompt template: {str(e)}")
         return {"error": f"Failed to load prompt template: {str(e)}"}
+
+    if prompt_template.strip().lower() == "thinking":
+        print("❗ WARNING: Prompt template contains only 'Thinking' — likely file sync or path issue.")
+        return {"error": "Prompt template contains only 'Thinking'"}
 
     # Fill the prompt
     try:
@@ -71,14 +75,13 @@ def run_prompt(data):
         return {"error": f"Prompt formatting failed: {str(e)}"}
 
     if not prompt.strip():
-        print("ERROR: Formatted prompt is empty after population.")
-        return {"error": "Formatted prompt is empty after population."}
+        print("ERROR: Final prompt is empty after population.")
+        return {"error": "Final prompt is empty after population."}
 
-    # Log the final filled prompt
-    print("=== Final Populated Prompt ===")
+    print("=== FINAL PROMPT (POST-FILL) ===")
     print(prompt)
 
-    # Step 1: Add message to existing Thread
+    # Step 1: Add message to thread
     try:
         openai.beta.threads.messages.create(
             thread_id=thread_id,
@@ -89,21 +92,21 @@ def run_prompt(data):
         print(f"ERROR: Message creation failed: {str(e)}")
         return {"error": f"Message creation failed: {str(e)}"}
 
-    time.sleep(1)  # Give OpenAI a second to register the message
+    time.sleep(1)
 
-    # Step 2: Run the Assistant on that Thread
+    # Step 2: Run Assistant
     try:
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=assistant_id,
             temperature=0.2,
-            response_format="text"
+            response_format="json_object"
         )
     except Exception as e:
         print(f"ERROR: Run creation failed: {str(e)}")
         return {"error": f"Run creation failed: {str(e)}"}
 
-    # Step 3: Poll until the run is complete
+    # Step 3: Wait for completion
     while True:
         run_status = openai.beta.threads.runs.retrieve(
             thread_id=thread_id,
@@ -116,28 +119,17 @@ def run_prompt(data):
             return {"error": f"Run failed with status: {run_status.status}"}
         time.sleep(1)
 
-    # Step 4: Retrieve the final message from the Thread
+    # Step 4: Extract result
     try:
         messages = openai.beta.threads.messages.list(thread_id=thread_id)
         for msg in messages.data:
             if msg.role == "assistant":
                 for content in msg.content:
-                    if content.type == "text":
-                        try:
-                            parsed_json = json.loads(content.text.value)
-                            return {"output": parsed_json}
-                        except json.JSONDecodeError:
-                            print("WARNING: Assistant returned non-JSON text.")
-                            return {
-                                "error": "Invalid JSON format returned by Assistant.",
-                                "raw_response": content.text.value,
-                                "thread_id": thread_id,
-                                "prompt_used": prompt
-                            }
+                    if content.type == "json_object":
+                        return {"output": content.json}
     except Exception as e:
         print(f"ERROR: Message retrieval failed: {str(e)}")
         return {"error": f"Message retrieval failed: {str(e)}"}
 
-    # Fallback
-    print("ERROR: No valid Assistant message found.")
-    return {"error": "No valid Assistant message found.", "thread_id": thread_id, "prompt_used": prompt}
+    return {"error": "No valid assistant response found"}
+
