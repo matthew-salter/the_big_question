@@ -63,9 +63,12 @@ def run_prompt(data):
         time.sleep(1)  # wait 1 second between checks
 
     # Step 4: Retrieve the final message from the Thread
-    messages = openai.beta.threads.messages.list(
-        thread_id=thread_id
-    )
-    last_message = messages.data[0].content[0].text.value  # should be valid JSON
+    messages = openai.beta.threads.messages.list(thread_id=thread_id)
+    for msg in messages.data:
+        if msg.role == "assistant":
+            for content in msg.content:
+                if content.type == "json_object":
+                    return {"output": content.json}
 
-    return {"output": last_message}
+    # If nothing found
+    return {"error": "No valid JSON object returned from Assistant."}
