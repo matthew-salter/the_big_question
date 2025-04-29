@@ -1,30 +1,41 @@
 import openai
-import time
 import os
+import time
 import json
 
+def safe_escape(value):
+    """Safely escape incoming Zapier field values."""
+    if value is None:
+        return ""
+    if isinstance(value, (dict, list)):
+        return json.dumps(value)
+    return str(value).replace("{", "{{").replace("}", "}}")
+
 def run_prompt(data):
-    # Extract the incoming variables
-    assistant_id = data.get('assistant_id')
-    thread_id = data.get('thread_id')
+    # Extract and sanitize incoming variables
+    assistant_id = safe_escape(data.get('assistant_id'))
+    thread_id = safe_escape(data.get('thread_id'))
 
-    client = data.get('client')
-    client_context = data.get('client_context')
-    main_question = data.get('main_question')
-    question_context = data.get('question_context')
-    number_sections = data.get('number_sections')
-    number_sub_sections = data.get('number_sub_sections')
-    target_variable = data.get('target_variable')
-    commodity = data.get('commodity')
-    region = data.get('region')
-    time_range = data.get('time_range')
+    client = safe_escape(data.get('client'))
+    client_context = safe_escape(data.get('client_context'))
+    main_question = safe_escape(data.get('main_question'))
+    question_context = safe_escape(data.get('question_context'))
+    number_sections = safe_escape(data.get('number_sections'))
+    number_sub_sections = safe_escape(data.get('number_sub_sections'))
+    target_variable = safe_escape(data.get('target_variable'))
+    commodity = safe_escape(data.get('commodity'))
+    region = safe_escape(data.get('region'))
+    time_range = safe_escape(data.get('time_range'))
 
-    # Load the correct prompt template
+    # Load the prompt template
     prompt_path = 'Prompts/Commodity Report/prompt_1_thinking.txt'
-    with open(prompt_path, 'r') as f:
-        prompt_template = f.read()
+    try:
+        with open(prompt_path, 'r') as f:
+            prompt_template = f.read()
+    except Exception as e:
+        return {"error": f"Failed to load prompt template: {str(e)}"}
 
-    # Fill in the prompt
+    # Fill the prompt safely
     try:
         prompt = prompt_template.format(
             client=client,
@@ -41,7 +52,14 @@ def run_prompt(data):
     except Exception as e:
         return {"error": f"Prompt formatting failed: {str(e)}"}
 
-    # Step 1: Add message to existing Thread
+    if not prompt.strip():
+        return {"error": "Formatted prompt is empty after population."}
+
+    # (Optional) Print the final prompt to Render logs for debugging
+    print("=== Final Populated Prompt ===")
+    print(prompt)
+
+    # Step 1: Add message to existing thread
     try:
         openai.beta.threads.messages.create(
             thread_id=thread_id,
@@ -51,7 +69,7 @@ def run_prompt(data):
     except Exception as e:
         return {"error": f"Message creation failed: {str(e)}"}
 
-    # Step 1.5: Wait to allow backend to register the message
+    # Step 1.5: Give OpenAI time to register the message
     time.sleep(1)
 
     # Step 2: Run the Assistant on that Thread
@@ -65,7 +83,7 @@ def run_prompt(data):
     except Exception as e:
         return {"error": f"Run creation failed: {str(e)}"}
 
-    # Step 3: Poll until Run is complete
+    # Step 3: Poll until the run is complete
     while True:
         run_status = openai.beta.threads.runs.retrieve(
             thread_id=thread_id,
@@ -84,12 +102,12 @@ def run_prompt(data):
             if msg.role == "assistant":
                 for content in msg.content:
                     if content.type == "text":
-                        # Try to parse as JSON
                         try:
+                            # Attempt to parse JSON output
                             parsed_json = json.loads(content.text.value)
                             return {"output": parsed_json}
                         except json.JSONDecodeError:
-                            # Return raw text for debugging
+                            # Return raw text if not valid JSON
                             return {
                                 "error": "Invalid JSON format returned by Assistant.",
                                 "raw_response": content.text.value,
@@ -99,5 +117,5 @@ def run_prompt(data):
     except Exception as e:
         return {"error": f"Message retrieval failed: {str(e)}"}
 
-    # If no assistant reply found
-    return {"error": "No valid Assistant message returned.", "thread_id": thread_id, "prompt_used": prompt}
+    # Final fallback
+    return {"error": "No valid Assistant message found.", "thread_id": thread_id, "prompt_used": prompt}
