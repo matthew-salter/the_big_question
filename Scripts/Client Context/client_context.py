@@ -31,13 +31,27 @@ def run_prompt(data):
     # Extract the raw output
     raw_output = response.choices[0].message.content
 
-    # Now simply extract the real text between the quotation marks
-    # Use a regular expression to pull out the text inside the first pair of quotes
-    match = re.search(r'\"(.*?)\"', raw_output, re.DOTALL)
-    if match:
-        client_context = match.group(1).strip()
-    else:
-        client_context = raw_output.strip()  # fallback if no match found
+    # Clean the output:
+    # 1. Remove any "**CLIENT CONTEXT**" labels
+    # 2. Pull out the actual business description
+    try:
+        # Step 1: Remove bold text and braces if any
+        cleaned_output = raw_output.replace("**", "").replace("{", "").replace("}", "").strip()
 
-    # Return the clean text directly
-    return {"client_context": client_context}
+        # Step 2: Find the first quoted block that is not the key label
+        match = re.findall(r'\"(.*?)\"', cleaned_output, re.DOTALL)
+
+        if match and len(match) >= 1:
+            # We assume the *last* quoted string is the business summary (safer than taking the first)
+            client_context_text = match[-1].strip()
+        else:
+            client_context_text = cleaned_output.strip()
+
+    except Exception as e:
+        return {"error": f"Error cleaning client context: {str(e)}", "raw_response": raw_output}
+
+    # Return BOTH clean text and file ID (if needed)
+    return {
+        "client_context": client_context_text,
+        "file_id": data.get('file_id')  # Pass through if available
+    }
