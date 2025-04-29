@@ -22,7 +22,15 @@ def run_prompt(data):
     # Fill in the prompt
     prompt = prompt_template.format(
         client=client,
-        client_website_url=client_website_url
+        client_context=client_context,
+        main_question=main_question,
+        question_context=question_context,
+        number_sections=number_sections,
+        number_sub_sections=number_sub_sections,
+        target_variable=target_variable,
+        commodity=commodity,
+        region=region,
+        time_range=time_range
     )
 
     # Send to OpenAI
