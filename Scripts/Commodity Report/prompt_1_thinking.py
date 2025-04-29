@@ -4,7 +4,7 @@ import time
 import json
 
 def safe_escape(value):
-    """Safely escape incoming Zapier field values."""
+    """Safely escape and flatten incoming Zapier field values."""
     if value is None:
         return ""
     if isinstance(value, (dict, list)):
@@ -12,6 +12,9 @@ def safe_escape(value):
     return str(value).replace("{", "{{").replace("}", "}}")
 
 def run_prompt(data):
+    print("=== Incoming Webhook Payload ===")
+    print(json.dumps(data, indent=2))
+
     # Extract and sanitize incoming variables
     assistant_id = safe_escape(data.get('assistant_id'))
     thread_id = safe_escape(data.get('thread_id'))
@@ -27,15 +30,29 @@ def run_prompt(data):
     region = safe_escape(data.get('region'))
     time_range = safe_escape(data.get('time_range'))
 
+    # Print sanitized fields
+    print("=== Sanitized Variables ===")
+    print(f"client: {client}")
+    print(f"client_context: {client_context}")
+    print(f"main_question: {main_question}")
+    print(f"question_context: {question_context}")
+    print(f"number_sections: {number_sections}")
+    print(f"number_sub_sections: {number_sub_sections}")
+    print(f"target_variable: {target_variable}")
+    print(f"commodity: {commodity}")
+    print(f"region: {region}")
+    print(f"time_range: {time_range}")
+
     # Load the prompt template
     prompt_path = 'Prompts/Commodity Report/prompt_1_thinking.txt'
     try:
         with open(prompt_path, 'r') as f:
             prompt_template = f.read()
     except Exception as e:
+        print(f"ERROR: Failed to load prompt template: {str(e)}")
         return {"error": f"Failed to load prompt template: {str(e)}"}
 
-    # Fill the prompt safely
+    # Fill the prompt
     try:
         prompt = prompt_template.format(
             client=client,
@@ -50,16 +67,18 @@ def run_prompt(data):
             time_range=time_range
         )
     except Exception as e:
+        print(f"ERROR: Prompt formatting failed: {str(e)}")
         return {"error": f"Prompt formatting failed: {str(e)}"}
 
     if not prompt.strip():
+        print("ERROR: Formatted prompt is empty after population.")
         return {"error": "Formatted prompt is empty after population."}
 
-    # (Optional) Print the final prompt to Render logs for debugging
+    # Log the final filled prompt
     print("=== Final Populated Prompt ===")
     print(prompt)
 
-    # Step 1: Add message to existing thread
+    # Step 1: Add message to existing Thread
     try:
         openai.beta.threads.messages.create(
             thread_id=thread_id,
@@ -67,10 +86,10 @@ def run_prompt(data):
             content=prompt
         )
     except Exception as e:
+        print(f"ERROR: Message creation failed: {str(e)}")
         return {"error": f"Message creation failed: {str(e)}"}
 
-    # Step 1.5: Give OpenAI time to register the message
-    time.sleep(1)
+    time.sleep(1)  # Give OpenAI a second to register the message
 
     # Step 2: Run the Assistant on that Thread
     try:
@@ -81,6 +100,7 @@ def run_prompt(data):
             response_format="text"
         )
     except Exception as e:
+        print(f"ERROR: Run creation failed: {str(e)}")
         return {"error": f"Run creation failed: {str(e)}"}
 
     # Step 3: Poll until the run is complete
@@ -92,6 +112,7 @@ def run_prompt(data):
         if run_status.status == "completed":
             break
         elif run_status.status in ["cancelled", "failed", "expired"]:
+            print(f"ERROR: Run failed with status: {run_status.status}")
             return {"error": f"Run failed with status: {run_status.status}"}
         time.sleep(1)
 
@@ -103,11 +124,10 @@ def run_prompt(data):
                 for content in msg.content:
                     if content.type == "text":
                         try:
-                            # Attempt to parse JSON output
                             parsed_json = json.loads(content.text.value)
                             return {"output": parsed_json}
                         except json.JSONDecodeError:
-                            # Return raw text if not valid JSON
+                            print("WARNING: Assistant returned non-JSON text.")
                             return {
                                 "error": "Invalid JSON format returned by Assistant.",
                                 "raw_response": content.text.value,
@@ -115,7 +135,9 @@ def run_prompt(data):
                                 "prompt_used": prompt
                             }
     except Exception as e:
+        print(f"ERROR: Message retrieval failed: {str(e)}")
         return {"error": f"Message retrieval failed: {str(e)}"}
 
-    # Final fallback
+    # Fallback
+    print("ERROR: No valid Assistant message found.")
     return {"error": "No valid Assistant message found.", "thread_id": thread_id, "prompt_used": prompt}
