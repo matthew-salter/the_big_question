@@ -16,7 +16,6 @@ def run_prompt(data):
 
     # Extract and sanitize incoming variables
     assistant_id = safe_escape(data.get('assistant_id'))
-    thread_id = safe_escape(data.get('thread_id'))
 
     client = safe_escape(data.get('client'))
     client_context = safe_escape(data.get('client_context'))
@@ -81,7 +80,16 @@ def run_prompt(data):
     print("=== FINAL PROMPT (POST-FILL) ===")
     print(prompt)
 
-    # Step 1: Add message to thread
+    # Step 1: Always create a new Thread
+    try:
+        thread = openai.beta.threads.create()
+        thread_id = thread.id
+        print(f"✅ New thread created: {thread_id}")
+    except Exception as e:
+        print(f"ERROR: Thread creation failed: {str(e)}")
+        return {"error": f"Thread creation failed: {str(e)}"}
+
+    # Step 2: Add message to Thread
     try:
         openai.beta.threads.messages.create(
             thread_id=thread_id,
@@ -90,11 +98,11 @@ def run_prompt(data):
         )
     except Exception as e:
         print(f"ERROR: Message creation failed: {str(e)}")
-        return {"error": f"Message creation failed: {str(e)}"}
+        return {"error": f"Message creation failed: {str(e)}", "thread_id": thread_id}
 
     time.sleep(1)
 
-    # Step 2: Run Assistant
+    # Step 3: Run the Assistant
     try:
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
@@ -104,9 +112,9 @@ def run_prompt(data):
         )
     except Exception as e:
         print(f"ERROR: Run creation failed: {str(e)}")
-        return {"error": f"Run creation failed: {str(e)}"}
+        return {"error": f"Run creation failed: {str(e)}", "thread_id": thread_id}
 
-    # Step 3: Wait for completion
+    # Step 4: Poll until Run is complete
     while True:
         run_status = openai.beta.threads.runs.retrieve(
             thread_id=thread_id,
@@ -116,20 +124,22 @@ def run_prompt(data):
             break
         elif run_status.status in ["cancelled", "failed", "expired"]:
             print(f"ERROR: Run failed with status: {run_status.status}")
-            return {"error": f"Run failed with status: {run_status.status}"}
+            return {"error": f"Run failed with status: {run_status.status}", "thread_id": thread_id}
         time.sleep(1)
 
-    # Step 4: Extract result
+    # Step 5: Retrieve the final message
     try:
         messages = openai.beta.threads.messages.list(thread_id=thread_id)
         for msg in messages.data:
             if msg.role == "assistant":
                 for content in msg.content:
                     if content.type == "json_object":
-                        return {"output": content.json}
+                        return {
+                            "output": content.json,
+                            "thread_id": thread_id  # Include the thread_id for Zapier
+                        }
     except Exception as e:
         print(f"ERROR: Message retrieval failed: {str(e)}")
-        return {"error": f"Message retrieval failed: {str(e)}"}
+        return {"error": f"Message retrieval failed: {str(e)}", "thread_id": thread_id}
 
-    return {"error": "No valid assistant response found"}
-
+    return {"error": "No valid assistant response found.", "thread_id": thread_id}
