@@ -108,7 +108,7 @@ def run_prompt(data):
             thread_id=thread_id,
             assistant_id=assistant_id,
             temperature=0.2,
-            response_format="json_object"
+            response_format="auto"  # ✅ Correct
         )
     except Exception as e:
         print(f"ERROR: Run creation failed: {str(e)}")
