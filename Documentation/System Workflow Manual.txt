@@ -1,103 +1,167 @@
-# Structured Report Generation Engine
+🔧 SYSTEM WORKFLOW MANUAL
+
+# Structured Report Generation Engine – System Workflow Manual
 
 ## 📘 README / Manual
 
-This document acts as a **plain-English manual** and reference guide to accompany the Master Architecture Document. It explains how the system is intended to work, why key design choices were made, and how developers or operators should interact with the components of the system.
+This manual explains how the Structured Report Generation Engine works. It outlines the logic, design decisions, and workflows across the project — acting as a plain-English reference guide to accompany the Master Architecture Document.
 
 ---
 
-## 🧭 System Purpose
-The Structured Report Generation Engine transforms natural language questions into structured, multi-part reports using a fixed prompt hierarchy, mapped variables, and controlled AI outputs. It supports:
+## 🎯 Purpose
 
-- Predictive commodity reports
-- Modular prompt sequences
-- JSON outputs for automation and visualisation
-- Section-level override and regeneration
-- Integration of optional documents or prior reports
+The engine transforms natural language questions into structured, multi-section reports using reusable AI prompt templates, JSON output formatting, and automation orchestration.
 
----
+We are currently focused on a single high-value path:
 
-## 🏗️ Project Folder Structure (Recommended Threads)
-To maintain clarity, the user is working in multiple threads:
-
-- **Prompt Engineering** → focuses on designing and templating reusable AI prompts
-- **Prompt Testing** → for manually validating prompt logic using real inputs
-- **Python Script Engineering** → to manage automation, injection, and orchestration
-- **Master Architecture** → houses the core system design
-- **README (this)** → explains workflow and logic across the system
+> **Question Topic:** Commodity  
+> **Question Type:** Predictive  
+> **Report Type:** Predictive Report (weighted-factor forecasting logic)
 
 ---
 
-## 🧩 Key Design Concepts
+## 🧱 Key Architecture Concepts
+
+### 1. Modular Prompt Flow
+Each stage in the system is handled by a distinct prompt (e.g. Prompt 1, Prompt 2A, 2B...).  
+Each prompt is:
+- Stateless (does not rely on memory)
+- Context-driven (via mapped variables)
+- JSON-structured in both input and output
+
+### 2. Three-Layer Input Classification
+
+| Layer            | Description                               | Example                       |
+|------------------|--------------------------------------------|-------------------------------|
+| **Question Topic** | What the question is about (domain)        | Commodity, Healthcare, Tech   |
+| **Question Type**  | What the question is asking for (intent)  | Predictive, Comparative, etc. |
+| **Report Type**    | What format is needed to answer it        | Predictive Report, etc.       |
+
+---
+
+## 🧩 Prompt Structure
+
+Each prompt follows this logic:
+
+- `INPUT:` Injected variables from Zapier or Python (e.g. `{{question}}`, `{{commodity}}`, `{{time_range}}`, etc.)
+- `OBJECTIVE:` The task instruction for that stage (e.g. generate 10 sections)
+- `OUTPUT:` Structured JSON, predictable, flat/nested depending on stage
+
+Example injected variables:
+
+{{question}}
+{{target_variable}}
+{{commodity}}
+{{region}}
+{{time_range}}
+{{reference_age_range}}
+
+
+---
+
+## 🧠 Prompt Design Standards
 
 ### 1. Prompt Independence
-Each AI prompt must be standalone, stateless, and **not rely on memory** from previous messages. All context and outputs must be passed via mapped `{{variables}}`.
+No prompt can assume prior memory.  
+All context must be passed explicitly.  
+Each prompt must function as a fully self-contained unit.
 
-### 2. Variable Mapping
-Every prompt consists of:
-- `INPUT` → injected client, question, and context variables
-- `OBJECTIVE` → logical instruction to the model
-- `OUTPUT` → JSON structure (specific to that stage)
-
-These variables are mapped via Zapier or Python, and may include optional blocks (see below).
-
-### 3. Optional Blocks
-Some prompt sections (e.g. supporting documents) are wrapped in conditional logic. These blocks:
-- Only appear if the corresponding variable (e.g. `{{supporting_documents}}`) is populated
-- Are omitted entirely if empty
-- Should be wrapped in code with a comment or flag like:
+### 2. Optional Blocks
+Wrapped in logic like:
 ```python
 if supporting_documents:
-    prompt += f"..."
-```
+    prompt += f"...context block..."
 
-### 4. Prediction Ranges Instead of Point Estimates
-To avoid unstable outputs across re-runs, Prompt 1 and downstream prompts request **high/low prediction bands**:
-- `Change Low` / `Change High`
-- `Effect Low` / `Effect High`
+Omit entire prompt sections if input is not provided.
 
-This stabilises forecasting and avoids brittle deterministic outputs.
+3. Prediction Range Logic
+Predictive prompts must output:
+change_low / change_high (expected % change)
+effect_low / effect_high (impact of that change)
+makeup_percent (section influence on total outcome
+This structure enables stable forecasting and summed weighted calculations.
 
-### 5. Source Aggregation
-The AI is instructed to use **multiple sources to inform its predictions**, not rely on any single article. One article is chosen to populate the related asset, but the estimate should reflect broader evidence.
+4. Tolerance & Realism
+Prompt outputs should follow domain-specific tolerance bands (e.g. no ±40% swings unless justified). This is enforced in Prompt 1 logic.
 
-### 6. Tolerance Logic
-Outputs (e.g. feed cost as % of production cost) must stay within realistic banding (±2%) unless justified by major events (e.g. COVID, new regulations). This is built into Prompt 1.
-
----
-
-## 🛠️ Developer Tips
-
-- All prompts and responses are JSON-validatable
-- Rerun any prompt with a new variable set by reinjecting the required inputs
-- Never trust AI memory—always inject the prior answers if a prompt depends on them
-- Wrap optional blocks carefully and use `if var:` logic to cleanly inject content
-- Use range output fields in all numerical prompts unless the report type explicitly requires a single value
+5. Source Aggregation (later prompts)
+Multiple sources may be considered by the AI, but only one reference will be cited in the asset output. Source diversity improves answer stability.
 
 ---
 
-## 📌 Summary of Prompt 1 Architecture
-Prompt 1 creates:
-- `Section Title`
-- `Section MakeUp`
-- `Change Low / High`
-- `Effect Low / High`
-- Nested sub-sections with their own versions of the same structure
-- One representative article per section and sub-section
-- Output format: flat JSON with nested values (not arrays)
-
-Prompt 1 must be run before all other prompts in the chain.
+🧠 Prompt Sequence
+| Stage     | Prompt        | Function                                                 |
+|-----------|---------------|----------------------------------------------------------|
+| Stage 1   | Prompt 1      | Classify topic, question type, extract context variables |
+| Stage 2   | Prompt 2A     | Generate report structure: sections, sub-sections, weights |
+| Stage 3   | Prompt 2B/2C  | Forecast changes and calculate effects per section       |
+| Stage 4   | Prompt 3+     | Pull in references, chart data, captions, wrap-up assets |
 
 ---
 
-## 🔄 Future Use Cases
-- Prompt 7 (planned): regenerate only one section of a report in response to client pushback
-- Recurring reports: allow comparison of Q2 vs Q3 changes without rerunning the full prompt stack
-- Chart generation and PDF finalisation to be handled in later prompt stages and design pipeline
+🛠 Developer Practices
+Always use {{variable}} format for clarity and injection
+
+Validate every prompt output with a JSON linter
+
+Separate prompt logic from routing logic (keep scripts modular)
+
+Store prompt inputs and outputs as records for later reuse
+
+Log all prompt results for rollback / debugging
 
 ---
 
-## ✅ Final Note
-If you ever get off track, reload the **Master Architecture Document** and this README. They form the root schema for the Structured Report Generation Engine.
+🔁 Regeneration + Feedback
+Each section of a report is isolated by ID (e.g. forecast_3)
 
-You can now move forward with any prompt layer, Python module, or test sequence with full confidence in the system logic.
+If feedback is flagged (e.g. “section too vague”), we:
+
+Inject original inputs + feedback
+
+Rerun just that section
+
+Replace output in manifest → reassemble full report
+
+---
+
+🧪 Current Focus Area
+We are testing Predictive Reports on Commodity-topic questions. These follow this format:
+
+“What will the [target_variable] of [commodity] be in [region] over [time_range]?”
+
+Examples:
+
+What will the price of chicken be in the UK in the next 12 months?
+
+How much will demand for cobalt grow globally over the next 3 years?
+
+These questions are routed into a Predictive Report, which:
+
+Identifies 10 key factors influencing the outcome
+
+Assigns % makeup to each
+
+Forecasts directional change
+
+Calculates total weighted effect
+
+---
+
+🔮 Future Use Cases
+Prompt 7: Regenerate individual section post-human review
+
+Prompt 8: Compare two time periods (Q2 vs Q3 delta)
+
+Prompt 9: Add supporting document overlays (research, PDF)
+
+Prompt 10+: Export chart-ready data and PDF design outputs
+
+---
+
+✅ Final Note
+This engine is not a “Commodity Report System”.
+It is a Predictive Report Engine, currently being applied to commodity-topic questions.
+Future domains (Finance, Health, Education) and other question types (Evaluative, Diagnostic, etc.) will follow the same architecture.
+
+This document + the Master Architecture Document form your operational baseline.
