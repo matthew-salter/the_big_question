@@ -136,8 +136,23 @@ def run_prompt(data):
                     if content.type == "json_object":
                         return {
                             "output": content.json,
-                            "thread_id": thread_id  # Include the thread_id for Zapier
+                            "thread_id": thread_id
                         }
+                    elif content.type == "text":
+                        try:
+                            parsed_json = json.loads(content.text.value)
+                            return {
+                                "output": parsed_json,
+                                "thread_id": thread_id
+                            }
+                        except json.JSONDecodeError:
+                            return {
+                                "error": "Assistant returned text but it was not valid JSON.",
+                                "raw_response": content.text.value,
+                                "thread_id": thread_id
+                            }
+                                }
+                            
     except Exception as e:
         print(f"ERROR: Message retrieval failed: {str(e)}")
         return {"error": f"Message retrieval failed: {str(e)}", "thread_id": thread_id}
