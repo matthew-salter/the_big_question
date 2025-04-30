@@ -1,0 +1,91 @@
+# THREAD CONTEXT: Big Picture Project — Commodity Report Generator System
+
+## Purpose:
+We are building an operational system that:
+- Gathers structured commodity report data using a sequence of controlled prompts.
+- Moves away from manual UI prompt sending (like ChatGPT web interface).
+- Sends prompts automatically through API calls, handling token limits by sectioning prompts.
+- Returns structured JSON outputs at each prompt stage.
+
+This system allows:
+- Unlimited report length (overcoming token limits)
+- Fully modular architecture (intro → sections → sub-sections → outro)
+- Future expansion into fully automated pipelines.
+
+---
+
+## Current Technical Stack:
+- **Trigger:** Zapier Webhook → sends JSON payload to server.
+- **Hosting:** Render.com (Python app linked to GitHub repo).
+- **Repo:** GitHub repository with full file structure (Prompts, Scripts, Documentation).
+- **Server:** Flask-based Python server listening for webhooks.
+- **AI:** OpenAI API (GPT-4 Turbo) called from within Python scripts.
+- **Deployment:** Auto-deploy from GitHub to Render after each GitHub push.
+
+---
+
+## File & Folder Structure:
+```
+- main.py
+- .env (openai key stored in Render)
+> Prompts/
+>> Client Content/
+>>> client_context.txt
+>> Commodity Report/
+>>> prompt_2a.txt
+>>> prompt_2b.txt
+>>> prompt_2c.txt
+>>> prompt_3.txt
+>>> ...
+> Scripts/
+>> Client Content/
+>>> client_context.py
+>> Commodity Report/
+>>> prompt_2a.py
+>>> prompt_2b.py
+>>> prompt_2c.py
+>>> prompt_3.py
+>>> ...
+> Documentation/
+>> Master Architecture Document.txt
+>> System Workflow Manual.txt
+```
+
+---
+
+## Current Status:
+- ✅ **Client Context Prompt (Prompt 1)** fully working via Zapier → Render → OpenAI → JSON Output.
+- ✅ **Correct OpenAI SDK version** (`openai>=1.0.0`) and API syntax migration completed.
+- ✅ **Correct Render setup:** `render.yaml` in root, Gunicorn WSGI server running.
+- ✅ **Successful Webhook triggering and response return to Zapier.**
+
+---
+
+## Immediate Next Step:
+- Build **Prompt 2A** (Thinking Stage):
+  - No supporting documents yet.
+  - Output a structured "thinking" JSON object describing:
+    - 10 Sections
+    - Each with 3 Sub-sections
+    - Initial Change and Effect ranges
+    - No reference articles yet.
+- **Design Prompt 2A script** following same pattern as `client_context.py`:
+  - Receive variables from Zapier JSON.
+  - Fill in template from `prompt_2a.txt`.
+  - Send request to OpenAI API.
+  - Return JSON structured response to Zapier.
+
+---
+
+## Attached Documents for Reference:
+- Master Architecture Document.txt
+- System Workflow Manual.txt
+- All Prompt Templates completed so far (prompt_1, prompt_2a, etc.)
+
+---
+
+# Important Rules Moving Forward:
+- Never let supporting documents override the primary prompt objective.
+- Always split prompts section-by-section if needed to avoid token issues.
+- Maintain consistent prompt formatting and variable injection.
+- Treat each prompt script separately for now (modular).
