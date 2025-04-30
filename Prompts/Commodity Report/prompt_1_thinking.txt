@@ -5,26 +5,26 @@ Use your understanding of the client context, the main question, and the main qu
 You are **NOT** writing the report or producing final report assets yet — this stage is only for analysis, structuring, and internal calculations.
 
 **CLIENT NAME**  
-{{client}}
+{client}
 
 **CLIENT CONTENT**
-{{client_context}}
+{client_context}
 
 **MAIN QUESTION**  
-{{main_question}}
+{main_question}
 
 **QUESTION CONTEXT**  
-{{question_context}}
+{question_context}
 
 ---
 
 ### OBJECTIVE  
 You must:  
-- Identify the {{number_sections}} most significant **sections** influencing {{target_variable}} of {{commodity}} in the {{region}} over the next {{time_range}}.  
+- Identify the {number_sections} most significant **sections** influencing {target_variable} of {commodity} in the {region} over the next {time_range}.  
   - Assign each section a percentage **makeup** toward the overall **change** (total = 100%).  
   - Use multiple sources (where available) to determine the makeup. Do not rely on a single article.
 
-- For each section, identify {{number_sub_sections}} **sub-sections** that influence it:  
+- For each section, identify {number_sub_sections} **sub-sections** that influence it:  
   - Assign each a percentage **makeup** contribution within its parent section (sum = 100% within section).  
   - Base predictions and percentages on aggregated reasoning from multiple sources (where available).
 
