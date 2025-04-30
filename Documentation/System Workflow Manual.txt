@@ -1,0 +1,103 @@
+# Structured Report Generation Engine
+
+## 📘 README / Manual
+
+This document acts as a **plain-English manual** and reference guide to accompany the Master Architecture Document. It explains how the system is intended to work, why key design choices were made, and how developers or operators should interact with the components of the system.
+
+---
+
+## 🧭 System Purpose
+The Structured Report Generation Engine transforms natural language questions into structured, multi-part reports using a fixed prompt hierarchy, mapped variables, and controlled AI outputs. It supports:
+
+- Predictive commodity reports
+- Modular prompt sequences
+- JSON outputs for automation and visualisation
+- Section-level override and regeneration
+- Integration of optional documents or prior reports
+
+---
+
+## 🏗️ Project Folder Structure (Recommended Threads)
+To maintain clarity, the user is working in multiple threads:
+
+- **Prompt Engineering** → focuses on designing and templating reusable AI prompts
+- **Prompt Testing** → for manually validating prompt logic using real inputs
+- **Python Script Engineering** → to manage automation, injection, and orchestration
+- **Master Architecture** → houses the core system design
+- **README (this)** → explains workflow and logic across the system
+
+---
+
+## 🧩 Key Design Concepts
+
+### 1. Prompt Independence
+Each AI prompt must be standalone, stateless, and **not rely on memory** from previous messages. All context and outputs must be passed via mapped `{{variables}}`.
+
+### 2. Variable Mapping
+Every prompt consists of:
+- `INPUT` → injected client, question, and context variables
+- `OBJECTIVE` → logical instruction to the model
+- `OUTPUT` → JSON structure (specific to that stage)
+
+These variables are mapped via Zapier or Python, and may include optional blocks (see below).
+
+### 3. Optional Blocks
+Some prompt sections (e.g. supporting documents) are wrapped in conditional logic. These blocks:
+- Only appear if the corresponding variable (e.g. `{{supporting_documents}}`) is populated
+- Are omitted entirely if empty
+- Should be wrapped in code with a comment or flag like:
+```python
+if supporting_documents:
+    prompt += f"..."
+```
+
+### 4. Prediction Ranges Instead of Point Estimates
+To avoid unstable outputs across re-runs, Prompt 1 and downstream prompts request **high/low prediction bands**:
+- `Change Low` / `Change High`
+- `Effect Low` / `Effect High`
+
+This stabilises forecasting and avoids brittle deterministic outputs.
+
+### 5. Source Aggregation
+The AI is instructed to use **multiple sources to inform its predictions**, not rely on any single article. One article is chosen to populate the related asset, but the estimate should reflect broader evidence.
+
+### 6. Tolerance Logic
+Outputs (e.g. feed cost as % of production cost) must stay within realistic banding (±2%) unless justified by major events (e.g. COVID, new regulations). This is built into Prompt 1.
+
+---
+
+## 🛠️ Developer Tips
+
+- All prompts and responses are JSON-validatable
+- Rerun any prompt with a new variable set by reinjecting the required inputs
+- Never trust AI memory—always inject the prior answers if a prompt depends on them
+- Wrap optional blocks carefully and use `if var:` logic to cleanly inject content
+- Use range output fields in all numerical prompts unless the report type explicitly requires a single value
+
+---
+
+## 📌 Summary of Prompt 1 Architecture
+Prompt 1 creates:
+- `Section Title`
+- `Section MakeUp`
+- `Change Low / High`
+- `Effect Low / High`
+- Nested sub-sections with their own versions of the same structure
+- One representative article per section and sub-section
+- Output format: flat JSON with nested values (not arrays)
+
+Prompt 1 must be run before all other prompts in the chain.
+
+---
+
+## 🔄 Future Use Cases
+- Prompt 7 (planned): regenerate only one section of a report in response to client pushback
+- Recurring reports: allow comparison of Q2 vs Q3 changes without rerunning the full prompt stack
+- Chart generation and PDF finalisation to be handled in later prompt stages and design pipeline
+
+---
+
+## ✅ Final Note
+If you ever get off track, reload the **Master Architecture Document** and this README. They form the root schema for the Structured Report Generation Engine.
+
+You can now move forward with any prompt layer, Python module, or test sequence with full confidence in the system logic.
