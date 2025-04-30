@@ -107,8 +107,7 @@ def run_prompt(data):
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=assistant_id,
-            temperature=0.2,
-            response_format="auto"  # ✅ Correct
+            temperature=0.2
         )
     except Exception as e:
         print(f"ERROR: Run creation failed: {str(e)}")
@@ -151,8 +150,6 @@ def run_prompt(data):
                                 "raw_response": content.text.value,
                                 "thread_id": thread_id
                             }
-                                }
-                            
     except Exception as e:
         print(f"ERROR: Message retrieval failed: {str(e)}")
         return {"error": f"Message retrieval failed: {str(e)}", "thread_id": thread_id}
