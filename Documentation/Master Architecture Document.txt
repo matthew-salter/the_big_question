@@ -1,0 +1,235 @@
+# Project Name: Structured Report Generation Engine
+
+## 1. Mission
+To build a modular, schema-driven system that ingests natural language questions (with optional voice context), classifies their intent, determines the appropriate report structure, collects structured AI-generated assets, and assembles publishable reports—with built-in human override, revision, and regeneration flows.
+
+---
+
+## 2. User Inputs
+- **Primary Question** (free-text, e.g. "What will the price of chicken be in 12 months?")
+- **Voice Transcript** (contextual enrichment)
+- **Optional Documents** (PDFs, URLs, prior reports, baselines, reference data)
+- **Override Controls** (section count, tone, report type)
+- **Supporting Documents (optional)**: Supplementary materials, which may include internal estimates, known baselines, previous reports, or industry updates. If provided, these are injected into prompt context and treated as weighted inputs.
+
+---
+
+## 3. System Hierarchy
+
+### Question Types (Classifier Layer)
+- Descriptive
+- Comparative
+- Predictive
+- Prescriptive
+- Diagnostic
+- Evaluative
+- Speculative
+- Nonsense / Metaphorical
+
+### Report Types (Structure Layer)
+- Commodity Report
+- Market Overview
+- Comparison Report
+- Strategy Guide
+- Root Cause Analysis
+- Trend Outlook
+- Recommendation Report
+- Explainer / Thought Piece
+
+### Section Types (Per Report)
+- Market Baseline
+- Driving Factors
+- Scenario Forecast
+- Implications
+- Scorecard
+- How-To Steps
+
+### Asset Types
+- Universal: report_title, executive_summary, conclusion, section_header, section_summary
+- Conditional:
+  - chart_data
+  - chart_caption
+  - statistical_bullet_points
+  - quote_extraction
+  - scenario_table
+  - recommendation_list
+  - root_cause_map
+  - comparison_matrix
+  - scorecard
+  - **Supports range-based outputs** for applicable fields (e.g., `change_low`, `change_high`, `effect_low`, `effect_high`)
+
+---
+
+## 4. Core System Architecture
+
+### Zapier Layer
+- Handles external triggers (form submission, file upload, schedule)
+- Orchestrates data between AI, Python backend, Google Sheets, Docs, etc.
+
+### Python Backend (“The Brain”)
+- Classifies question types
+- Routes to appropriate schemas
+- Builds and stores structured report manifest (JSON)
+- Sends structured prompts to AI and collects output
+- Manages overrides and section-level revisions
+- Stores versions
+- Applies prompt logic including optional block injection (e.g., `supporting_documents` block rendered only if provided)
+
+### AI Layer
+- Follows strict system prompts
+- Outputs structured JSON
+- Recognises and resolves conflict between user input vs question logic
+- Injects context from transcript or external documents
+- Aggregates insights across multiple references for improved prediction stability
+
+### Storage Layer
+- Stores all manifests, prompts, and report state as JSON
+- CSV/structured export for design templating
+- GDocs for human editing/review
+
+### Optional UI (Later)
+- Human interface for requesting, editing, and revising reports
+- Flags conflicts and supports partial regeneration
+- Could be built in Retool, Streamlit, or Flask
+
+---
+
+## 5. Technical Paths
+
+### New Report Creation
+- Ingest question + context
+- Classify and map to question type
+- Determine report type
+- Load schema
+- Collect assets via AI prompts (e.g., Prompt 1–6)
+- Assemble into report
+- **If `supporting_documents` are provided, include in prompt context window**
+
+### Section Regeneration
+- Human flags section for revision
+- Pull section + context + manifest
+- Re-run asset collection for that block only (targeted regeneration)
+- Replace and reassemble
+
+### Human Feedback / Revision Flow
+- Editable via GDocs or UI
+- Feedback collected
+- Override values modified
+- AI regenerates specific sections/sub-sections, not entire report
+
+### Recurring Report Re-runs
+- Manifest + question re-used
+- Schema sections retained
+- Assets regenerated with new inputs
+- Tolerance logic applied to reduce prediction drift unless strong evidence supports change
+
+### Document Enrichment
+- Upload new sources
+- Inject into AI prompt context (as `supporting_documents`)
+- AI integrates into content structure
+
+---
+
+## 6. Example JSON Manifest
+```json
+{
+  "report_id": "chicken_prices_uk_q2_2025",
+  "question": "What will the price of chicken be in 12 months?",
+  "question_type": "Predictive",
+  "report_type": "Commodity Report",
+  "structure_overrides": {
+    "sections": 5,
+    "subsections": 2,
+    "tone": "conversational"
+  },
+  "sections": [
+    {
+      "id": "market_baseline",
+      "title": "Current Market Overview",
+      "assets": ["section_summary", "chart_data", "chart_caption"]
+    },
+    {
+      "id": "forecast",
+      "title": "Scenario Forecasts",
+      "assets": ["scenario_table", "forecast_chart_data"]
+    }
+  ],
+  "status": "in_progress"
+}
+```
+
+---
+
+## 7. Visual System Maps
+
+### System Flow:
+```mermaid
+flowchart TD
+    Q[Question + Context] --> A[Classify Question Type]
+    A --> B[Map to Report Type]
+    B --> C[Load Schema / Manifest Template]
+    C --> D[Inject Human Overrides (optional)]
+    D --> E[Generate Section Assets (AI)]
+    E --> F[Assemble Report Document]
+    F --> G{Human Feedback?}
+    G -- Yes --> H[Flag Section for Revision]
+    H --> I[Re-run Asset Generation for Section]
+    I --> F
+    G -- No --> Z[Export / Deliver Report]
+```
+
+### Hierarchy:
+```mermaid
+graph TD
+Q[Question] --> QT[Question Type]
+QT --> RT[Report Type]
+RT --> ST[Section Types]
+ST --> AT[Asset Types]
+```
+
+---
+
+## 8. User-to-Report Logic Flow with AI + Human Interaction
+
+flowchart TD
+    UQ[User Question + Voice Transcript] --> QT[AI Classifies Question Type]
+    QT --> RT{Report Type Inferred?}
+    RT -- Yes --> RS[Load Matching Report Schema]
+    RT -- Overridden by User --> RU[Force Report Type (Manual)]
+    RU --> RS
+    RS --> CHK[Apply Human Overrides (e.g. Section Count, Tone)]
+    CHK --> DOCS{Upload Supporting Docs?}
+    DOCS -- Yes --> DC[Inject into Prompt Context]
+    DOCS -- No --> GEN
+    DC --> GEN
+
+    GEN[Generate Sections via AI] --> LOOP{Section-Level Feedback?}
+    LOOP -- No --> FINAL[Assemble Report & Deliver]
+    LOOP -- Yes --> SEL[User Flags Section(s)]
+    SEL --> REGEN[AI Regenerates Section w/ Original + New Context]
+    REGEN --> GEN
+
+    FINAL --> STORE[Store Manifest + Report Assets for Versioning]
+```
+
+---
+
+## 9. Development Phases / Tasks
+
+**Phase 1: Foundation**
+- [x] Build schema for Predictive → Commodity Report
+- [x] Scaffold Python backend (`main.py`, `generate_manifest.py`)
+- [x] Define asset collection prompts (Prompt 1 complete)
+- [ ] Set up Zapier → Webhook to Python runner
+- [ ] Format AI outputs into structured JSON manifest
+
+**Phase 2: Iteration + Feedback**
+- [ ] Enable section-level revision and overrides
+- [ ] Add version tracking per report
+- [ ] Connect outputs to GDocs for human edits
+
+**Phase 3: Expansion**
+- [ ] Add new question types + report structures
+- [ ] Build override UI (Retool or Streamlit)
+- [ ] Enable external doc uploads as input
+- [ ] Build recurrence logic for quarterly reporting
