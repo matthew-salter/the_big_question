@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn -w 1 -b 0.0.0.0:10000 main:app"
+    startCommand: "gunicorn -w 1 -b 0.0.0.0:10000 main:app --timeout 180"
     envVars:
       - key: OPENAI_API_KEY
         sync: false
