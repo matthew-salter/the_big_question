@@ -107,7 +107,9 @@ def run_prompt(data):
         run = openai.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=assistant_id,
-            temperature=0.2
+            temperature=0.2,
+            response_format="auto",
+            max_tokens=8000  # 👈 add this
         )
     except Exception as e:
         print(f"ERROR: Run creation failed: {str(e)}")
