@@ -1,91 +1,115 @@
-# THREAD CONTEXT: Big Picture Project — Commodity Report Generator System
+🔧 PROJECT EXPLANATION
 
-## Purpose:
-We are building an operational system that:
-- Gathers structured commodity report data using a sequence of controlled prompts.
-- Moves away from manual UI prompt sending (like ChatGPT web interface).
-- Sends prompts automatically through API calls, handling token limits by sectioning prompts.
-- Returns structured JSON outputs at each prompt stage.
+# THREAD CONTEXT: Big Picture Project — Structured Predictive Report System
 
-This system allows:
-- Unlimited report length (overcoming token limits)
-- Fully modular architecture (intro → sections → sub-sections → outro)
-- Future expansion into fully automated pipelines.
+## 🎯 Project Purpose
 
----
+We are building a modular, AI-powered reporting system that takes a **natural language question**, classifies its **topic**, **intent**, and **structure**, and produces a publishable, structured report through a sequence of AI prompts and automation.
 
-## Current Technical Stack:
-- **Trigger:** Zapier Webhook → sends JSON payload to server.
-- **Hosting:** Render.com (Python app linked to GitHub repo).
-- **Repo:** GitHub repository with full file structure (Prompts, Scripts, Documentation).
-- **Server:** Flask-based Python server listening for webhooks.
-- **AI:** OpenAI API (GPT-4 Turbo) called from within Python scripts.
-- **Deployment:** Auto-deploy from GitHub to Render after each GitHub push.
+This system is fully extensible to any question type and domain, but we are currently focused on one specific, high-value pathway:
+
+> **Predictive Report**  
+> For **Commodity-topic questions**  
+> Using a **weighted-factor forecasting model**
+
+This architecture enables:
+- Fully automated, token-aware report generation
+- Modular design with reusable prompt components
+- Structured JSON outputs for formatting, analytics, or design templating
+- Section-by-section regeneration and feedback integration
 
 ---
 
-## File & Folder Structure:
-```
-- main.py
-- .env (openai key stored in Render)
-> Prompts/
->> Client Content/
->>> client_context.txt
->> Commodity Report/
->>> prompt_2a.txt
->>> prompt_2b.txt
->>> prompt_2c.txt
->>> prompt_3.txt
->>> ...
-> Scripts/
->> Client Content/
->>> client_context.py
->> Commodity Report/
->>> prompt_2a.py
->>> prompt_2b.py
->>> prompt_2c.py
->>> prompt_3.py
->>> ...
-> Documentation/
->> Master Architecture Document.txt
->> System Workflow Manual.txt
-```
+## ⚙️ Current Focus: “Commodity-Predictive Path”
+
+Although the system can serve any combination of Question Type and Topic, we are currently building and testing the flow for:
+
+> **Question Topic:** Commodity  
+> **Question Type:** Predictive  
+> **Report Type:** Predictive Report  
+
+In other words, we are building a **Predictive Report engine**, currently specialised for questions such as:
+
+- “What will the price of lithium be in China next quarter?”
+- “How will wheat exports from Brazil be impacted over the next 12 months?”
+- “What’s the forecast for freight cost volatility in the next fiscal year?”
+
+The Predictive Report template includes:
+- Percentage makeup for each influencing factor
+- Predicted % change per factor
+- Weighted impact calculations (makeup × change = effect)
+- Summed scenario outcomes and optional charts/tables
 
 ---
 
-## Current Status:
-- ✅ **Client Context Prompt (Prompt 1)** fully working via Zapier → Render → OpenAI → JSON Output.
-- ✅ **Correct OpenAI SDK version** (`openai>=1.0.0`) and API syntax migration completed.
-- ✅ **Correct Render setup:** `render.yaml` in root, Gunicorn WSGI server running.
-- ✅ **Successful Webhook triggering and response return to Zapier.**
+## 🧠 Why This Architecture?
+
+Unlike traditional prompt workflows (like ChatGPT sessions), this system:
+
+- Avoids token limits by **splitting prompts into discrete sections**
+- Avoids AI memory errors by making every prompt **stateless and variable-driven**
+- Allows partial regeneration (e.g. “rewrite section 3” without touching others)
+- Prepares for future automation of document export, charting, and email delivery
 
 ---
 
-## Immediate Next Step:
-- Build **Prompt 2A** (Thinking Stage):
-  - No supporting documents yet.
-  - Output a structured "thinking" JSON object describing:
-    - 10 Sections
-    - Each with 3 Sub-sections
-    - Initial Change and Effect ranges
-    - No reference articles yet.
-- **Design Prompt 2A script** following same pattern as `client_context.py`:
-  - Receive variables from Zapier JSON.
-  - Fill in template from `prompt_2a.txt`.
-  - Send request to OpenAI API.
-  - Return JSON structured response to Zapier.
+## 🛠️ Technical Stack
+
+- **Trigger**: Zapier Webhook → Python backend
+- **AI**: OpenAI API (GPT-4 Turbo), called via `openai>=1.0.0`
+- **Hosting**: Render.com (Flask server, auto-deployed from GitHub)
+- **Output Format**: JSON per prompt → CSV, GDoc, or design-ready output
+- **Structure**: Fully modular (Prompts/, Scripts/, Documentation/)
 
 ---
 
-## Attached Documents for Reference:
-- Master Architecture Document.txt
-- System Workflow Manual.txt
-- All Prompt Templates completed so far (prompt_1, prompt_2a, etc.)
+## 📂 File Structure (Simplified)
+
+📁 Prompts/ └── predictive_report/ ├── prompt_1_client_context.txt ├── prompt_2a_thinking.txt ├── prompt_2b_data_collection.txt └── ...
+
+📁 Scripts/ └── predictive_report/ ├── client_context.py ├── prompt_2a.py ├── prompt_2b.py └── ...
+
+📁 Documentation/ ├── Master Architecture Document.txt ├── System Workflow Manual.txt └── Project Explanation.txt
+
+main.py render.yaml .env (OpenAI key)
+
 
 ---
 
-# Important Rules Moving Forward:
-- Never let supporting documents override the primary prompt objective.
-- Always split prompts section-by-section if needed to avoid token issues.
-- Maintain consistent prompt formatting and variable injection.
-- Treat each prompt script separately for now (modular).
+## ✅ Current Status
+
+- ✅ Prompt 1 fully working (Client Context → structured JSON)
+- ✅ Zapier to Python → OpenAI round trip functioning
+- ✅ Server runs cleanly via Gunicorn on Render
+- ✅ Prompt version control and modularity stable
+
+---
+
+## 🔜 Immediate Next Step
+
+We're now working on **Prompt 2A** (“Thinking” stage), which will generate:
+- 10 key sections (e.g. “Driving Factors”, “Forecast Scenarios”)
+- 3 sub-sections per section
+- Initial `makeup_percent`, `change_low/high`, and `effect_calc` logic
+
+This prompt will not yet include references or articles — just the structured logic for forecasting.
+
+---
+
+## ⚠️ Critical System Rules
+
+- Prompts must remain **stateless and deterministic**
+- Do not inject memory or earlier model responses — everything must be passed explicitly
+- Use `{{variables}}` consistently in all templates
+- Wrap optional content blocks (like `{{supporting_documents}}`) in conditional logic
+- When regenerating, inject the full context again — treat each block as atomic
+
+---
+
+## 📌 Summary
+
+We are building a **Predictive Report Engine**, not a “Commodity Report” system. Commodity-style questions are our *current test domain*, but the structure will expand to:
+
+- Education, Healthcare, Finance, etc. (Question Topic)
+- Comparative, Diagnostic, Evaluative questions (Question Type)
+- New formatting logic (
