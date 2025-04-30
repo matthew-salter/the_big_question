@@ -109,7 +109,6 @@ def run_prompt(data):
             assistant_id=assistant_id,
             temperature=0.2,
             response_format="auto",
-            max_tokens=8000
         )
     except Exception as e:
         print(f"ERROR: Run creation failed: {str(e)}")
