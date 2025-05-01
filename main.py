@@ -11,8 +11,8 @@ app = Flask(__name__)
 # Load your OpenAI API key
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
-# === TEST ROUTE FOR SUPABASE FILE ===
-@app.route('/test-supabase', methods=['GET'])
+# === ROUTE: TEST SUPABASE FILE READ ===
+@app.route('/test-supabase-read', methods=['GET'])
 def test_supabase_read():
     from Engine.Files.read_supabase_file import read_supabase_file
     test_url = "https://ribebcjrzcinomtocqdo.supabase.co/storage/v1/object/public/panelitix/The%20Big%20Question/Predictive%20Report/Question%20Context/question_context_test.txt"
@@ -22,12 +22,13 @@ def test_supabase_read():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
-# === MAIN WEBHOOK ENDPOINT ===
+# === ROUTE: MAIN WEBHOOK ===
 @app.route('/', methods=['POST'])
 def handle_webhook():
     data = request.json
-    prompt = data.get('prompt')
 
+    # Read which prompt they want to trigger
+    prompt = data.get('prompt')
     if not prompt:
         return jsonify({"error": "Missing 'prompt' key in request."}), 400
 
@@ -53,6 +54,6 @@ def handle_webhook():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# === FLASK APP START ===
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
-
