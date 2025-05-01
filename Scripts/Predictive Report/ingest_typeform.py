@@ -21,7 +21,7 @@ def process_typeform_submission(data):
     file_content = file_response.text
 
     client_name = form_fields.get('26f95c88-43d4-4540-83b7-0d78e1c9535e', 'unknown').replace(" ", "_")
-    supabase_path = f"panelitix/The Big Question/Client Contexts/{client_name}_context.txt"
+    supabase_path = f"panelitix/The Big Question/Predictive Report/Question Context/{client_name}_context.txt"
     write_supabase_file(supabase_path, file_content)
 
     return {
