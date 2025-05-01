@@ -43,6 +43,16 @@ def handle_webhook():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+    @app.route('/test-supabase-read', methods=['GET'])
+    def test_supabase_read():
+        from Engine.Files.read_supabase_file import read_supabase_file
+        test_url = "https://ribebcjrzcinomtocqdo.supabase.co/storage/v1/object/public/panelitix/The%20Big%20Question/Predictive%20Report/Question%20Context/question_context_test.txt"
+        try:
+            content = read_supabase_file(test_url)
+            return jsonify({"success": True, "content": content})
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
 
