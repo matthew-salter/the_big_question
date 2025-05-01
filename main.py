@@ -33,8 +33,10 @@ def test_supabase_read():
 @app.route('/ingest-typeform', methods=['POST'])
 def ingest_typeform():
     try:
-        from Scripts.Predictive_Report.ingest_typeform import process_typeform_submission
-        result = process_typeform_submission(request.json)
+        module = load_module_from_path(
+            "ingest_typeform", "Scripts/Predictive Report/ingest_typeform.py"
+        )
+        result = module.process_typeform_submission(request.json)
         return jsonify(result)
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
