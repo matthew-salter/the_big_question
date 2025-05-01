@@ -1,5 +1,5 @@
 import requests
-from Engine.Supabase.auth import supabase_headers
+from Engine.Files.auth import supabase_headers
 
 def write_supabase_file(path, content):
     url = f"https://ribebcjrzcinomtocqdo.supabase.co/storage/v1/object/{path}"
