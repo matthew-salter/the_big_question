@@ -41,7 +41,7 @@ def run_prompt(data):
     print(f"time_range: {time_range}")
 
     # Load the prompt template
-    prompt_path = 'Prompts/Commodity Report/prompt_1_thinking.txt'
+    prompt_path = 'Prompts/Predictive Report/prompt_1_thinking.txt'
     try:
         with open(prompt_path, 'r') as f:
             prompt_template = f.read()
