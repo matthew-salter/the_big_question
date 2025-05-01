@@ -25,5 +25,5 @@ def process_typeform_submission(data):
     return {
         "prompt": "client_context",
         "client": form_fields.get("client_name", ""),
-        "client_context_url": f"https://<your-project-ref>.supabase.co/storage/v1/object/public/{supabase_path}"
+        "client_context_url": f"https://ribebcjrzcinomtocqdo.supabase.co/storage/v1/object/public/{supabase_path}"
     }
