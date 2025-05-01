@@ -22,12 +22,20 @@ def test_supabase_read():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
+# === ROUTE: INGEST TYPEFORM SUBMISSION ===
+@app.route('/ingest-typeform', methods=['POST'])
+def ingest_typeform():
+    try:
+        from Scripts.Predictive_Report.ingest_typeform import process_typeform_submission
+        result = process_typeform_submission(request.json)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 # === ROUTE: MAIN WEBHOOK ===
 @app.route('/', methods=['POST'])
 def handle_webhook():
     data = request.json
-
-    # Read which prompt they want to trigger
     prompt = data.get('prompt')
     if not prompt:
         return jsonify({"error": "Missing 'prompt' key in request."}), 400
@@ -35,24 +43,27 @@ def handle_webhook():
     try:
         # Dynamically import the correct script from Scripts folder
         if prompt == "client_context":
-            module = importlib.import_module('Scripts.Client Context.client_context')
+            module = importlib.import_module('Scripts.Client_Context.client_context')
         elif prompt == "prompt_1_thinking":
-            module = importlib.import_module('Scripts.Predictive Report.prompt_1_thinking')
+            module = importlib.import_module('Scripts.Predictive_Report.prompt_1_thinking')
         elif prompt == "prompt_2b":
-            module = importlib.import_module('Scripts.Predictive Report.prompt_2b')
+            module = importlib.import_module('Scripts.Predictive_Report.prompt_2b')
         elif prompt == "prompt_2c":
-            module = importlib.import_module('Scripts.Predictive Report.prompt_2c')
+            module = importlib.import_module('Scripts.Predictive_Report.prompt_2c')
         elif prompt == "prompt_3":
-            module = importlib.import_module('Scripts.Predictive Report.prompt_3')
+            module = importlib.import_module('Scripts.Predictive_Report.prompt_3')
         else:
             return jsonify({"error": f"Unknown prompt: {prompt}"}), 400
 
-        # Call the script's main function
         response = module.run_prompt(data)
         return jsonify(response)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# === FLASK APP START ===
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=10000)
 
 # === FLASK APP START ===
 if __name__ == '__main__':
