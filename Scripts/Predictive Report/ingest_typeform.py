@@ -1,6 +1,7 @@
 import requests
 import json  # ✅ Add this if not already imported
 from Engine.Files.write_supabase_file import write_supabase_file
+from datetime import datetime
 
 def process_typeform_submission(data):
     form_fields = {
@@ -20,9 +21,12 @@ def process_typeform_submission(data):
     file_response = requests.get(file_url)
     file_content = file_response.text
 
+    
+
     client_name = form_fields.get('26f95c88-43d4-4540-83b7-0d78e1c9535e', 'unknown').replace(" ", "_")
-    supabase_path = f"panelitix/The Big Question/Predictive Report/Question Context/{client_name}_context.txt"
-    write_supabase_file(supabase_path, file_content)
+    timestamp = datetime.utcnow().strftime('%d%m%Y_%H%M')
+    filename = f"{client_name}_Question_Context{timestamp}.txt"
+    supabase_path = f"panelitix/The Big Question/Predictive Report/Question Context/{filename}"
 
     return {
         "prompt": "client_context",
