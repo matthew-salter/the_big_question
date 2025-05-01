@@ -37,13 +37,13 @@ def handle_webhook():
         if prompt == "client_context":
             module = importlib.import_module('Scripts.Client Context.client_context')
         elif prompt == "prompt_1_thinking":
-            module = importlib.import_module('Scripts.Commodity Report.prompt_1_thinking')
+            module = importlib.import_module('Scripts.Predictive Report.prompt_1_thinking')
         elif prompt == "prompt_2b":
-            module = importlib.import_module('Scripts.Commodity Report.prompt_2b')
+            module = importlib.import_module('Scripts.Predictive Report.prompt_2b')
         elif prompt == "prompt_2c":
-            module = importlib.import_module('Scripts.Commodity Report.prompt_2c')
+            module = importlib.import_module('Scripts.Predictive Report.prompt_2c')
         elif prompt == "prompt_3":
-            module = importlib.import_module('Scripts.Commodity Report.prompt_3')
+            module = importlib.import_module('Scripts.Predictive Report.prompt_3')
         else:
             return jsonify({"error": f"Unknown prompt: {prompt}"}), 400
 
