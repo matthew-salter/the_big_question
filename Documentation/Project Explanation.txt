@@ -1,115 +1,48 @@
-🔧 PROJECT EXPLANATION
+### 📄 Project Explanation
 
-# THREAD CONTEXT: Big Picture Project — Structured Predictive Report System
+#### Overview
+This project powers the automation behind structured, AI-generated commodity reports for clients via a streamlined system architecture built on Python, Supabase, and Typeform. The system is designed for reliability, traceability, and modular extensibility across multiple report types.
 
-## 🎯 Project Purpose
+#### Components
 
-We are building a modular, AI-powered reporting system that takes a **natural language question**, classifies its **topic**, **intent**, and **structure**, and produces a publishable, structured report through a sequence of AI prompts and automation.
+**1. Typeform (User Input Layer)**  
+Users initiate a report request through a custom Typeform, providing all required variables (e.g., client name, question, forecast range, target metric, context file). The Typeform includes a file upload field for deeper context.
 
-This system is fully extensible to any question type and domain, but we are currently focused on one specific, high-value pathway:
+**2. Render (Hosting + Webhook Gateway)**  
+A Flask app deployed to Render listens for POST requests from Typeform via `/ingest-typeform`. All logs are output via `gunicorn` to Render's console for debugging. This replaces any previous reliance on Zapier or external middleware.
 
-> **Predictive Report**  
-> For **Commodity-topic questions**  
-> Using a **weighted-factor forecasting model**
+**3. Supabase (Storage Layer)**  
+Supabase is used to store the uploaded context files in a structured folder path:
+```
+panelitix/public/The Big Question/Predictive Report/Question Context/{client_name}_Question_Context{DDMMYYYY_HHmm}.txt
+```
+A service role key (`SUPABASE_SERVICE_ROLE_KEY`) is used for secure upload via the Supabase Storage API. Centralised auth headers are handled in `Engine.Files.auth.py`.
 
-This architecture enables:
-- Fully automated, token-aware report generation
-- Modular design with reusable prompt components
-- Structured JSON outputs for formatting, analytics, or design templating
-- Section-by-section regeneration and feedback integration
+**4. Flask Application Structure**
+- `main.py`: Entry point for all routes, including:
+  - `/ingest-typeform`: Processes Typeform webhooks.
+  - `/`: Dispatches prompt logic based on payload key `prompt`.
+- Dynamic script loading allows each prompt file to be independently tested or extended.
 
----
+**5. Prompt Execution Scripts**
+Each prompt script (e.g., `prompt_1_thinking.py`, `client_context.py`):
+- Accepts a structured dictionary of input variables.
+- Loads and fills a template from the `/Prompts/...` directory.
+- Sends the final prompt to OpenAI’s API (chat or assistant).
+- Parses the response and returns structured output (often JSON).
 
-## ⚙️ Current Focus: “Commodity-Predictive Path”
+**6. Centralised Logging**
+All scripts now use a central logger via:
+```python
+from Engine.logger import logger
+```
+The logger is configured in `Engine/logger.py` and outputs both INFO and DEBUG-level logs to Render’s console. This gives full visibility into file uploads, prompt generation, API responses, and failure points.
 
-Although the system can serve any combination of Question Type and Topic, we are currently building and testing the flow for:
-
-> **Question Topic:** Commodity  
-> **Question Type:** Predictive  
-> **Report Type:** Predictive Report  
-
-In other words, we are building a **Predictive Report engine**, currently specialised for questions such as:
-
-- “What will the price of lithium be in China next quarter?”
-- “How will wheat exports from Brazil be impacted over the next 12 months?”
-- “What’s the forecast for freight cost volatility in the next fiscal year?”
-
-The Predictive Report template includes:
-- Percentage makeup for each influencing factor
-- Predicted % change per factor
-- Weighted impact calculations (makeup × change = effect)
-- Summed scenario outcomes and optional charts/tables
-
----
-
-## 🧠 Why This Architecture?
-
-Unlike traditional prompt workflows (like ChatGPT sessions), this system:
-
-- Avoids token limits by **splitting prompts into discrete sections**
-- Avoids AI memory errors by making every prompt **stateless and variable-driven**
-- Allows partial regeneration (e.g. “rewrite section 3” without touching others)
-- Prepares for future automation of document export, charting, and email delivery
-
----
-
-## 🛠️ Technical Stack
-
-- **Trigger**: Zapier Webhook → Python backend
-- **AI**: OpenAI API (GPT-4 Turbo), called via `openai>=1.0.0`
-- **Hosting**: Render.com (Flask server, auto-deployed from GitHub)
-- **Output Format**: JSON per prompt → CSV, GDoc, or design-ready output
-- **Structure**: Fully modular (Prompts/, Scripts/, Documentation/)
-
----
-
-## 📂 File Structure (Simplified)
-
-📁 Prompts/ └── predictive_report/ ├── prompt_1_client_context.txt ├── prompt_2a_thinking.txt ├── prompt_2b_data_collection.txt └── ...
-
-📁 Scripts/ └── predictive_report/ ├── client_context.py ├── prompt_2a.py ├── prompt_2b.py └── ...
-
-📁 Documentation/ ├── Master Architecture Document.txt ├── System Workflow Manual.txt └── Project Explanation.txt
-
-main.py render.yaml .env (OpenAI key)
-
-
----
-
-## ✅ Current Status
-
-- ✅ Prompt 1 fully working (Client Context → structured JSON)
-- ✅ Zapier to Python → OpenAI round trip functioning
-- ✅ Server runs cleanly via Gunicorn on Render
-- ✅ Prompt version control and modularity stable
-
----
-
-## 🔜 Immediate Next Step
-
-We're now working on **Prompt 2A** (“Thinking” stage), which will generate:
-- 10 key sections (e.g. “Driving Factors”, “Forecast Scenarios”)
-- 3 sub-sections per section
-- Initial `makeup_percent`, `change_low/high`, and `effect_calc` logic
-
-This prompt will not yet include references or articles — just the structured logic for forecasting.
-
----
-
-## ⚠️ Critical System Rules
-
-- Prompts must remain **stateless and deterministic**
-- Do not inject memory or earlier model responses — everything must be passed explicitly
-- Use `{{variables}}` consistently in all templates
-- Wrap optional content blocks (like `{{supporting_documents}}`) in conditional logic
-- When regenerating, inject the full context again — treat each block as atomic
-
----
-
-## 📌 Summary
-
-We are building a **Predictive Report Engine**, not a “Commodity Report” system. Commodity-style questions are our *current test domain*, but the structure will expand to:
-
-- Education, Healthcare, Finance, etc. (Question Topic)
-- Comparative, Diagnostic, Evaluative questions (Question Type)
-- New formatting logic (
+#### Summary Workflow (Example: Predictive Report)
+1. User submits a Typeform with question context and report variables.
+2. The webhook hits `/ingest-typeform`:
+   - Downloads the uploaded file.
+   - Saves it to Supabase with a timestamped filename.
+   - Returns a payload to trigger the next stage (`client_context`).
+3. The system proceeds through multiple prompt steps (e.g., `client_context`, `prompt_1_thinking`, etc.), each generating structured AI output.
+4. All logs appear in the Render dashboard.
