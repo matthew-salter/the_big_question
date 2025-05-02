@@ -1,7 +1,7 @@
 import openai
 import os
 import re
-from Engine.logger import logger
+from logger import logger
 
 def run_prompt(data):
     logger.info("🚀 Running client context prompt")
