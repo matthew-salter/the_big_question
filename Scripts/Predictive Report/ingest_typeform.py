@@ -76,6 +76,7 @@ def process_typeform_submission(data):
     return {
         "prompt": "client_context",
         "client": form_fields.get("26f95c88-43d4-4540-83b7-0d78e1c9535e", ""),
+        "client_website_url": form_fields.get("554e54d9-4cdf-41ce-935c-b2d8c5136b56", ""),
         "client_context_url": f"https://ribebcjrzcinomtocqdo.supabase.co/storage/v1/object/public/{context_path}",
         "logo_url": logo_url
     }
