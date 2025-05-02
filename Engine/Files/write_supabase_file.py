@@ -1,8 +1,6 @@
 import requests
-import logging
+from Engine.logger import logger
 from Engine.Files.auth import supabase_headers
-
-logger = logging.getLogger(__name__)
 
 def write_supabase_file(path, content):
     url = f"https://ribebcjrzcinomtocqdo.supabase.co/storage/v1/object/{path}"
