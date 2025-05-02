@@ -4,6 +4,9 @@ from Engine.Files.write_supabase_file import write_supabase_file
 from datetime import datetime
 
 def process_typeform_submission(data):
+    print("=== Typeform webhook triggered ===")
+    print(json.dumps(data, indent=2))
+    
     form_fields = {
         answer['field']['ref']: answer.get('text') or answer.get('email') or answer.get('choice', {}).get('label')
         for answer in data['form_response']['answers']
