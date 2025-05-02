@@ -28,6 +28,8 @@ def process_typeform_submission(data):
     filename = f"{client_name}_Question_Context{timestamp}.txt"
     supabase_path = f"panelitix/The Big Question/Predictive Report/Question Context/{filename}"
 
+    write_supabase_file(supabase_path, file_content)
+
     return {
         "prompt": "client_context",
         "client": form_fields.get("26f95c88-43d4-4540-83b7-0d78e1c9535e", ""),
