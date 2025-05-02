@@ -1,10 +1,8 @@
 import requests
 import json
-import logging
+from Engine.logger import logger
 from datetime import datetime
 from Engine.Files.write_supabase_file import write_supabase_file
-
-logger = logging.getLogger(__name__)
 
 def process_typeform_submission(data):
     logger.info("📩 Typeform webhook triggered")
