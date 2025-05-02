@@ -3,7 +3,7 @@ import os
 import openai
 import importlib.util
 from dotenv import load_dotenv
-from Engine.logger import logger
+from logger import logger
 
 load_dotenv()
 app = Flask(__name__)
