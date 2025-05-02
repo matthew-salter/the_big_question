@@ -1,228 +1,190 @@
-🔧 MASTER ARCHITECTURE DOCUMENT
+## 📐 Master Architecture Document
 
-# Project Name: Structured Report Generation Engine
+### Purpose
 
-## 1. Mission
-To build a modular, schema-driven system that ingests natural language questions (with optional voice input or context), classifies their **topic**, **intent**, and **structure**, and generates a publishable report using structured, AI-generated assets.
-
-The system supports full human override, asset regeneration, and prompt-based orchestration via automation.
+This document defines the **core architecture**, design principles, and modular conventions for generating structured AI reports through a Python-based backend integrating **Typeform**, **Supabase**, **OpenAI**, and **Render**. It is the system-of-record for all folder conventions, runtime orchestration, and prompt execution flow.
 
 ---
 
-## 2. User Inputs
+### 🔁 System Overview
 
-- **Primary Question**  
-  Free-text user input (e.g. “What will the price of lithium be in 12 months?”)
+The platform transforms client-submitted survey data into **multi-step, AI-generated structured reports**. Each report passes through a dynamic pipeline of prompt executions, template filling, and file management, with full traceability via logging.
 
-- **Voice Transcript**  
-  Rich contextual background collected via assistant interface (e.g. “concerned about freight disruptions and China policy”)
-
-- **Question Topic**  
-  Domain or subject matter (e.g. Commodity, Education, Finance)
-
-- **Override Controls (Optional)**  
-  Sections, sub-sections, tone, preferred structure, etc.
-
-- **Supporting Documents (Optional)**  
-  PDFs, prior reports, baselines, or links used to enrich prompts. Injected conditionally as weighted blocks.
+```
+Typeform ➝ Flask Webhook (/ingest-typeform) ➝ Supabase Upload ➝ AI Prompt Stages ➝ JSON Output
+```
 
 ---
 
-## 3. System Hierarchy
+### 🧱 Core Infrastructure Components
 
-### A. Question Topics (Content Layer)
-Defines the *subject matter* of the question.
-- Commodity
-- Education
-- Healthcare
-- Finance
-- Technology
-- Logistics
-- Workforce
-- Energy
+#### 1. **Typeform (Frontend Input Layer)**
 
-### B. Question Types (Intent Layer)
-Classifies what the user is asking for.
-- Descriptive
-- Comparative
-- Predictive
-- Prescriptive
-- Diagnostic
-- Evaluative
-- Speculative
-- Nonsense / Metaphorical
+* Collects all user input: `client`, `main_question`, `commodity`, `region`, and an uploaded `.txt` context file.
+* Webhook sends structured payload to `/ingest-typeform`.
 
-### C. Report Types (Output Structure Layer)
-Specifies the report’s formatting logic.
-- Predictive Report *(weighted-effect calculation with % makeup and scenario logic)*
-- Comparison Report
-- Cost Structure Report
-- Scenario Risk Report
-- Impact Cascade Report
-- Recommendation Report
-- Root Cause Report
-- Explainer Report
+#### 2. **Render (Hosting + Logging Layer)**
 
-### D. Section Types (Structural Elements)
-Report sections (templated per report type).
-- Market Baseline
-- Driving Factors
-- Scenario Forecast
-- Strategic Implications
-- Scorecard
-- How-To Guide
+* Hosts the Python Flask application (`main.py`).
+* Uses `gunicorn` for logging to the **Render console** (stdout).
+* No `.env` file required—environment variables are set via Render’s dashboard.
 
-### E. Asset Types
-Structured outputs collected per section or report-wide.
-- **Universal**: `report_title`, `executive_summary`, `conclusion`, `section_header`, `section_summary`
-- **Conditional**:
-  - `chart_data`, `chart_caption`
-  - `statistical_bullet_points`
-  - `quote_extraction`
-  - `scenario_table`
-  - `recommendation_list`
-  - `root_cause_map`
-  - `comparison_matrix`
-  - `scorecard`
-  - `change_low`, `change_high`, `makeup_percent`, `effect_calc`
+#### 3. **Supabase (Storage Layer)**
+
+* Used to **store uploaded files** (e.g. `question_context.txt`) in a consistent, timestamped format:
+
+```
+panelitix/public/The Big Question/Predictive Report/Question Context/{client_name}_Question_Context{DDMMYYYY_HHmm}.txt
+```
+
+* Secure upload via `SUPABASE_SERVICE_ROLE_KEY`.
+* All auth headers are managed in `Engine/Files/auth.py`.
+
+#### 4. **OpenAI (Prompt Execution Layer)**
+
+* Each script uses either Chat Completions or Assistants API.
+* All prompts use `temperature=0.2` for consistency.
+* Structured responses are parsed from:
+
+  * `json_object` (preferred)
+  * `text` → `json.loads(...)` fallback
+  * Raw string fallback (error with explanation)
 
 ---
 
-## 4. Core System Architecture
+### 🧠 Application Structure
 
-### Zapier Layer
-- Triggers: Typeform/Webhook/File Upload
-- Sends inputs and metadata to Python backend
-- Receives outputs for Google Docs, Sheets, Notion, Slack, etc.
+#### ✅ Entry Point
 
-### Python Backend (“The Brain”)
-- Classifies question topic + type
-- Selects matching report type
-- Builds a structured JSON `report_manifest`
-- Injects all variables into prompt templates
-- Sends prompts to OpenAI
-- Stores output per section
-- Handles revisions, versioning, and overrides
+```python
+POST /ingest-typeform
+```
 
-### AI Layer
-- Executes prompt templates statelessly
-- Returns JSON-structured responses
-- Resolves conflicts between structure and input intent
-- Integrates `supporting_documents` only if explicitly provided
-- Aggregates multi-source signals (for more stable predictions)
+* Extracts Typeform fields via stable `ref`.
+* Downloads uploaded file.
+* Writes file to Supabase.
+* Returns a payload with:
 
-### Storage Layer
-- Manifest per report (JSON)
-- Section assets (modular JSON)
-- Final structured CSV for design template pipeline
-- Versioned GDocs for editing/review
+  ```json
+  {
+    "prompt": "client_context",
+    "client": "...",
+    "client_context_url": "..."
+  }
+  ```
 
-### Optional UI (Later)
-- Report configuration panel (Retool, Streamlit, Flask)
-- Allows input control, manual override, and partial regeneration
+#### ✅ Prompt Dispatcher
 
----
+```python
+POST /
+```
 
-## 5. Technical Paths
+* Payload contains `"prompt"` key (e.g. `"prompt_1_thinking"`).
+* Uses dynamic import to run:
 
-### New Report Flow
-- Capture: Question + Context
-- Classify: Topic + Question Type
-- Match: Report Type
-- Inject: Prompt structure + schema
-- Output: JSON assets per section
-- Assemble: Final report document
+```python
+Scripts/<Report Type>/<prompt>.py
+```
 
-### Section Regeneration
-- Human flags section → System re-runs just that prompt with full retained context
+#### ✅ Prompt Execution Scripts
 
-### Human Feedback Flow
-- Editable GDoc with revision flags
-- Feedback piped into override engine
-- AI regenerates section/sub-section without disturbing structure
+Each script:
 
-### Recurring Reports
-- Re-use original manifest
-- Retain schema and section logic
-- Re-run Prompt 1 + data sources
-- Forecast drift constrained by prior tolerances unless override justified
+* Loads a template from `/Prompts/...`
+* Escapes variables using `safe_escape()`:
 
-### Document Enrichment
-- External docs → parsed → injected into prompt
-- Used to inform but not override structured insight logic
+  ```python
+  def safe_escape(value):
+      return str(value).replace("{", "{{").replace("}", "}}")
+  ```
+* Fills the prompt via `.format(...)`
+* Sends to OpenAI
+* Returns structured output
 
 ---
 
-## 6. Example JSON Manifest
+### 📁 Directory & File Structure
 
-```json
-{
-  "report_id": "lithium_price_china_q1_2025",
-  "question": "What will the price of lithium be in China next quarter?",
-  "question_topic": "Commodity",
-  "question_type": "Predictive",
-  "report_type": "Predictive Report",
-  "structure_overrides": {
-    "sections": 5,
-    "subsections": 2,
-    "tone": "analytical"
-  },
-  "sections": [
-    {
-      "id": "market_baseline",
-      "title": "Current Lithium Market Conditions",
-      "assets": ["section_summary", "chart_data", "change_low", "change_high"]
-    },
-    {
-      "id": "forecast",
-      "title": "Forecasted Supply and Demand Factors",
-      "assets": ["scenario_table", "effect_calc"]
-    }
-  ],
-  "status": "in_progress"
-}
+```
+/main.py
+/Engine/logger.py
+/Engine/Files/auth.py
+/Engine/Files/write_supabase_file.py
+/Engine/Files/read_supabase_file.py
+
+/Prompts/Client Context/client_context.txt
+/Prompts/Predictive Report/prompt_1_thinking.txt
+
+/Scripts/Client Context/client_context.py
+/Scripts/Predictive Report/prompt_1_thinking.py
+```
+
+> All prompt files must contain a `run_prompt(data)` method and use:
+
+```python
+from Engine.logger import logger
+```
 
 ---
 
-7. Visual Maps
+### 📝 Logging Architecture
 
-flowchart TD
-    Q[Question + Context] --> QT[Classify Topic + Type]
-    QT --> RT[Select Report Type]
-    RT --> SCH[Load Manifest Template]
-    SCH --> PROMPTS[Send Prompt Blocks to AI]
-    PROMPTS --> OUT[Collect JSON Assets]
-    OUT --> DOC[Assemble Final Report]
-    DOC --> REVIEW[Human Feedback?]
-    REVIEW -- Yes --> FIX[Section Regeneration]
-    REVIEW -- No --> DONE[Deliver & Store]
+Centralised in `Engine/logger.py`:
 
----
+* Uses a **singleton logger** named `"panelitix"`.
+* StreamHandler writes to stdout (Render log).
+* Format:
 
-System Hierarchy
+  ```
+  [timestamp] [level] message
+  ```
 
-graph TD
-    Q[Question] --> TQ[Question Topic]
-    Q --> QT[Question Type]
-    QT --> RT[Report Type]
-    RT --> ST[Section Type]
-    ST --> AS[Asset Type]
+Each module logs:
+
+* Webhook trigger
+* Payload input
+* Supabase paths and results
+* Prompt content (DEBUG)
+* Final responses
+* Errors via `logger.exception(...)`
 
 ---
 
-8. Development Status
-Phase 1: Core Flow (✓ Completed)
-Prompt 1 working end-to-end
-Manifest builder in place
-Zapier trigger stable
-AI prompt injection modular
+### 🧩 Report Modularity Rules
 
-Phase 2: Revision Logic (🚧 In Progress)
-Flagged section regeneration
-Feedback-to-regeneration routing
+Each report type (e.g., “Predictive Report”) is isolated into:
 
-Phase 3: Expansion
-Add multi-topic support (non-Commodity)
-Add non-Predictive report templates
-Add override UI
-Add PDF and chart rendering layer
+```
+/Prompts/<Report Type>/
+/Scripts/<Report Type>/
+```
+
+To extend:
+
+1. Add `.txt` prompt in `/Prompts/...`
+2. Add `.py` runner in `/Scripts/...`
+3. Register prompt name in `/` route dispatcher in `main.py`
+
+---
+
+### 🔒 Security & Deployment
+
+* All Supabase writes use **authenticated PUT** via service role key.
+* File writes are isolated to specific folders.
+* Typeform is the only entry point—no user-facing endpoints are exposed.
+* Logs are only viewable in the Render console.
+
+---
+
+### ✅ Summary
+
+This system enables flexible, maintainable generation of structured AI reports by separating:
+
+* Input (Typeform)
+* Storage (Supabase)
+* Logic (Prompt Scripts)
+* Hosting (Render)
+* Logging (Centralised `logger.py`)
+* Output (JSON)
+
+It is modular, debuggable, and scalable for additional prompt stages or report types.
