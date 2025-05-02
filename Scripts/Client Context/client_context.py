@@ -1,6 +1,7 @@
 import openai
 import os
 import re
+from Engine.Files.write_supabase_file import write_supabase_file
 from logger import logger
 
 def run_prompt(data):
@@ -70,4 +71,14 @@ def run_prompt(data):
     return {
         "client_context": client_context_text,
         "file_id": data.get('file_id')  # optional, pass-through
+    }
+
+    # Write the output to Supabase
+    filename = f"{client}_Client_Context_{datetime.utcnow().strftime('%d%m%Y_%H%M')}.txt"
+    supabase_path = f"panelitix/The Big Question/Predictive Report/Ai Responses/{filename}"
+    write_supabase_file(supabase_path, client_context_text)
+
+    return {
+        "client_context": client_context_text,
+        "client_context_url": f"https://ribebcjrzcinomtocqdo.supabase.co/storage/v1/object/public/{supabase_path}"
     }
