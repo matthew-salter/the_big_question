@@ -9,6 +9,9 @@ def process_typeform_submission(data):
         for answer in data['form_response']['answers']
     }
 
+    print("=== Extracted Form Fields ===")
+    print(json.dumps(form_fields, indent=2))
+
     # ✅ Add this block to inspect what keys were extracted
     print("=== Extracted Form Fields ===")
     print(json.dumps(form_fields, indent=2))
