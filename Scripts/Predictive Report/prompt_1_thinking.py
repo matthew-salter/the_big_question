@@ -2,7 +2,7 @@ import openai
 import os
 import time
 import json
-from Engine.logger import logger
+from logger import logger
 
 def safe_escape(value):
     if value is None:
