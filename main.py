@@ -3,6 +3,13 @@ import os
 import openai
 import importlib.util
 from dotenv import load_dotenv
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,  # Change to DEBUG for even more detail
+    format='%(asctime)s %(levelname)s %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 app = Flask(__name__)
