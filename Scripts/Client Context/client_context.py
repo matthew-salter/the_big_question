@@ -1,6 +1,7 @@
 import openai
 import os
 import re
+from datetime import datetime
 from Engine.Files.write_supabase_file import write_supabase_file
 from logger import logger
 
@@ -68,17 +69,19 @@ def run_prompt(data):
         logger.exception("❌ Failed to clean or parse client context")
         return {"error": f"Error cleaning client context: {str(e)}", "raw_response": raw_output}
 
-    return {
-        "client_context": client_context_text,
-        "file_id": data.get('file_id')  # optional, pass-through
-    }
-
     # Write the output to Supabase
-    filename = f"{client}_Client_Context_{datetime.utcnow().strftime('%d%m%Y_%H%M')}.txt"
-    supabase_path = f"panelitix/The Big Question/Predictive Report/Ai Responses/{filename}"
-    write_supabase_file(supabase_path, client_context_text)
+    try:
+        filename = f"{client}_Client_Context_{datetime.utcnow().strftime('%d%m%Y_%H%M')}.txt"
+        supabase_path = f"panelitix/The Big Question/Predictive Report/Ai Responses/{filename}"
+        write_supabase_file(supabase_path, client_context_text)
+        logger.info(f"✅ Client context written to Supabase: {supabase_path}")
+    except Exception as e:
+        logger.exception("❌ Failed to write client context to Supabase")
+        return {"error": f"Supabase write failed: {str(e)}"}
 
+    # Final return
     return {
         "client_context": client_context_text,
-        "client_context_url": f"https://ribebcjrzcinomtocqdo.supabase.co/storage/v1/object/public/{supabase_path}"
+        "client_context_url": f"https://ribebcjrzcinomtocqdo.supabase.co/storage/v1/object/public/{supabase_path}",
+        "file_id": data.get('file_id')  # optional
     }
