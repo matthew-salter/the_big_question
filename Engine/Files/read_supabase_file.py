@@ -1,8 +1,6 @@
 import requests
 import time
-import logging
-
-logger = logging.getLogger(__name__)
+from Engine.logger import logger
 
 def read_supabase_file(url, retries=3, delay=2):
     for attempt in range(1, retries + 1):
