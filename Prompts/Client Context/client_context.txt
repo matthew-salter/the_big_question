@@ -1,8 +1,8 @@
 ### INSTRUCTION & CONTEXT
 I want to understand more about a client and their business activities.
 
-**CLIENT**: {{client}}
-**WEBSITE**: {{client_website_url}}
+**CLIENT**: {client}
+**WEBSITE**: {client_website_url}
 
 *OBJECTIVE*:
 Please visit the clients website.
