@@ -5,22 +5,19 @@ import importlib.util
 from dotenv import load_dotenv
 from logger import logger
 
-# === ENV + INIT ===
 load_dotenv()
 app = Flask(__name__)
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
-# === UTIL: Load Any Module Dynamically ===
 def load_module_from_path(module_name, file_path):
     logger.info(f"🔧 Loading module '{module_name}' from '{file_path}'")
     spec = importlib.util.spec_from_file_location(module_name, file_path)
-    if spec is None:
-        raise ImportError(f"Cannot find spec for module {module_name}")
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Cannot find or load module: {module_name}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
-# === ROUTE: SUPABASE FILE READ TEST ===
 @app.route('/test-supabase-read', methods=['GET'])
 def test_supabase_read():
     from Engine.Files.read_supabase_file import read_supabase_file
@@ -33,20 +30,15 @@ def test_supabase_read():
         logger.exception("❌ Error during test-supabase-read")
         return jsonify({"success": False, "error": str(e)}), 500
 
-# === ROUTE: TYPEFORM INGEST + FIRST PROMPT ===
 @app.route('/ingest-typeform', methods=['POST'])
 def ingest_typeform():
     try:
         logger.info("📨 Received Typeform webhook: /ingest-typeform")
-
-        # Load and run ingestion
-        ingest = load_module_from_path("ingest_typeform", "Scripts/Predictive_Report/ingest_typeform.py")
+        ingest = load_module_from_path("ingest_typeform", "Scripts/Predictive Report/ingest_typeform.py")
         typeform_payload = ingest.process_typeform_submission(request.json)
 
         logger.info("📦 Typeform ingestion completed. Triggering client_context prompt.")
-
-        # Run client_context prompt immediately
-        context_runner = load_module_from_path("client_context", "Scripts/Predictive_Report/client_context.py")
+        context_runner = load_module_from_path("client_context", "Scripts/Predictive Report/client_context.py")
         context_result = context_runner.run_prompt(typeform_payload)
 
         logger.info("✅ client_context prompt executed successfully.")
@@ -56,7 +48,6 @@ def ingest_typeform():
         logger.exception("❌ Failed during /ingest-typeform flow")
         return jsonify({"success": False, "error": str(e)}), 500
 
-# === ROUTE: GENERIC AI PROMPT DISPATCH ===
 @app.route('/', methods=['POST'])
 def handle_webhook():
     data = request.json
@@ -69,11 +60,11 @@ def handle_webhook():
         logger.info(f"🚦 Dispatching to prompt: {prompt}")
 
         prompt_map = {
-            "client_context": "Scripts/Predictive_Report/client_context.py",
-            "prompt_1_thinking": "Scripts/Predictive_Report/prompt_1_thinking.py",
-            "prompt_2b": "Scripts/Predictive_Report/prompt_2b.py",
-            "prompt_2c": "Scripts/Predictive_Report/prompt_2c.py",
-            "prompt_3": "Scripts/Predictive_Report/prompt_3.py"
+            "client_context": "Scripts/Predictive Report/client_context.py",
+            "prompt_1_thinking": "Scripts/Predictive Report/prompt_1_thinking.py",
+            "prompt_2b": "Scripts/Predictive Report/prompt_2b.py",
+            "prompt_2c": "Scripts/Predictive Report/prompt_2c.py",
+            "prompt_3": "Scripts/Predictive Report/prompt_3.py"
         }
 
         if prompt not in prompt_map:
@@ -90,7 +81,6 @@ def handle_webhook():
         logger.exception("❌ Error during prompt dispatch")
         return jsonify({"error": str(e)}), 500
 
-# === START FLASK SERVER ===
 if __name__ == '__main__':
     logger.info("🚀 Starting Flask server on port 10000")
     app.run(host='0.0.0.0', port=10000)
