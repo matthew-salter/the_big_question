@@ -1,5 +1,5 @@
 import os
-from Engine.logger import logger
+from logger import logger
 
 def supabase_headers():
     token = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
