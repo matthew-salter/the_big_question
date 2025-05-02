@@ -8,12 +8,12 @@ from logger import logger
 def run_prompt(data):
     logger.info("🚀 Running client context prompt")
 
-    # Extract the incoming variables
+    # === Extract incoming variables ===
     client = data.get('client')
     client_website_url = data.get('client_website_url')
     logger.info("🔍 Client: %s | Website: %s", client, client_website_url)
 
-    # Load the correct prompt template
+    # === Load prompt template ===
     prompt_path = 'Prompts/Client Context/client_context.txt'
     try:
         with open(prompt_path, 'r') as f:
@@ -22,20 +22,20 @@ def run_prompt(data):
         logger.exception("❌ Failed to read prompt template")
         return {"error": f"Failed to load prompt: {str(e)}"}
 
-    # Fill in the prompt
+    # === Inject variables ===
     try:
         prompt = prompt_template.format(
             client=client,
             client_website_url=client_website_url
         )
+        logger.debug("📄 Final prompt:\n%s", prompt)
     except Exception as e:
         logger.exception("❌ Failed to fill prompt template")
         return {"error": f"Failed to fill prompt: {str(e)}"}
 
-    logger.debug("📄 Final prompt:\n%s", prompt)
-
-    # Send to OpenAI
+    # === Send prompt to OpenAI ===
     try:
+        logger.info("🧠 Sending prompt to OpenAI")
         response = openai.chat.completions.create(
             model="gpt-4-turbo",
             messages=[
@@ -44,32 +44,32 @@ def run_prompt(data):
             ],
             temperature=0.2
         )
+        logger.info("🧠 Received response from OpenAI")
     except Exception as e:
         logger.exception("❌ OpenAI API call failed")
         return {"error": f"OpenAI request failed: {str(e)}"}
 
-    # Extract the raw output
+    # === Parse and clean AI output ===
     try:
         raw_output = response.choices[0].message.content
         logger.debug("📝 Raw output:\n%s", raw_output)
-    except Exception as e:
-        logger.exception("❌ Failed to extract response content")
-        return {"error": f"Failed to extract OpenAI response: {str(e)}"}
 
-    # Clean the output
-    try:
         cleaned_output = raw_output.replace("**", "").replace("{", "").replace("}", "").strip()
         match = re.findall(r'\"(.*?)\"', cleaned_output, re.DOTALL)
         if match and len(match) >= 1:
             client_context_text = match[-1].strip()
         else:
             client_context_text = cleaned_output.strip()
+
         logger.info("✅ Client context extracted successfully")
     except Exception as e:
         logger.exception("❌ Failed to clean or parse client context")
-        return {"error": f"Error cleaning client context: {str(e)}", "raw_response": raw_output}
+        return {
+            "error": f"Error cleaning client context: {str(e)}",
+            "raw_response": raw_output
+        }
 
-    # Write the output to Supabase
+    # === Write AI response to Supabase ===
     try:
         filename = f"{client}_Client_Context_{datetime.utcnow().strftime('%d%m%Y_%H%M')}.txt"
         supabase_path = f"panelitix/The Big Question/Predictive Report/Ai Responses/{filename}"
@@ -79,7 +79,7 @@ def run_prompt(data):
         logger.exception("❌ Failed to write client context to Supabase")
         return {"error": f"Supabase write failed: {str(e)}"}
 
-    # Final return
+    # === Return structured payload ===
     return {
         "client_context": client_context_text,
         "client_context_url": f"https://ribebcjrzcinomtocqdo.supabase.co/storage/v1/object/public/{supabase_path}",
