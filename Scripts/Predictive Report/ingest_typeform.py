@@ -72,11 +72,20 @@ def process_typeform_submission(data):
     else:
         logger.info("ℹ️ No logo field found in submission.")
 
-    # === Final Output Payload ===
+    # === Step 3: Extract All Required Fields ===
     return {
         "prompt": "client_context",
         "client": form_fields.get("26f95c88-43d4-4540-83b7-0d78e1c9535e", ""),
         "client_website_url": form_fields.get("554e54d9-4cdf-41ce-935c-b2d8c5136b56", ""),
+        "main_question": form_fields.get("ac1be1a4-8e4f-47b2-976e-bb760d5c2b4c", ""),
+        "num_sections": form_fields.get("0b7e6aa6-f377-4cb5-9c5f-3e808c02ff07", ""),
+        "num_sub_sections": form_fields.get("ac64d754-e54b-4938-8d0f-83b2363d6f44", ""),
+        "target_variable": form_fields.get("b6523d42-e2ea-4bb9-bfc7-47432864cd8b", ""),
+        "commodity": form_fields.get("5e169d30-48a5-4900-85e0-13360d1df0df", ""),
+        "region": form_fields.get("947bba76-0386-40f4-9ac7-81f6978396a7", ""),
+        "forecast_time_range": form_fields.get("b8c9c9f7-3280-4147-bb61-80f06fa7bb50", ""),
+        "reference_age_range": form_fields.get("c1f64b0c-7b88-4b4b-aad1-dac861aa86cf", ""),
         "client_context_url": f"https://ribebcjrzcinomtocqdo.supabase.co/storage/v1/object/public/{context_path}",
         "logo_url": logo_url
     }
+
