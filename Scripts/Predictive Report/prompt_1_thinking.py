@@ -16,7 +16,10 @@ def run_prompt(data):
     logger.debug(json.dumps(data, indent=2))
 
     # Extract and sanitize incoming variables
-    assistant_id = safe_escape(data.get('assistant_id'))
+    assistant_id = os.getenv("ASSISTANT_ID")
+    if not assistant_id:
+        logger.error("❌ Missing ASSISTANT_ID environment variable.")
+        return {"error": "Missing ASSISTANT_ID environment variable"}
 
     client = safe_escape(data.get('client'))
     client_context = safe_escape(data.get('client_context'))
