@@ -4,6 +4,7 @@ import time
 import json
 from datetime import datetime
 from logger import logger
+from Runtime.run_assistant import run_assistant
 from Engine.Files.write_supabase_file import write_supabase_file
 
 def safe_escape(value):
@@ -14,8 +15,22 @@ def safe_escape(value):
     return str(value).replace("{", "{{").replace("}", "}}")
 
 def run_prompt(data):
-    logger.info("🚀 Incoming Webhook Payload")
-    logger.debug(json.dumps(data, indent=2))
+    logger.info("🧠 Running prompt_1_thinking")
+    logger.debug("Input variables:\n%s", json.dumps(data, indent=2))
+
+    with open("Prompts/Predictive Report/prompt_1_thinking.txt", "r") as f:
+        template = f.read()
+
+    try:
+        filled_prompt = template.format(**data)
+    except KeyError as e:
+        logger.error("❌ Missing variable in prompt template: %s", e)
+        raise
+
+    logger.debug("📝 Final prompt sent to assistant:\n%s", filled_prompt)
+
+    response = run_assistant(filled_prompt)
+    return {"response": response}
 
     # === Load environment variables ===
     assistant_id = os.getenv("ASSISTANT_ID")
