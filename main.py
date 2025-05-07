@@ -41,15 +41,37 @@ def test_supabase_read():
 def ingest_typeform():
     try:
         logger.info("📨 Received Typeform webhook: /ingest-typeform")
+
+        # Step 1: Ingest Typeform data
         ingest = load_module_from_path("ingest_typeform", "Scripts/Predictive Report/ingest_typeform.py")
-        result = ingest.process_typeform_submission(request.json)
+        parsed = ingest.process_typeform_submission(request.json)
 
-        logger.info("📦 Typeform ingestion completed. Triggering client_context prompt.")
+        # Step 2: Run client_context.py and get AI output
         context_runner = load_module_from_path("client_context", "Scripts/Client Context/client_context.py")
-        response = context_runner.run_prompt(result)
+        client_context_response = context_runner.run_prompt(parsed)
+        client_context = client_context_response.get("response", "")
 
-        logger.info("✅ client_context prompt executed.")
-        return jsonify(response)
+        # Step 3: Prepare inputs for prompt_1_thinking
+        prompt_1_inputs = {
+            "client": parsed.get("client", ""),
+            "main_question": parsed.get("main_question", ""),
+            "question_context": parsed.get("client_context_url", ""),
+            "number_sections": parsed.get("num_sections", ""),
+            "number_sub_sections": parsed.get("num_sub_sections", ""),
+            "target_variable": parsed.get("target_variable", ""),
+            "commodity": parsed.get("commodity", ""),
+            "region": parsed.get("region", ""),
+            "time_range": parsed.get("forecast_time_range", ""),
+            "client_context": client_context
+        }
+
+        logger.info("📦 Typeform and client_context processed. Triggering prompt_1_thinking.")
+        thinking_runner = load_module_from_path("prompt_1_thinking", "Scripts/Predictive Report/prompt_1_thinking.py")
+        thinking_response = thinking_runner.run_prompt(prompt_1_inputs)
+
+        logger.info("✅ prompt_1_thinking executed successfully.")
+        return jsonify(thinking_response)
+
     except Exception as e:
         logger.exception("❌ Failed during /ingest-typeform flow")
         return jsonify({"success": False, "error": str(e)}), 500
