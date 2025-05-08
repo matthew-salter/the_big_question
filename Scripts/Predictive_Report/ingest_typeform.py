@@ -12,7 +12,8 @@ def download_file(url: str) -> bytes:
     return res.content
 
 
-def run_prompt(data):
+def process_typeform_submission(data):
+    """Extracts client, context, and logo file from Typeform and writes to Supabase."""
     try:
         answers = data.get("form_response", {}).get("answers", [])
         client = None
@@ -31,22 +32,22 @@ def run_prompt(data):
 
             elif field_id == "EhqqF9jjQwTd":  # Logo file
                 logo_url = answer["file_url"]
-                logo_ext = os.path.splitext(logo_url.split("/")[-1])[-1]  # .jpg or .png
+                logo_ext = os.path.splitext(logo_url.split("/")[-1])[-1]  # e.g., .jpg or .png
 
         if not client or not question_context_url or not logo_url:
             raise ValueError("Missing required fields: client, question context file, or logo")
 
-        # Format filenames and paths
+        # Format filenames and Supabase paths
         date_str = datetime.utcnow().strftime("%d-%m-%Y")
         question_context_path = f"public/The_Big_Question/Predictive_Report/Question_Context/{client}_question_context_{date_str}.txt"
         logo_path = f"public/The_Big_Question/Predictive_Report/Logo.{logo_ext.lstrip('.')}"
 
-        # Download and write the question context
+        # Download and save the question context
         logger.info(f"📥 Downloading question context from: {question_context_url}")
         question_context_data = download_file(question_context_url)
         write_supabase_file(question_context_path, question_context_data.decode("utf-8"))
 
-        # Download and write the logo file
+        # Download and save the logo
         logger.info(f"📥 Downloading logo from: {logo_url}")
         logo_data = download_file(logo_url)
         write_supabase_file(logo_path, logo_data)
