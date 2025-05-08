@@ -6,14 +6,22 @@ from logger import logger
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_BUCKET = "panelitix"
 
-def write_supabase_file(path, content: str):
+def write_supabase_file(path, content):
     if not SUPABASE_URL:
         logger.error("❌ SUPABASE_URL is not set in environment variables.")
         raise ValueError("SUPABASE_URL not configured")
 
     url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}"
     headers = get_supabase_headers()
-    data = content.encode("utf-8")
+
+    if isinstance(content, str):
+        data = content.encode("utf-8")
+        logger.debug("📄 Content is UTF-8 text. Encoding before upload.")
+    elif isinstance(content, bytes):
+        data = content
+        logger.debug("🖼️ Content is raw bytes. Uploading directly.")
+    else:
+        raise TypeError("❌ Content must be either str or bytes.")
 
     try:
         logger.info(f"Attempting Supabase file write to: {url}")
