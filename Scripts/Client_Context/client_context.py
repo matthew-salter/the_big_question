@@ -1,5 +1,5 @@
 import openai
-from Engine.logger import logger
+from logger import logger
 import os
 
 def safe_escape(value):
