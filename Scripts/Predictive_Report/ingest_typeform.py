@@ -4,66 +4,54 @@ from datetime import datetime
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
 
-SUPABASE_BUCKET = "panelitix"
 
-
-def get_file_extension(url):
-    return os.path.splitext(url.split("?")[0])[1].lstrip(".")
-
-
-def fetch_file_contents(url):
+def download_file(url: str) -> bytes:
+    """Downloads a file from a given URL and returns its binary content."""
     res = requests.get(url)
     res.raise_for_status()
     return res.content
 
 
-def process_typeform_submission(data):
+def run_prompt(data):
     try:
-        logger.info("🚀 Processing Typeform submission")
-
-        answers = data["form_response"]["answers"]
-        client_name = None
+        answers = data.get("form_response", {}).get("answers", [])
+        client = None
         question_context_url = None
         logo_url = None
+        logo_ext = None
 
         for answer in answers:
             field_id = answer["field"]["id"]
 
             if field_id == "AHtYeYezxSPh":  # Client name
-                client_name = answer["text"].replace(" ", "_").lower()
+                client = answer["text"].strip().replace(" ", "_")
 
             elif field_id == "94zGg79WPuGQ":  # Question context file
                 question_context_url = answer["file_url"]
 
             elif field_id == "EhqqF9jjQwTd":  # Logo file
                 logo_url = answer["file_url"]
+                logo_ext = os.path.splitext(logo_url.split("/")[-1])[-1]  # .jpg or .png
 
-        if not client_name or not question_context_url or not logo_url:
-            raise ValueError("Missing one or more required fields from Typeform")
+        if not client or not question_context_url or not logo_url:
+            raise ValueError("Missing required fields: client, question context file, or logo")
 
-        # Format date
+        # Format filenames and paths
         date_str = datetime.utcnow().strftime("%d-%m-%Y")
+        question_context_path = f"public/The_Big_Question/Predictive_Report/Question_Context/{client}_question_context_{date_str}.txt"
+        logo_path = f"public/The_Big_Question/Predictive_Report/Logo.{logo_ext.lstrip('.')}"
 
-        # Write Question Context
-        qc_content = fetch_file_contents(question_context_url).decode("utf-8")
-        qc_path = f"public/The_Big_Question/Predicitive_Report/Question_Context/{client_name}_question_context_{date_str}.txt"
-        write_supabase_file(qc_path, qc_content)
-        logger.info(f"✅ Saved Question Context to: {qc_path}")
+        # Download and write the question context
+        logger.info(f"📥 Downloading question context from: {question_context_url}")
+        question_context_data = download_file(question_context_url)
+        write_supabase_file(question_context_path, question_context_data.decode("utf-8"))
 
-        # Write Logo
-        logo_ext = get_file_extension(logo_url)
-        logo_path = f"public/The_Big_Question/Predicitive_Report/Logo.{logo_ext}"
-        logo_content = fetch_file_contents(logo_url)
-        write_supabase_file(logo_path, logo_content)
-        logger.info(f"✅ Saved Logo to: {logo_path}")
+        # Download and write the logo file
+        logger.info(f"📥 Downloading logo from: {logo_url}")
+        logo_data = download_file(logo_url)
+        write_supabase_file(logo_path, logo_data)
 
-        return {
-            "status": "success",
-            "client": client_name,
-            "question_context_path": qc_path,
-            "logo_path": logo_path
-        }
+        logger.info("✅ Files written to Supabase successfully.")
 
-    except Exception as e:
-        logger.exception("❌ Failed to process Typeform submission")
-        return {"status": "error", "message": str(e)}
+    except Exception:
+        logger.exception("❌ Failed to process Typeform submission and save files to Supabase.")
