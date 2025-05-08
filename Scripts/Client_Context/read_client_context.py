@@ -3,8 +3,7 @@ from logger import logger
 from Engine.Files.read_supabase_file import read_supabase_file
 
 MAX_RETRIES = 6
-RETRY_DELAY_SECONDS = 2  # This will double each retry: 2, 4, 8, 16, 32, 64
-
+RETRY_DELAY_SECONDS = 2  # Exponential backoff: 2, 4, 8, 16, 32, 64 seconds
 
 def run_prompt(data):
     try:
@@ -20,7 +19,7 @@ def run_prompt(data):
                 logger.info(f"Attempting to read Supabase file: {supabase_path} (Attempt {retries + 1})")
                 content = read_supabase_file(supabase_path)
                 logger.info(f"✅ File retrieved successfully from Supabase for run_id: {run_id}")
-
+                
                 return {
                     "status": "success",
                     "run_id": run_id,
@@ -39,10 +38,9 @@ def run_prompt(data):
             "message": "Client context file not yet available. Try again later."
         }
 
-    except Exception:
+    except Exception as e:
         logger.exception("Unhandled error in read_client_context")
         return {
             "status": "error",
-            "message": "Unhandled server error during client context read."
-            "client_context": content
+            "message": f"Unhandled server error during client context read: {str(e)}"
         }
