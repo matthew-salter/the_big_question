@@ -6,7 +6,7 @@ from logger import logger
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_BUCKET = "panelitix"
 
-def read_supabase_file(path: str) -> str:
+def read_supabase_file(path: str, binary: bool = False):
     if not SUPABASE_URL:
         logger.error("❌ SUPABASE_URL is not set in environment variables.")
         raise ValueError("SUPABASE_URL not configured")
@@ -21,8 +21,12 @@ def read_supabase_file(path: str) -> str:
         logger.info(f"Supabase response status: {res.status_code}")
         res.raise_for_status()
 
-        logger.debug(f"✅ File read successful, content size: {len(res.text)} bytes")
-        return res.text
+        if binary:
+            logger.debug(f"✅ Binary file read successful, content size: {len(res.content)} bytes")
+            return res.content
+        else:
+            logger.debug(f"✅ Text file read successful, content size: {len(res.text)} bytes")
+            return res.text
 
     except requests.exceptions.RequestException as e:
         logger.error(f"❌ Supabase file read failed: {e}")
