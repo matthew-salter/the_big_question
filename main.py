@@ -5,6 +5,9 @@ from logger import logger
 
 app = Flask(__name__)
 
+# Prompts that should wait for the file to be read and return the result synchronously
+BLOCKING_PROMPTS = {"read_client_context"}
+
 @app.route("/", methods=["POST"])
 def dispatch_prompt():
     try:
@@ -18,22 +21,27 @@ def dispatch_prompt():
 
         logger.info(f"Dispatching prompt asynchronously: {prompt_name}")
 
-        # Run prompt in background
-        def run_and_log():
+        result_container = {}
+
+        def run_and_capture():
             try:
-                module.run_prompt(data)
+                result = module.run_prompt(data)
+                result_container.update(result or {})
             except Exception:
                 logger.exception("Background prompt execution failed.")
 
-        thread = threading.Thread(target=run_and_log)
+        thread = threading.Thread(target=run_and_capture)
         thread.start()
 
-        # Expect module.run_prompt to inject run_id into data before return
-        return jsonify({
-            "status": "processing",
-            "message": "Script launched, run_id will be available via follow-up.",
-            "run_id": data.get("run_id")
-        })
+        if prompt_name in BLOCKING_PROMPTS:
+            thread.join()
+            return jsonify(result_container)
+        else:
+            return jsonify({
+                "status": "processing",
+                "message": "Script launched, run_id will be available via follow-up.",
+                "run_id": data.get("run_id")
+            })
 
     except Exception as e:
         logger.exception("Error in dispatch_prompt")
