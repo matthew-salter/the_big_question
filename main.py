@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import importlib
+import threading
 from logger import logger
 
 app = Flask(__name__)
@@ -12,14 +13,17 @@ def dispatch_prompt():
         if not prompt_name:
             return jsonify({"error": "Missing 'prompt' key"}), 400
 
-        # Infer script path: e.g., prompt = client_context → Scripts.Client_Context.client_context
         module_path = f"Scripts.Client_Context.{prompt_name}"
         module = importlib.import_module(module_path)
 
-        logger.info(f"Dispatching prompt: {prompt_name}")
-        result = module.run_prompt(data)
+        logger.info(f"Dispatching prompt asynchronously: {prompt_name}")
+        thread = threading.Thread(target=module.run_prompt, args=(data,), daemon=True)
+        thread.start()
 
-        return jsonify(result)
+        return jsonify({
+            "status": "processing",
+            "run_id": data.get("run_id")
+        })
 
     except Exception as e:
         logger.exception("Error in dispatch_prompt")
