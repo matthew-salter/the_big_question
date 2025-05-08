@@ -17,13 +17,25 @@ def dispatch_prompt():
         module = importlib.import_module(module_path)
 
         logger.info(f"Dispatching prompt asynchronously: {prompt_name}")
-        thread = threading.Thread(target=module.run_prompt, args=(data,), daemon=True)
-        thread.start()
+        
+        # container to store the result
+        result_container = {}
 
-        return jsonify({
-            "status": "processing",
-            "run_id": data.get("run_id")
-        })
+        # inline thread target that updates result_container
+        def run_and_capture():
+            result_container.update(module.run_prompt(data))
+
+        thread = threading.Thread(target=run_and_capture, daemon=True)
+        thread.start()
+        thread.join(timeout=1.0)
+
+        if "run_id" in result_container:
+            return jsonify({
+                "status": "processing",
+                "run_id": result_container["run_id"]
+            })
+        else:
+            return jsonify({"status": "processing", "message": "Script launched, run_id will be available via follow-up."})
 
     except Exception as e:
         logger.exception("Error in dispatch_prompt")
