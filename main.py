@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from Scripts.Ingest.ingest_typeform import process_typeform_submission
+from Scripts.Predictive_Report.ingest_typeform import process_typeform_submission
 import importlib
 import threading
 from logger import logger
