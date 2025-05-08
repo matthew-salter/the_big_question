@@ -1,13 +1,13 @@
 import requests
-from Engine.Files.auth import supabase_headers
-from logger import logger
+from auth import get_supabase_headers
 
-def write_supabase_file(path, content):
-    url = f"https://ribebcjrzcinomtocqdo.supabase.co/storage/v1/object/{path}"
-    headers = supabase_headers()
-    logger.info(f"📤 Writing file to Supabase: {url}")
-    response = requests.put(url, headers=headers, data=content)
-    if not response.ok:
-        logger.error(f"❌ Failed to write to Supabase: {response.status_code}, {response.text}")
-        raise Exception(f"Failed to write to Supabase: {response.status_code}, {response.text}")
-    logger.info(f"✅ Successfully wrote file to Supabase at: {url}")
+SUPABASE_URL = "https://<your-project-id>.supabase.co"
+SUPABASE_BUCKET = "panelitix"
+
+def write_supabase_file(path, content: str):
+    url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}"
+    headers = get_supabase_headers()
+    data = content.encode("utf-8")
+
+    res = requests.put(url, headers=headers, data=data)
+    res.raise_for_status()
