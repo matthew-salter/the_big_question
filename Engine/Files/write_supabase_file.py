@@ -1,5 +1,6 @@
 import requests
 from auth import get_supabase_headers
+from logger import logger
 
 SUPABASE_URL = "https://<your-project-id>.supabase.co"
 SUPABASE_BUCKET = "panelitix"
