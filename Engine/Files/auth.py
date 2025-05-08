@@ -1,7 +1,7 @@
 import os
 from logger import logger
 
-def supabase_headers():
+def get_supabase_headers():
     token = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     if not token:
         logger.warning("SUPABASE_SERVICE_ROLE_KEY not found in environment variables.")
