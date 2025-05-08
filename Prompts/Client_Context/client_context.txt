@@ -1,5 +1,4 @@
 You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
-If your output exceeds token limits, return a complete truncated section-by-section output and continue automatically in the next response using the same structure.
 
 ### INSTRUCTION & CONTEXT
 I want to understand more about a client and their business activities.
