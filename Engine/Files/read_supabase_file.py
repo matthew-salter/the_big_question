@@ -1,19 +1,13 @@
 import requests
-import time
+from auth import get_supabase_headers
 from logger import logger
 
-def read_supabase_file(url, retries=3, delay=2):
-    for attempt in range(1, retries + 1):
-        try:
-            logger.info(f"🔄 Attempt {attempt}: Fetching {url}")
-            response = requests.get(url, timeout=10)
-            response.raise_for_status()
-            logger.info("✅ File fetched successfully.")
-            return response.text
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"⚠️ Attempt {attempt} failed: {e}")
-            if attempt < retries:
-                time.sleep(delay)
-            else:
-                logger.error(f"❌ All attempts to fetch the file failed: {e}")
-                raise Exception(f"All attempts to fetch the file failed: {e}")
+SUPABASE_URL = "https://<your-project-id>.supabase.co"
+SUPABASE_BUCKET = "panelitix"
+
+def read_supabase_file(path: str) -> str:
+    url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}"
+    headers = get_supabase_headers()
+    res = requests.get(url, headers=headers)
+    res.raise_for_status()
+    return res.text
