@@ -44,4 +44,5 @@ def run_prompt(data):
         return {
             "status": "error",
             "message": "Unhandled server error during client context read."
+            "client_context": content
         }
