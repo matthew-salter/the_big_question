@@ -1,3 +1,4 @@
+import uuid
 from openai import OpenAI
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
@@ -9,7 +10,7 @@ def run_prompt(data):
     try:
         client_name = data["client"]
         website = data["client_website_url"]
-        run_id = data["run_id"]
+        run_id = str(uuid.uuid4())
 
         with open("Prompts/Client_Context/client_context.txt", "r", encoding="utf-8") as f:
             template = f.read()
