@@ -1,7 +1,18 @@
 from flask import Flask, request, jsonify
+from Scripts.Ingest.ingest_typeform import process_typeform_submission
 import importlib
 import threading
 from logger import logger
+
+@app.route("/ingest-typeform", methods=["POST"])
+def ingest_typeform():
+    try:
+        data = request.get_json(force=True)
+        process_typeform_submission(data)
+        return jsonify({"status": "success", "message": "Typeform files are being processed."})
+    except Exception as e:
+        logger.exception("Error in ingest_typeform")
+        return jsonify({"error": str(e)}), 500
 
 app = Flask(__name__)
 
