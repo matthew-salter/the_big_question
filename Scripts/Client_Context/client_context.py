@@ -8,9 +8,11 @@ def safe_escape(value):
 
 def run_prompt(data):
     try:
+        run_id = str(uuid.uuid4())
+        data["run_id"] = run_id  # inject run_id for main.py to return
+
         client_name = data["client"]
         website = data["client_website_url"]
-        run_id = str(uuid.uuid4())
 
         with open("Prompts/Client_Context/client_context.txt", "r", encoding="utf-8") as f:
             template = f.read()
@@ -24,18 +26,15 @@ def run_prompt(data):
         response = client.chat.completions.create(
             model="gpt-4",
             temperature=0.2,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
+            messages=[{"role": "user", "content": prompt}]
         )
 
         result = response.choices[0].message.content.strip()
 
-        # Write raw text to Supabase (not JSON encoded)
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Client_Context/{run_id}.txt"
         write_supabase_file(supabase_path, result)
 
         logger.info(f"AI response written to Supabase at {supabase_path}")
 
-    except Exception as e:
+    except Exception:
         logger.exception("Error in run_prompt")
