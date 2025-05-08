@@ -1,11 +1,16 @@
+import os
 import requests
 from Engine.Files.auth import get_supabase_headers
 from logger import logger
 
-SUPABASE_URL = "https://<your-project-id>.supabase.co"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_BUCKET = "panelitix"
 
 def write_supabase_file(path, content: str):
+    if not SUPABASE_URL:
+        logger.error("❌ SUPABASE_URL is not set in environment variables.")
+        raise ValueError("SUPABASE_URL not configured")
+
     url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}"
     headers = get_supabase_headers()
     data = content.encode("utf-8")
