@@ -1,23 +1,26 @@
 from flask import Flask, request, jsonify
-from Scripts.Predictive_Report.ingest_typeform import process_typeform_submission
 import importlib
 import threading
 from logger import logger
-
-@app.route("/ingest-typeform", methods=["POST"])
-def ingest_typeform():
-    try:
-        data = request.get_json(force=True)
-        process_typeform_submission(data)
-        return jsonify({"status": "success", "message": "Typeform files are being processed."})
-    except Exception as e:
-        logger.exception("Error in ingest_typeform")
-        return jsonify({"error": str(e)}), 500
+from Scripts.Predictive_Report.ingest_typeform import process_typeform_submission
 
 app = Flask(__name__)
 
 # Prompts that should wait for the file to be read and return the result synchronously
 BLOCKING_PROMPTS = {"read_client_context"}
+
+
+@app.route("/ingest-typeform", methods=["POST"])
+def ingest_typeform():
+    try:
+        data = request.get_json(force=True)
+        logger.info("📩 Typeform webhook received.")
+        process_typeform_submission(data)
+        return jsonify({"status": "success", "message": "Files processed and saved to Supabase."})
+    except Exception as e:
+        logger.exception("❌ Error handling Typeform submission")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 @app.route("/", methods=["POST"])
 def dispatch_prompt():
@@ -31,7 +34,6 @@ def dispatch_prompt():
         module = importlib.import_module(module_path)
 
         logger.info(f"Dispatching prompt asynchronously: {prompt_name}")
-
         result_container = {}
 
         def run_and_capture():
@@ -57,4 +59,3 @@ def dispatch_prompt():
     except Exception as e:
         logger.exception("Error in dispatch_prompt")
         return jsonify({"error": str(e)}), 500
-
