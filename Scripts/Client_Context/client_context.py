@@ -1,6 +1,6 @@
 from openai import OpenAI
 from logger import logger
-from write_supabase_file import write_supabase_file
+from Engine.Files.write_supabase_file import write_supabase_file
 
 def safe_escape(value):
     return str(value).replace("{", "{{").replace("}", "}}")
@@ -30,20 +30,11 @@ def run_prompt(data):
 
         result = response.choices[0].message.content.strip()
 
-        # Write raw result (text) to Supabase
+        # Write raw text to Supabase (not JSON encoded)
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Client_Context/{run_id}.txt"
         write_supabase_file(supabase_path, result)
 
         logger.info(f"AI response written to Supabase at {supabase_path}")
 
-        return {
-            "status": "processing",
-            "run_id": run_id
-        }
-
     except Exception as e:
         logger.exception("Error in run_prompt")
-        return {
-            "status": "error",
-            "message": str(e)
-        }
