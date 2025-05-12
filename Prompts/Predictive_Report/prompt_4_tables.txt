@@ -1,0 +1,153 @@
+
+
+### INSTRUCTION & CONTEXT
+You are helping to generate structured table data based on structured data previously identified.
+Use your understanding of the client context, the main question, and the main question content to help generate the table data.
+
+**CLIENT NAME**  
+{client}
+
+**CLIENT CONTEXT**  
+{client_context}
+
+**MAIN QUESTION**  
+{main_question}
+
+**QUESTION CONTEXT**  
+{question_context}
+
+**SECTION STRUCTURE**  
+The following JSON structure contains all the sections and sub-sections structure:    
+{prompt_1_thinking}
+
+---
+
+### OBJECTIVE
+You must:
+- Use the provided *section structure* to generate structured table data sets.
+
+- For the overall report *change*, extract the **report change low** and **report change high** values.
+- List in table format; 
+  - The title in the first column. (e.g. {target_variable} of {commodity} in the {region} over the next {time_range}.) - (Please ensure to change to Title-case however, also ensure 'small words'; "in", "on", "the", "if", etc. remain lower case.) 
+  - The **report change low** and **report change high** in the second column (e.g. +8.0 ～ +12.5%)
+
+- For the overall report table extract the **section title**, **makeup**, **change low**, **change high**, **effect low** and **effect high** values for each of the sections.
+- List in table format; 
+  - Each of the **section title** in the first column.
+  - Each of the corresponding **makeup** values in the second column. (e.g. 40%)
+  - Each of the corresponding **change low** and **change high value** in the third column. (e.g. +2.5% ～ +4.5%)
+  - Each of the corresponding **effect low** and **effect high** value in the fourth column. (e.g. +1.0% ～ +1.8%)
+- Sort order the table;
+  - The **section title** with the highest **makeup** fists, followed by the highest average between **change low** and **change high value** value second, followed by the highest average between **effect low** and **effect high** value third.
+
+- For each section table extract the **sub-section title**, **makeup**, **change low**, **change high**, **effect low** and **effect high** values for each of the sub-sections.
+- List in table format; 
+  - Each of the **sub-section title** in the first column.
+  - Each of the corresponding **makeup** values in the second column. (e.g. 60%)
+  - Each of the corresponding **change low** and **change high value** in the third column. (e.g. +3.55% ～ +5.00%)
+  - Each of the corresponding **effect low** and **effect high** value in the fourth column. (e.g. +2.13% ～ +3.00%)
+- Sort order the table;
+  - The **sub-section title** with the highest **makeup** fists, followed by the highest average between **change low** and **change high value** value second, followed by the highest average between **effect low** and **effect high** value third.
+
+---
+
+### RULES
+- Do not invent new sections, sub-sections, data points, or metrics.
+- Do not generate new calculations. Use exact values already provided.
+
+---
+
+### OUTPUT REQUIREMENTS
+
+#### REPORT CHANGE
+- `Report Change Title: {target_variable} of {commodity} in the {region} over the next {time_range} (Please ensure to change to Title-case however, also ensure 'small words'; "in", "on", "the", "if", etc. remain lower case.)
+- `Report Change Low / High`: +/- % format (1 decimal place) 
+
+#### REPORT TABLE
+- `Section Title`
+- `Section Makeup`: % format (1 decimal place)  
+- `Section Change Low / High`: +/- % format (1 decimal place) 
+- `Section Effect Low / High`: +/- % format (1 decimal place) 
+
+#### SECTION TABLES
+- `Sub-Section Title`
+- `Sub-Section Makeup`: % format (2 decimal places)  
+- `Sub-Section Change Low / High`: +/- % format (2 decimal places) 
+- `Sub-Section Effect Low / High`: +/- % format (2 decimal places) 
+
+---
+
+### ADDITIONAL NOTES
+- Do not include text commentary, formatting notes, or statistical interpretation
+- Output must be valid, parsable JSON.   
+
+---
+
+### OUTPUT FORMAT
+Return a single JSON object follow this structure exactly:
+```json
+{{
+  "Report Change": {{
+    "Report Change Title": "...",
+    "Report Change Range": "+X.X% ～ +X.X%"
+  }},
+  "Report Table": [
+    {{
+      "Section Title": "...",
+      "Section Makeup": "X.X%",
+      "Section Change Range": "+X.X% ～ +X.X%",
+      "Section Effect Range": "+X.X% ～ +X.X%"
+    }},
+    {{
+      "Section Title": "...",
+      "Section Makeup": "X.X%",
+      "Section Change Range": "+X.X% ～ +X.X%",
+      "Section Effect Range": "+X.X% ～ +X.X%"
+    }},
+    {{
+      "Section Title": "...",
+      "Section Makeup": "X.X%",
+      "Section Change Range": "+X.X% ～ +X.X%",
+      "Section Effect Range": "+X.X% ～ +X.X%"
+    },
+    {{ ... }},
+    {{ ... }}
+  ],
+  "Section Tables": {{
+    "Section Title 1": [
+      {{
+        "Sub-Section Title": "...",
+        "Sub-Section Makeup": "X.XX%",
+        "Sub-Section Change Range": "+X.XX% ～ +X.XX%",
+        "Sub-Section Effect Range": "+X.XX% ～ +X.XX%"
+      }],
+      {{
+        "Sub-Section Title": "...",
+        "Sub-Section Makeup": "X.XX%",
+        "Sub-Section Change Range": "+X.XX% ～ +X.XX%",
+        "Sub-Section Effect Range": "+X.XX% ～ +X.XX%"
+      }},
+      {{ ... }}
+    ],
+    "Section Title 2": [
+      {{
+        "Sub-Section Title": "...",
+        "Sub-Section Makeup": "X.XX%",
+        "Sub-Section Change Range": "+X.XX% ～ +X.XX%",
+        "Sub-Section Effect Range": "+X.XX% ～ +X.XX%"
+      }},
+      {{
+        "Sub-Section Title": "...",
+        "Sub-Section Makeup": "X.XX%",
+        "Sub-Section Change Range": "+X.XX% ～ +X.XX%",
+        "Sub-Section Effect Range": "+X.XX% ～ +X.XX%"
+      },
+      {{ ... }}
+    ],
+    "Section Title 3": [
+      {{ ... }}
+    ],
+    {{ ... }}
+  }}
+}}
+```
