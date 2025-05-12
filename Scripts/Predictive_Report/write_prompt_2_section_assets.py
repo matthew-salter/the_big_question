@@ -54,7 +54,7 @@ def run_prompt(data):
             formatted = raw_result
 
         # Write AI response to Supabase
-        supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Prompt_2_section_Assets/{run_id}.txt"
+        supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Prompt_2_Section_Assets/{run_id}.txt"
         write_supabase_file(supabase_path, formatted)
         logger.info(f"✅ AI response written to Supabase: {supabase_path}")
 
