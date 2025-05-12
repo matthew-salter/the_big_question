@@ -17,11 +17,14 @@ def run_prompt(data):
         client_context = safe_escape(data["client_context"])
         main_question = safe_escape(data["main_question"])
         question_context = safe_escape(data["question_context"])
-
+        target_variable = safe_escape(data["target_variable"])
+        commodity = safe_escape(data["commodity"])
+        region = safe_escape(data["region"])
+        time_range = safe_escape(data["time_range"])
         prompt_1_thinking = safe_escape(data["prompt_1_thinking"])
 
         # Load and populate prompt template
-        with open("Prompts/Predictive_Report/prompt_3_report_assets.txt", "r", encoding="utf-8") as f:
+        with open("Prompts/Predictive_Report/prompt_4_tables.txt", "r", encoding="utf-8") as f:
             template = f.read()
 
         prompt = template.format(
@@ -29,7 +32,10 @@ def run_prompt(data):
             client_context=client_context,
             main_question=main_question,
             question_context=question_context,
-
+            target_variable=target_variable,
+            commodity=commodity,
+            region=region,
+            time_range=time_range,
             prompt_1_thinking=prompt_1_thinking
         )
 
@@ -52,7 +58,7 @@ def run_prompt(data):
             formatted = raw_result
 
         # Write AI response to Supabase
-        supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Prompt_3_Report_Assets/{run_id}.txt"
+        supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Prompt_4_Tables/{run_id}.txt"
         write_supabase_file(supabase_path, formatted)
         logger.info(f"✅ AI response written to Supabase: {supabase_path}")
 
@@ -60,4 +66,4 @@ def run_prompt(data):
 
     except Exception:
         logger.exception("❌ Error in run_prompt")
-        return {"status": "error", "message": "Failed to write Prompt 3 Report Assets"}
+        return {"status": "error", "message": "Failed to write Prompt 4 Tables"}
