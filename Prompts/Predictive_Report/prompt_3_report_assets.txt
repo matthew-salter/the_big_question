@@ -1,3 +1,5 @@
+You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
+
 ### INSTRUCTION & CONTEXT
 You are helping to generate report-wide assets based on structured data previously identified.
 Use your understanding of the client context, the main question, and the main question content to help generate the report assets.
@@ -6,7 +8,7 @@ Use your understanding of the client context, the main question, and the main qu
 {client}
 
 **CLIENT CONTEXT**  
-{client_context
+{client_context}
 
 **MAIN QUESTION**  
 {main_question}
