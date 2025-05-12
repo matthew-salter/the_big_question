@@ -1,4 +1,4 @@
-
+You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
 
 ### INSTRUCTION & CONTEXT
 You are helping to generate structured table data based on structured data previously identified.
