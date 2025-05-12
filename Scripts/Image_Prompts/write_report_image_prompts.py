@@ -18,7 +18,7 @@ def run_prompt(data):
         prompt_3_report_assets = safe_escape(data["prompt_3_report_assets"])
 
         # Load and populate prompt template
-        with open("Prompts/Predictive_Report/prompt_5_combine.txt", "r", encoding="utf-8") as f:
+        with open("Prompts/Image_Prompts/report_image_prompts.txt", "r", encoding="utf-8") as f:
             template = f.read()
 
         prompt = template.format(
