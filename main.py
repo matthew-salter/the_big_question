@@ -11,7 +11,8 @@ BLOCKING_PROMPTS = {
     "read_client_context",
     "read_question_context",
     "read_prompt_1_thinking",
-    "read_prompt_2_section_assets"
+    "read_prompt_2_section_assets",
+    "read_prompt_3_report_assets"
 }
 
 # Explicit static mapping of prompt names to module paths
@@ -23,6 +24,8 @@ PROMPT_MODULES = {
     "read_prompt_1_thinking": "Scripts.Predictive_Report.read_prompt_1_thinking",
     "write_prompt_2_section_assets": "Scripts.Predictive_Report.write_prompt_2_section_assets",
     "read_prompt_2_section_assets": "Scripts.Predictive_Report.read_prompt_2_section_assets",
+    "write_prompt_3_report_assets": "Scripts.Predictive_Report.write_prompt_3_report_assets",
+    "read_prompt_3_report_assets": "Scripts.Predictive_Report.read_prompt_3_report_assets",
 }
 
 @app.route("/ingest-typeform", methods=["POST"])
