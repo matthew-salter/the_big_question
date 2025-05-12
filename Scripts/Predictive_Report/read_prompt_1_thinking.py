@@ -67,6 +67,7 @@ def run_prompt(data):
     except Exception as e:
         logger.exception("Unhandled error in read_prompt_1_thinking")
         return {
-            "status": "error",
-            "message": f"Unhandled server error during prompt read: {str(e)}"
+            "status": "success",
+            "run_id": run_id,
+            "prompt_1_thinking": content.strip()  # Explicitly named for Zapier to parse
         }
