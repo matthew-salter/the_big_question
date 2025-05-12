@@ -108,7 +108,7 @@ You must:
 ---
 
 ### OUTPUT FORMAT
-Return a single JSON object for each of the sections containing the associated sub-sections.
+Return a single JSON object for all of the sections containing the associated sub-sections.
 Follow this structure exactly:
 ```json
 {{
@@ -146,6 +146,7 @@ Follow this structure exactly:
     "Sub-Section 2": {{ ... }},
     {{ ... }},
   "Section 2”: {{ … }},
+  {{ … }},
   {{ … }},
   }},
 }}
