@@ -24,7 +24,6 @@ PROMPT_MODULES = {
     "write_prompt_2_section_assets": "Scripts.Predictive_Report.write_prompt_2_section_assets"
 }
 
-
 @app.route("/ingest-typeform", methods=["POST"])
 def ingest_typeform():
     try:
