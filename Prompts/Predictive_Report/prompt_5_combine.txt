@@ -1,44 +1,44 @@
-
+You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
 
 ### INSTRUCTION & CONTEXT
 You are helping to compile and restructure the a final report output based on structured data previously identified.
 Use your understanding of the client context, the main question, and the main question content to help generate the report structure.
 
 **CLIENT NAME**  
-{{client}}
+{client}
 
 **CLIENT CONTEXT**  
-{{client_context}}
+{client_context}
 
 **MAIN QUESTION**  
-{{main_question}}
+{main_question}
 
 **QUESTION CONTEXT**  
-{{question_context}}
+{question_context}
 
 **SECTION STRUCTURE**  
 The following JSON structure contains all the sections and sub-sections structure:    
-{{prompt_2_output}}
+{prompt_1_thinking}
 
 **SECTION ASSETS**  
 The following JSON structure contains all the sections and sub-sections assets:  
-{{prompt_3_output}}
+{prompt_2_section_assets}
 
 **REPORT ASSETS**  
 The following JSON structure contains all the report-wide assets:  
-{{prompt_4_output}}
+{prompt_3_report_assets}
 
 **REPORT TABLES**  
 The following JSON structure contains all the report-wide tables:  
-{{prompt_5_output}}
+{prompt_4_tables}
 
 ---
 
 ### OBJECTIVE
 You must:
-- Take all the structured JSON inputs from the *section structure*, *section assets*, *report assets* and *report tables*
-- Unpack and extract every asset from each of the JSON snippets
-- Ensure every single asset is 'unpacked' from the JSON snippets word for word and ensure none are missing.
+- Take all the *section structure*, *section assets*, *report assets* and *report tables*
+- Unpack and extract every asset from each.
+- Ensure every single asset is 'unpacked' word for word and ensure none are missing.
 - Restructure all 'unpacked' assets into a final layout order:
   - Intro Assets (static)
   - Section Assets (dynamic by section)
@@ -69,7 +69,7 @@ You must:
 - `Key Findings`
 - `Call to Action`
 - `Report Change Title`
-- `Report Change Range`
+- `Report Change`
 - `Report Table`
 
 #### SECTION STRUCTURE (dynamic by section)
@@ -80,10 +80,8 @@ For each dynamic section:
 - `Section Theme`
 - `Section Summary`
 - `Section Makeup`
-- `Section Change Low`
-- `Section Change High`
-- `Section Effect Low`
-- `Section Effect High`
+- `Section Change`
+- `Section Effect`
 - `Section Insight`
 - `Section Statistic`
 - `Section Recommendation`
@@ -101,10 +99,8 @@ For each sub-section within each section:
 - `Sub-Section Sub-Header`
 - `Sub-Section Summary`
 - `Sub-Section Makeup`
-- `Sub-Section Change Low`
-- `Sub-Section Change High`
-- `Sub-Section Effect Low`
-- `Sub-Section Effect High`
+- `Sub-Section Change`
+- `Sub-Section Effect`
 - `Sub-Section Statistic`
 - `Sub-Section Related Article Title`
 - `Sub-Section Related Article Date`
@@ -129,64 +125,60 @@ For each sub-section within each section:
 ### OUTPUT FORMAT
 Return a single JSON object in the following structure:
 ```json
-{
-  "Intro": {
+{{
+  "Intro": {{
     "Report Title": "...",
     "Report Sub-Title": "...",
     "Executive Summary": "...",
     "Key Findings": ["...", "...", "..."],
     "Call to Action": "...",
     "Report Change Title": "...",
-    "Report Change Range": "...",
-    "Report Table": [ { ... } ]
-  },
+    "Report Change": "...",
+    "Report Table": [ {{ ... }} ]
+  }},
   "Sections": [
-    {
+    {{
       "Section Title": "...",
       "Section Header": "...",
       "Section Sub-Header": "...",
       "Section Theme": "...",
       "Section Summary": "...",
       "Section Makeup": "...",
-      "Section Change Low": "...",
-      "Section Change High": "...",
-      "Section Effect Low": "...",
-      "Section Effect High": "...",
+      "Section Change": "...",
+      "Section Effect": "...",
       "Section Insight": "...",
       "Section Statistic": "...",
       "Section Recommendation": "...",
-      "Section Tables": [ { ... } ],
+      "Section Tables": [ {{ ... }} ],
       "Section Related Article Title": "...",
       "Section Related Article Date": "...",
       "Section Related Article Summary": "...",
       "Section Related Article Relevance": "...",
       "Section Related Article Source": "...",
       "Sub-Sections": [
-        {
+        {{
           "Sub-Section Title": "...",
           "Sub-Section Header": "...",
           "Sub-Section Sub-Header": "...",
           "Sub-Section Summary": "...",
           "Sub-Section Makeup": "...",
-          "Sub-Section Change Low": "...",
-          "Sub-Section Change High": "...",
-          "Sub-Section Effect Low": "...",
-          "Sub-Section Effect High": "...",
+          "Sub-Section Change": "...",
+          "Sub-Section Effect": "...",
           "Sub-Section Statistic": "...",
           "Sub-Section Related Article Title": "...",
           "Sub-Section Related Article Date": "...",
           "Sub-Section Related Article Summary": "...",
           "Sub-Section Related Article Relevance": "...",
           "Sub-Section Related Article Source": "..."
-        },
-        { ... }
+        }},
+        {{ ... }}
       ]
-    },
-    { ... }
+    }},
+    {{ ... }}
   ],
-  "Outro": {
+  "Outro": {{
     "Conclusion": "...",
     "Recommendations": ["...", "...", "...", "...", "...", "...", "...", "...", "...", "..."]
-  }
-}
+  }}
+}}
 ```
