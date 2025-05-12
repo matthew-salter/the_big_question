@@ -10,37 +10,34 @@ def flatten_json_like_text(text: str) -> str:
     Converts a JSON-style string into a readable, indented block text,
     stripping ``` wrappers, {: starts, and trailing quotes.
     """
-    # Remove code block markers
     lines = text.strip().splitlines()
-    lines = [line for line in lines if not line.strip().startswith("```")]
-
-    # Remove malformed {: if present
-    if lines and lines[0].strip() == '{:':
-        lines = lines[1:]
-
     result = []
     indent_level = 0
 
     for line in lines:
-        line = line.strip()
+        clean_line = line.strip()
 
-        # Skip closing braces
-        if line.startswith("}") or line.startswith("},"):
+        # Skip markdown block markers and rogue '{:'
+        if clean_line.startswith("```") or clean_line in {"{:", "{:,"}:
+            continue
+
+        # Decrease indent after closing brace
+        if clean_line.startswith("}") or clean_line.startswith("},"):
             indent_level = max(indent_level - 1, 0)
             continue
 
-        # Handle nested objects
-        if line.endswith("{") or line.endswith("{,"):
-            key = line.split(":", 1)[0].strip().strip('"')
+        # Nested object
+        if clean_line.endswith("{") or clean_line.endswith("{,"):
+            key = clean_line.split(":", 1)[0].strip().strip('"')
             result.append("  " * indent_level + f"{key}:")
             indent_level += 1
-        elif ":" in line:
-            key, value = line.split(":", 1)
+        elif ":" in clean_line:
+            key, value = clean_line.split(":", 1)
             key = key.strip().strip('"')
             value = value.strip().strip('"').rstrip(",").rstrip('"')
             result.append("  " * indent_level + f"{key}: {value}")
         else:
-            result.append("  " * indent_level + line)
+            result.append("  " * indent_level + clean_line)
 
     return "\n".join(result)
 
