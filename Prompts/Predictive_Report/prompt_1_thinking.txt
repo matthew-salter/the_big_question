@@ -1,8 +1,4 @@
 You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
-If your output exceeds token limits, return a complete truncated section-by-section output and continue automatically in the next response using the same structure.
-Disable all inline citations, footnotes, and content references. Do not use ::contentReference or oaicite.
-If output is too long, continue in next response automatically with no repetition or commentary.
-Resume where you left off. Continue output in valid JSON only.
 
 ### INSTRUCTION & CONTEXT
 You are helping to create a structured, data-driven report in response to a key client question.  
