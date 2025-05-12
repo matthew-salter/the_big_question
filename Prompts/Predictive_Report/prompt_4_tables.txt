@@ -26,28 +26,28 @@ The following JSON structure contains all the sections and sub-sections structur
 You must:
 - Use the provided *section structure* to generate structured table data sets.
 
-- For the overall report *change*, extract the **report change low** and **report change high** values.
+- For the overall report *change*, extract the **report change** values.
 - List in table format; 
   - The title in the first column. (e.g. {target_variable} of {commodity} in the {region} over the next {time_range}.) - (Please ensure to change to Title-case however, also ensure 'small words'; "in", "on", "the", "if", etc. remain lower case.) 
-  - The **report change low** and **report change high** in the second column (e.g. +8.0 ～ +12.5%)
+  - The **report change low** in the second column (e.g. +8.0)
 
-- For the overall report table extract the **section title**, **makeup**, **change low**, **change high**, **effect low** and **effect high** values for each of the sections.
+- For the overall report table extract the **section title**, **makeup**, **change** and **effect** values for each of the sections.
 - List in table format; 
   - Each of the **section title** in the first column.
   - Each of the corresponding **makeup** values in the second column. (e.g. 40%)
-  - Each of the corresponding **change low** and **change high value** in the third column. (e.g. +2.5% ～ +4.5%)
-  - Each of the corresponding **effect low** and **effect high** value in the fourth column. (e.g. +1.0% ～ +1.8%)
+  - Each of the corresponding **change** value in the third column. (e.g. +2.5%)
+  - Each of the corresponding **effect high** value in the fourth column. (e.g. +1.0%)
 - Sort order the table;
-  - The **section title** with the highest **makeup** fists, followed by the highest average between **change low** and **change high value** value second, followed by the highest average between **effect low** and **effect high** value third.
+  - The **section title** with the highest **makeup** fists, followed by the highest **change** value value second, followed by the highest **effect** value third.
 
-- For each section table extract the **sub-section title**, **makeup**, **change low**, **change high**, **effect low** and **effect high** values for each of the sub-sections.
+- For each section table extract the **sub-section title**, **makeup**, **change** and **effect** values for each of the sub-sections.
 - List in table format; 
   - Each of the **sub-section title** in the first column.
   - Each of the corresponding **makeup** values in the second column. (e.g. 60%)
-  - Each of the corresponding **change low** and **change high value** in the third column. (e.g. +3.55% ～ +5.00%)
-  - Each of the corresponding **effect low** and **effect high** value in the fourth column. (e.g. +2.13% ～ +3.00%)
+  - Each of the corresponding **change value** in the third column. (e.g. +3.55%)
+  - Each of the corresponding **effect** value in the fourth column. (e.g. +2.13%)
 - Sort order the table;
-  - The **sub-section title** with the highest **makeup** fists, followed by the highest average between **change low** and **change high value** value second, followed by the highest average between **effect low** and **effect high** value third.
+  - The **sub-section title** with the highest **makeup** fists, followed by the highest **change** value value second, followed by the highest **effect** value third.
 
 ---
 
@@ -61,19 +61,19 @@ You must:
 
 #### REPORT CHANGE
 - `Report Change Title: {target_variable} of {commodity} in the {region} over the next {time_range} (Please ensure to change to Title-case however, also ensure 'small words'; "in", "on", "the", "if", etc. remain lower case.)
-- `Report Change Low / High`: +/- % format (1 decimal place) 
+- `Report Change`: +/- % format (1 decimal place) 
 
 #### REPORT TABLE
 - `Section Title`
 - `Section Makeup`: % format (1 decimal place)  
-- `Section Change Low / High`: +/- % format (1 decimal place) 
-- `Section Effect Low / High`: +/- % format (1 decimal place) 
+- `Section Change`: +/- % format (1 decimal place) 
+- `Section Effect`: +/- % format (1 decimal place) 
 
 #### SECTION TABLES
 - `Sub-Section Title`
 - `Sub-Section Makeup`: % format (2 decimal places)  
-- `Sub-Section Change Low / High`: +/- % format (2 decimal places) 
-- `Sub-Section Effect Low / High`: +/- % format (2 decimal places) 
+- `Sub-Section Change`: +/- % format (2 decimal places) 
+- `Sub-Section Effect`: +/- % format (2 decimal places) 
 
 ---
 
@@ -89,26 +89,26 @@ Return a single JSON object follow this structure exactly:
 {{
   "Report Change": {{
     "Report Change Title": "...",
-    "Report Change Range": "+X.X% ～ +X.X%"
+    "Report Change": "+X.X%"
   }},
   "Report Table": [
     {{
       "Section Title": "...",
       "Section Makeup": "X.X%",
-      "Section Change Range": "+X.X% ～ +X.X%",
-      "Section Effect Range": "+X.X% ～ +X.X%"
+      "Section Change": "+X.X%",
+      "Section Effect": "+X.X%"
     }},
     {{
       "Section Title": "...",
       "Section Makeup": "X.X%",
-      "Section Change Range": "+X.X% ～ +X.X%",
-      "Section Effect Range": "+X.X% ～ +X.X%"
+      "Section Change": "+X.X%",
+      "Section Effect": "+X.X%"
     }},
     {{
       "Section Title": "...",
       "Section Makeup": "X.X%",
-      "Section Change Range": "+X.X% ～ +X.X%",
-      "Section Effect Range": "+X.X% ～ +X.X%"
+      "Section Change": "+X.X%",
+      "Section Effect": "+X.X%"
     }},
     {{ ... }},
     {{ ... }}
@@ -118,14 +118,14 @@ Return a single JSON object follow this structure exactly:
       {{
         "Sub-Section Title": "...",
         "Sub-Section Makeup": "X.XX%",
-        "Sub-Section Change Range": "+X.XX% ～ +X.XX%",
-        "Sub-Section Effect Range": "+X.XX% ～ +X.XX%"
+        "Sub-Section Change": "+X.XX%",
+        "Sub-Section Effect": "+X.XX%"
       }}],
       {{
         "Sub-Section Title": "...",
         "Sub-Section Makeup": "X.XX%",
-        "Sub-Section Change Range": "+X.XX% ～ +X.XX%",
-        "Sub-Section Effect Range": "+X.XX% ～ +X.XX%"
+        "Sub-Section Change": "+X.XX%",
+        "Sub-Section Effect": "+X.XX%"
       }},
       {{ ... }}
     ],
@@ -133,14 +133,14 @@ Return a single JSON object follow this structure exactly:
       {{
         "Sub-Section Title": "...",
         "Sub-Section Makeup": "X.XX%",
-        "Sub-Section Change Range": "+X.XX% ～ +X.XX%",
-        "Sub-Section Effect Range": "+X.XX% ～ +X.XX%"
+        "Sub-Section Change": "+X.XX%",
+        "Sub-Section Effect": "+X.XX%"
       }},
       {{
         "Sub-Section Title": "...",
         "Sub-Section Makeup": "X.XX%",
-        "Sub-Section Change Range": "+X.XX% ～ +X.XX%",
-        "Sub-Section Effect Range": "+X.XX% ～ +X.XX%"
+        "Sub-Section Change": "+X.XX%",
+        "Sub-Section Effect": "+X.XX%"
       }},
       {{ ... }}
     ],
