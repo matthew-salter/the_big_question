@@ -7,37 +7,42 @@ RETRY_DELAY_SECONDS = 2  # 2, 4, 8, 16, 32, 64 seconds
 
 def flatten_json_like_text(text: str) -> str:
     """
-    Converts a JSON-style string into a readable, indented block text,
-    stripping ``` wrappers and trailing quotes.
+    Converts a JSON-style string into readable block text,
+    removing JSON artefacts (quotes, brackets, commas) but preserving key: value pairs.
     """
     lines = text.strip().splitlines()
     result = []
     indent_level = 0
 
     for line in lines:
-        clean_line = line.strip()
+        clean = line.strip()
 
-        # Skip markdown block markers
-        if clean_line.startswith("```"):
+        # Skip markdown or empty lines
+        if clean.startswith("```") or not clean:
             continue
 
-        # Decrease indent after closing brace
-        if clean_line.startswith("}") or clean_line.startswith("},"):
+        # Remove array brackets and trailing commas
+        clean = clean.replace("[", "").replace("]", "").rstrip(",")
+        clean = clean.replace('",', '').replace('",', '')
+        clean = clean.strip('"')  # Remove enclosing quotes
+
+        # Decrease indent level
+        if clean.startswith("}") or clean.startswith("},"):
             indent_level = max(indent_level - 1, 0)
             continue
 
-        # Nested object
-        if clean_line.endswith("{") or clean_line.endswith("{,"):
-            key = clean_line.split(":", 1)[0].strip().strip('"')
+        # Handle nested block
+        if clean.endswith("{") or clean.endswith("{,"):
+            key = clean.split(":", 1)[0].strip().strip('"')
             result.append("  " * indent_level + f"{key}:")
             indent_level += 1
-        elif ":" in clean_line:
-            key, value = clean_line.split(":", 1)
+        elif ":" in clean:
+            key, value = clean.split(":", 1)
             key = key.strip().strip('"')
-            value = value.strip().strip('"').rstrip(",").rstrip('"')
+            value = value.strip().strip('"')
             result.append("  " * indent_level + f"{key}: {value}")
         else:
-            result.append("  " * indent_level + clean_line)
+            result.append("  " * indent_level + clean)
 
     return "\n".join(result)
 
