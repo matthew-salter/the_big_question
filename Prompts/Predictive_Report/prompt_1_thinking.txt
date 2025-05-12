@@ -31,24 +31,20 @@ You must:
   - Then select one supporting reference article per sub-section.
 
 - For each sub-section:  
-  - Estimate the **low and high bounds** for the expected percentage **change** over the defined time range.  
-  - If pressure is **negative** (e.g. rising cost, falling supply), the **change** must be expressed as a **positive percentage range** (e.g. `+4.25% to +6.80%`).  
-  - If pressure is **positive** (e.g. falling cost, rising supply), the **change** must be expressed as a **negative percentage range** (e.g. `-2.00% to -4.15%`).  
+  - Estimate the expected percentage **change** over the defined time range.  
+  - If pressure is **negative** (e.g. rising cost, falling supply), the **change** must be expressed as a **positive percentage range** (e.g. `+4.25%`).  
+  - If pressure is **positive** (e.g. falling cost, rising supply), the **change** must be expressed as a **negative percentage range** (e.g. `-2.00%`).  
   - **Do not flip or interpret the sign based on language or assumptions — follow the defined logic exactly.**
-  - Calculate the corresponding **effect range** using this formula:  
-    - `Effect Low = Makeup × Change Low`  
-    - `Effect High = Makeup × Change High`  
+  - Calculate the corresponding **effect range** using this formula: `Effect = Makeup × Change`
   - Round all sub-section values to **2 decimal places**.
 
 - For each section:  
-  - Sum all sub-section effects to calculate `Section Change Low` and `Section Change High`  
-  - Multiply each by `Section Makeup` to calculate `Section Effect Low` and `Section Effect High`  
+  - Sum all sub-section effects to calculate `Section Change`. 
+  - Multiply each by `Section Makeup` to calculate `Section Effect`.  
   - Round all section values to **1 decimal place**  
   - **Do not reinterpret the direction, magnitude, or sign of these values. Always follow the exact calculations defined above.**
 
-- Finally, calculate the report-wide projection range:  
-  - `Report Change Low` = Sum of all Section Effect Lows  
-  - `Report Change High` = Sum of all Section Effect Highs  
+- Finally, calculate the report-wide projection range: `Report Change` = Sum of all Section Effect 
   - **Do not round individual components before summing. Use post-sum rounding only.**
 
 ---
@@ -74,8 +70,8 @@ You must:
 - `Section Title`: A headline-style label. (Max 40 characters)
 - `Section Summary`: A narrative summary of the sections key findings. (Min 500 - Max 750 characters)
 - `Section MakeUp`: % format (1 decimal place)  
-- `Section Change Low / High`: +/- % format (1 decimal place)  
-- `Section Effect Low / High`: +/- % format (1 decimal place)  
+- `Section Change`: +/- % format (1 decimal place)  
+- `Section Effect`: +/- % format (1 decimal place)  
 - `Section Related Article`:
   - `Section Related Article Title`: The title of the source article. (Max 40 characters)  
   - `Section Related Article Date`: (DD/MM/YYYY)  
@@ -87,8 +83,8 @@ You must:
 - `Sub-Section Title`: A headline-style label. (Max 40 characters)
 - `Sub-Section Summary`: A narrative summary of the sections key findings. (Min 300 - Max 500 characters)
 - `Sub-Section MakeUp`: % format (2 decimal places)  
-- `Sub-Section Change Low / High`: +/- % format (2 decimal places) 
-- `Sub-Section Effect Low / High`: +/- % format (2 decimal places)  
+- `Sub-Section Change`: +/- % format (2 decimal places) 
+- `Sub-Section Effect`: +/- % format (2 decimal places)  
 - `Sub-Section Related Article`:
   - `Sub-Section Related Article Title`: The title of the source article. (Max 40 characters)  
   - `Sub-Section Related Article Date`: (DD/MM/YYYY)  
@@ -116,10 +112,8 @@ Follow this structure exactly:
     "Section Title": "...",
     "Section Summary": "...",
     "Section MakeUp": "X.X%",
-    "Section Change Low": "+/-X.X%",
-    "Section Change High": "+/-X.X%",
-    "Section Effect Low": "+/-X.X%",
-    "Section Effect High": "+/-X.X%",
+    "Section Change": "+/-X.X%",
+    "Section Effect": "+/-X.X%",
     "Section Related Article": {{
       "Section Related Article Title": "...",
       "Section Related Article Date": "DD/MM/YYYY",
@@ -131,10 +125,8 @@ Follow this structure exactly:
       "Sub-Section Title": "...",
       "Sub-Section Summary": "...",
       "Sub-Section MakeUp": "X.XX%",
-      "Sub-Section Change Low": "+/-X.XX%",
-      "Sub-Section Change High": "+/-X.XX%",
-      "Sub-Section Effect Low": "+/-X.XX%",
-      "Sub-Section Effect High": "+/-X.XX%",
+      "Sub-Section Change": "+/-X.XX%",
+      "Sub-Section Effect": "+/-X.XX%",
       "Sub-Section Related Article": {{
         "Sub-Section Related Article Title": "...",
         "Sub-Section Related Article Date": "DD/MM/YYYY",
