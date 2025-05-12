@@ -8,7 +8,7 @@ RETRY_DELAY_SECONDS = 2  # 2, 4, 8, 16, 32, 64 seconds
 def flatten_json_like_text(text: str) -> str:
     """
     Converts a JSON-style string into a readable, indented block text,
-    stripping ``` wrappers, {: starts, and trailing quotes.
+    stripping ``` wrappers and trailing quotes.
     """
     lines = text.strip().splitlines()
     result = []
@@ -17,8 +17,8 @@ def flatten_json_like_text(text: str) -> str:
     for line in lines:
         clean_line = line.strip()
 
-        # Skip markdown block markers and rogue '{:' artifacts
-        if clean_line.startswith("```") or clean_line.startswith("{:"):
+        # Skip markdown block markers
+        if clean_line.startswith("```"):
             continue
 
         # Decrease indent after closing brace
@@ -56,7 +56,7 @@ def run_prompt(data):
                 content = read_supabase_file(supabase_path)
                 logger.info(f"✅ File retrieved successfully from Supabase for run_id: {run_id}")
 
-                flattened = flatten_json_like_text(content)
+                flattened = flatten_json_like_text(content).replace("{:", "")
 
                 return {
                     "status": "success",
