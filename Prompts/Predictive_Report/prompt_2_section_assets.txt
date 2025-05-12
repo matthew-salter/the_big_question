@@ -1,28 +1,30 @@
 You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
-If your output exceeds token limits, return a complete truncated section-by-section output and continue automatically in the next response using the same structure.
-Disable all inline citations, footnotes, and content references. Do not use ::contentReference or oaicite.
-If output is too long, continue in next response automatically with no repetition or commentary.
-Resume where you left off. Continue output in valid JSON only.
 
 ### INSTRUCTION & CONTEXT
 You are helping to generate section assets based on structured data previously identified.
 Use your understanding of the client context, the main question, and the main question content to help generate the section assets.
 
 **CLIENT NAME**  
-{{client}}
+{client}
 
 **CLIENT CONTEXT**  
-{{client_context}}
+{client_context}
 
 **MAIN QUESTION**  
-{{main_question}}
+{main_question}
 
 **QUESTION CONTEXT**  
-{{question_context}}
+{question_context}
+
+**TONE OF VOICE**:
+Your response should be in a {tone_of_voice} tone.
+
+**SPECIAL INSTRUCTIONS**:
+Your response should consider {special_instructions}.
 
 **SECTION STRUCTURE**  
 The following JSON structure contains all the sections and sub-sections:  
-{{prompt_2_output}}
+{prompt_1_thinking}
 
 ---
 
@@ -72,24 +74,24 @@ Generate **section assets** and **sub-section assets**.
 ### OUTPUT FORMAT
 Return a single JSON object follow this structure exactly:
 ```json
-{
-  "Section 1": {
+{{
+  "Section 1": {{
     "Section Theme": "...",
     "Section Header": "...",
     "Section Sub-Header": "...",
     "Section Insight": "...",
     "Section Statistic": "...",
     "Section Recommendation": "...",
-    },
-    "Sub-Section 1": {
+    }},
+    "Sub-Section 1": {{
       "Sub-Section Header": "...",
       "Sub-Section Sub-Header": "...",
       "Sub-Section Statistic": "..."
-      }
-    },
-    "Sub-Section 2": { ... }
-  },
-  "Section 2": { ... },
-  "Section 3": { ... },
-}
+      }}
+    }},
+    "Sub-Section 2": {{ ... }}
+  }},
+  "Section 2": {{ ... }},
+  "Section 3": {{ ... }},
+}}
 ```
