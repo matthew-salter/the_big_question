@@ -1,4 +1,5 @@
 import time
+import json
 from logger import logger
 from Engine.Files.read_supabase_file import read_supabase_file
 
@@ -7,7 +8,6 @@ RETRY_DELAY_SECONDS = 2  # Exponential backoff: 2, 4, 8, 16, 32, 64 seconds
 
 def flatten_json_text_block(json_text: str) -> str:
     try:
-        import json
         parsed = json.loads(json_text)
     except json.JSONDecodeError:
         logger.warning("Provided text is not valid JSON. Returning raw text.")
@@ -67,7 +67,6 @@ def run_prompt(data):
     except Exception as e:
         logger.exception("Unhandled error in read_prompt_1_thinking")
         return {
-            "status": "success",
-            "run_id": run_id,
-            "prompt_1_thinking": content.strip()  # Explicitly named for Zapier to parse
+            "status": "error",
+            "message": f"Unhandled server error during Prompt 1 Thinking read: {str(e)}"
         }
