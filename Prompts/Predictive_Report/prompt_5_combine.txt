@@ -1,0 +1,192 @@
+
+
+### INSTRUCTION & CONTEXT
+You are helping to compile and restructure the a final report output based on structured data previously identified.
+Use your understanding of the client context, the main question, and the main question content to help generate the report structure.
+
+**CLIENT NAME**  
+{{client}}
+
+**CLIENT CONTEXT**  
+{{client_context}}
+
+**MAIN QUESTION**  
+{{main_question}}
+
+**QUESTION CONTEXT**  
+{{question_context}}
+
+**SECTION STRUCTURE**  
+The following JSON structure contains all the sections and sub-sections structure:    
+{{prompt_2_output}}
+
+**SECTION ASSETS**  
+The following JSON structure contains all the sections and sub-sections assets:  
+{{prompt_3_output}}
+
+**REPORT ASSETS**  
+The following JSON structure contains all the report-wide assets:  
+{{prompt_4_output}}
+
+**REPORT TABLES**  
+The following JSON structure contains all the report-wide tables:  
+{{prompt_5_output}}
+
+---
+
+### OBJECTIVE
+You must:
+- Take all the structured JSON inputs from the *section structure*, *section assets*, *report assets* and *report tables*
+- Unpack and extract every asset from each of the JSON snippets
+- Ensure every single asset is 'unpacked' from the JSON snippets word for word and ensure none are missing.
+- Restructure all 'unpacked' assets into a final layout order:
+  - Intro Assets (static)
+  - Section Assets (dynamic by section)
+  - Sub-Section Assets (dynamic by sub-section)
+  - Outro Assets (static)
+- Maintain exact labelling and formatting structure.
+- Ensure all sub-sections are nested correctly with their parent section.
+- Do not duplicate or omit any fields. Use the original language provided in each asset.
+
+---
+
+### RULES
+- Do not invent new sections, sub-sections, data points, or metrics.
+- Only use supplied data and context.
+- Do not remove, omit or relabel any assets.
+- Maintain the original formatting of all paragraph and bullet-based fields.
+- The number of sections and sub-sections is dynamic, ensure this is preserved.
+- Ensure all sub-section assets are grouped beneath the correct parent section.
+
+---
+
+### OUTPUT REQUIREMENTS
+
+#### INTRO ASSETS (static)
+- `Report Title`
+- `Report Sub-Title`
+- `Executive Summary`
+- `Key Findings`
+- `Call to Action`
+- `Report Change Title`
+- `Report Change Range`
+- `Report Table`
+
+#### SECTION STRUCTURE (dynamic by section)
+For each dynamic section:
+- `Section Title`
+- `Section Header`
+- `Section Sub-Header`
+- `Section Theme`
+- `Section Summary`
+- `Section Makeup`
+- `Section Change Low`
+- `Section Change High`
+- `Section Effect Low`
+- `Section Effect High`
+- `Section Insight`
+- `Section Statistic`
+- `Section Recommendation`
+- `Section Tables`
+- `Section Related Article Title`
+- `Section Related Article Date`
+- `Section Related Article Summary`
+- `Section Related Article Relevance`
+- `Section Related Article Source`
+
+#### SUB-SECTION STRUCTURE (dynamic by sub-section)
+For each sub-section within each section:
+- `Sub-Section Title`
+- `Sub-Section Header`
+- `Sub-Section Sub-Header`
+- `Sub-Section Summary`
+- `Sub-Section Makeup`
+- `Sub-Section Change Low`
+- `Sub-Section Change High`
+- `Sub-Section Effect Low`
+- `Sub-Section Effect High`
+- `Sub-Section Statistic`
+- `Sub-Section Related Article Title`
+- `Sub-Section Related Article Date`
+- `Sub-Section Related Article Summary`
+- `Sub-Section Related Article Relevance`
+- `Sub-Section Related Article Source`
+
+#### OUTRO ASSETS (static)
+- `Conclusion`
+- `Recommendations`
+
+---
+
+### ADDITIONAL NOTES
+- This is the final asset assembly layer. No values should be adjusted or interpreted.
+- Maintain all existing punctuation, sentence structure, and casing.
+- All outputs must be grouped in a clean, single JSON object that mirrors the report’s true sequential layout.
+- Output must be valid, parsable JSON.
+
+---
+
+### OUTPUT FORMAT
+Return a single JSON object in the following structure:
+```json
+{
+  "Intro": {
+    "Report Title": "...",
+    "Report Sub-Title": "...",
+    "Executive Summary": "...",
+    "Key Findings": ["...", "...", "..."],
+    "Call to Action": "...",
+    "Report Change Title": "...",
+    "Report Change Range": "...",
+    "Report Table": [ { ... } ]
+  },
+  "Sections": [
+    {
+      "Section Title": "...",
+      "Section Header": "...",
+      "Section Sub-Header": "...",
+      "Section Theme": "...",
+      "Section Summary": "...",
+      "Section Makeup": "...",
+      "Section Change Low": "...",
+      "Section Change High": "...",
+      "Section Effect Low": "...",
+      "Section Effect High": "...",
+      "Section Insight": "...",
+      "Section Statistic": "...",
+      "Section Recommendation": "...",
+      "Section Tables": [ { ... } ],
+      "Section Related Article Title": "...",
+      "Section Related Article Date": "...",
+      "Section Related Article Summary": "...",
+      "Section Related Article Relevance": "...",
+      "Section Related Article Source": "...",
+      "Sub-Sections": [
+        {
+          "Sub-Section Title": "...",
+          "Sub-Section Header": "...",
+          "Sub-Section Sub-Header": "...",
+          "Sub-Section Summary": "...",
+          "Sub-Section Makeup": "...",
+          "Sub-Section Change Low": "...",
+          "Sub-Section Change High": "...",
+          "Sub-Section Effect Low": "...",
+          "Sub-Section Effect High": "...",
+          "Sub-Section Statistic": "...",
+          "Sub-Section Related Article Title": "...",
+          "Sub-Section Related Article Date": "...",
+          "Sub-Section Related Article Summary": "...",
+          "Sub-Section Related Article Relevance": "...",
+          "Sub-Section Related Article Source": "..."
+        },
+        { ... }
+      ]
+    },
+    { ... }
+  ],
+  "Outro": {
+    "Conclusion": "...",
+    "Recommendations": ["...", "...", "...", "...", "...", "...", "...", "...", "...", "..."]
+  }
+}
+```
