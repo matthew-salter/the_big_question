@@ -115,8 +115,8 @@ You must:
 Return a single JSON object for each of the sections containing the associated sub-sections.
 Follow this structure exactly:
 ```json
-{
-  "Section 1": {
+{{
+  "Section 1": {{
     "Section Title": "...",
     "Section Summary": "...",
     "Section MakeUp": "X.X%",
@@ -124,14 +124,14 @@ Follow this structure exactly:
     "Section Change High": "+/-X.X%",
     "Section Effect Low": "+/-X.X%",
     "Section Effect High": "+/-X.X%",
-    "Section Related Article": {
+    "Section Related Article": {{
       "Section Related Article Title": "...",
       "Section Related Article Date": "DD/MM/YYYY",
       "Section Related Article Summary": "...",
       "Section Related Article Relevance": "...",
       "Section Related Article Source": "..."
-    },
-    "Sub-Section 1": {
+    }},
+    "Sub-Section 1": {{
       "Sub-Section Title": "...",
       "Sub-Section Summary": "...",
       "Sub-Section MakeUp": "X.XX%",
@@ -139,17 +139,18 @@ Follow this structure exactly:
       "Sub-Section Change High": "+/-X.XX%",
       "Sub-Section Effect Low": "+/-X.XX%",
       "Sub-Section Effect High": "+/-X.XX%",
-      "Sub-Section Related Article": {
+      "Sub-Section Related Article": {{
         "Sub-Section Related Article Title": "...",
         "Sub-Section Related Article Date": "DD/MM/YYYY",
         "Sub-Section Related Article Summary": "...",
         "Sub-Section Related Article Relevance": "...",
         "Sub-Section Related Article Source": "..."
-      }
-    },
-    "Sub-Section 2": { ... },
-    { ... },
-  "Section 2”: { … },
-  { … },
-  },
-}
+      }}
+    }},
+    "Sub-Section 2": {{ ... }},
+    {{ ... }},
+  "Section 2”: {{ … }},
+  {{ … }},
+  }},
+}}
+```
