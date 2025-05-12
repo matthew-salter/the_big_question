@@ -18,7 +18,7 @@ def run_prompt(data):
         main_question = safe_escape(data["main_question"])
         question_context = safe_escape(data["question_context"])
         number_sections = safe_escape(data["number_sections"])
-        number_sub_sections = safe_escape(data["number_sub-sections"])
+        number_sub_sections = safe_escape(data["number_sub_sections"])
         target_variable = safe_escape(data["target_variable"])
         commodity = safe_escape(data["commodity"])
         region = safe_escape(data["region"])
