@@ -1,68 +1,81 @@
 import time
-import json
 from logger import logger
 from Engine.Files.read_supabase_file import read_supabase_file
 
 MAX_RETRIES = 6
-RETRY_DELAY_SECONDS = 2  # Exponential backoff: 2, 4, 8, 16, 32, 64 seconds
+RETRY_DELAY_SECONDS = 2  # 2, 4, 8, 16, 32, 64 seconds
 
-def flatten_json_text_block(json_text: str) -> str:
-    try:
-        parsed = json.loads(json_text)
-    except json.JSONDecodeError:
-        logger.warning("Provided text is not valid JSON. Returning raw text.")
-        return json_text
+def flatten_json_like_text(text: str) -> str:
+    """
+    Converts a JSON-style string into an indented text block.
+    Example:
+      "Section 1": { ... } => Section 1:\n  ...
+    """
+    lines = text.strip().splitlines()
+    result = []
+    indent_level = 0
 
-    def walk(obj, indent=0):
-        lines = []
-        indent_str = '  ' * indent
-        if isinstance(obj, dict):
-            for key, value in obj.items():
-                lines.append(f"{indent_str}{key}:")
-                lines.append(walk(value, indent + 1))
-        elif isinstance(obj, list):
-            for item in obj:
-                lines.append(walk(item, indent + 1))
+    for line in lines:
+        line = line.strip()
+
+        # Decrease indent after closing brace
+        if line.startswith("}") or line.startswith("},"):
+            indent_level = max(indent_level - 1, 0)
+            continue
+
+        # Extract key-value pairs or nested object keys
+        if line.endswith("{") or line.endswith("{,"):
+            key = line.split(":")[0].strip().strip('"')
+            result.append("  " * indent_level + f"{key}:")
+            indent_level += 1
+        elif ":" in line:
+            key, value = line.split(":", 1)
+            key = key.strip().strip('"')
+            value = value.strip().strip('"').rstrip(",")
+            result.append("  " * indent_level + f"{key}: {value}")
         else:
-            lines.append(f"{indent_str}{str(obj)}")
-        return "\n".join(lines)
+            result.append("  " * indent_level + line)
 
-    return walk(parsed)
+    return "\n".join(result)
 
 def run_prompt(data):
-    run_id = data.get("run_id")
-    if not run_id:
+    try:
+        run_id = data.get("run_id")
+        if not run_id:
+            raise ValueError("Missing run_id in request payload")
+
+        supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Prompt_1_Thinking/{run_id}.txt"
+
+        retries = 0
+        while retries < MAX_RETRIES:
+            try:
+                logger.info(f"Attempting to read Supabase file: {supabase_path} (Attempt {retries + 1})")
+                content = read_supabase_file(supabase_path)
+                logger.info(f"✅ File retrieved successfully from Supabase for run_id: {run_id}")
+
+                flattened = flatten_json_like_text(content)
+
+                return {
+                    "status": "success",
+                    "run_id": run_id,
+                    "prompt_1_thinking": flattened
+                }
+
+            except Exception as e:
+                logger.warning(f"File not yet available. Retry {retries + 1} of {MAX_RETRIES}. Error: {str(e)}")
+                time.sleep(RETRY_DELAY_SECONDS * (2 ** retries))
+                retries += 1
+
+        logger.error(f"❌ Max retries exceeded. File not found for run_id: {run_id}")
         return {
             "status": "error",
-            "message": "Missing run_id in request payload"
+            "run_id": run_id,
+            "message": "Prompt 1 Thinking file not yet available. Try again later."
         }
 
-    supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Prompt_1_Thinking/{run_id}.txt"
-
-    retries = 0
-    while retries < MAX_RETRIES:
-        try:
-            logger.info(f"Attempting to read Supabase file: {supabase_path} (Attempt {retries + 1})")
-            content = read_supabase_file(supabase_path)
-            logger.info(f"✅ File retrieved successfully from Supabase for run_id: {run_id}")
-            logger.debug(f"✅ Text file read successful, content size: {len(content)} bytes")
-
-            flattened = flatten_json_text_block(content.strip())
-
-            return {
-                "status": "success",
-                "run_id": run_id,
-                "prompt_1_thinking": flattened
-            }
-
-        except Exception as e:
-            logger.warning(f"File not yet available. Retry {retries + 1} of {MAX_RETRIES}. Error: {str(e)}")
-            time.sleep(RETRY_DELAY_SECONDS * (2 ** retries))
-            retries += 1
-
-    logger.error(f"❌ Max retries exceeded. File not found for run_id: {run_id}")
-    return {
-        "status": "error",
-        "run_id": run_id,
-        "message": "Prompt 1 Thinking file not yet available. Try again later."
-    }
+    except Exception as e:
+        logger.exception("Unhandled error in read_prompt_1_thinking")
+        return {
+            "status": "error",
+            "message": f"Unhandled server error: {str(e)}"
+        }
