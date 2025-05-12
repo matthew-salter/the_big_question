@@ -21,7 +21,8 @@ PROMPT_MODULES = {
     "read_question_context": "Scripts.Predictive_Report.read_question_context",
     "write_prompt_1_thinking": "Scripts.Predictive_Report.write_prompt_1_thinking",
     "read_prompt_1_thinking": "Scripts.Predictive_Report.read_prompt_1_thinking",
-    "write_prompt_2_section_assets": "Scripts.Predictive_Report.write_prompt_2_section_assets"
+    "write_prompt_2_section_assets": "Scripts.Predictive_Report.write_prompt_2_section_assets",
+    "read_prompt_2_section_assets": "Scripts.Predictive_Report.read_prompt_2_section_assets",
 }
 
 @app.route("/ingest-typeform", methods=["POST"])
