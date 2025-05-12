@@ -16,6 +16,12 @@ Use your understanding of the client context, the main question, and the main qu
 **QUESTION CONTEXT**  
 {question_context}
 
+**TONE OF VOICE**:
+Your response should be in a {tone_of_voice} tone.
+
+**SPECIAL INSTRUCTIONS**:
+Your response should consider {special_instructions}.
+
 **SECTION STRUCTURE**  
 The following JSON structure contains all the sections and sub-sections structure:  
 {prompt_1_thinking}
