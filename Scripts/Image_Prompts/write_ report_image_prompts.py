@@ -30,7 +30,7 @@ def run_prompt(data):
         # Send prompt to OpenAI
         client_openai = OpenAI()
         response = client_openai.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4",
             temperature=0.2,
             messages=[{"role": "user", "content": prompt}]
         )
