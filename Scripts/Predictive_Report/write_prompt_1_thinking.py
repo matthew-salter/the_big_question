@@ -26,7 +26,7 @@ def run_prompt(data):
         reference_age_range = safe_escape(data["reference_age_range"])
 
         # Load and populate prompt template
-        with open("Prompts/Prompt_1_Thinking/prompt_1_thinking.txt", "r", encoding="utf-8") as f:
+        with open("Prompts/Predictive_Report/prompt_1_thinking.txt", "r", encoding="utf-8") as f:
             template = f.read()
 
         prompt = template.format(
