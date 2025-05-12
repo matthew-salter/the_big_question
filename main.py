@@ -10,6 +10,7 @@ app = Flask(__name__)
 BLOCKING_PROMPTS = {
     "read_client_context",
     "read_question_context"
+    "read_prompt_1_thinking"
 }
 
 # Explicit static mapping of prompt names to module paths
