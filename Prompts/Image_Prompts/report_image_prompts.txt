@@ -1,7 +1,7 @@
 You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
 
 **CLIENT**:
-{client_name}
+{client}
 
 **CLIENT CONTEXT**:
 {client_context}
