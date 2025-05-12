@@ -1,3 +1,4 @@
+You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
 
 **CLIENT**:
 {client_name}
@@ -22,12 +23,12 @@ Each prompt should start with: "A realistic photograph. The image is taken in fo
 **ONLY** return JSON in the exact format below.
 
 json
-{
+{{
   "Section 1 Prompt": "...",
-},
-{
+}},
+{{
   "Section 2 Prompt": "...",
-},
-{ ... },
-{ ... },
-{ ... }
+}},
+{{ ... }},
+{{ ... }},
+{{ ... }}
