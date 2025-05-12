@@ -17,8 +17,8 @@ def flatten_json_like_text(text: str) -> str:
     for line in lines:
         clean_line = line.strip()
 
-        # Skip markdown block markers and rogue '{:'
-        if clean_line.startswith("```") or clean_line in {"{:", "{:,"}:
+        # Skip markdown block markers and rogue '{:' artifacts
+        if clean_line.startswith("```") or clean_line.startswith("{:"):
             continue
 
         # Decrease indent after closing brace
