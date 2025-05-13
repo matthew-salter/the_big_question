@@ -55,8 +55,9 @@ def to_paragraph_case(text):
     return '\n\n'.join([to_sentence_case(p) for p in paragraphs if p.strip()])
 
 def format_bullet_points(text):
-    lines = [line.strip().rstrip('.') for line in text.strip().split('\n') if line.strip()]
-    return '\n'.join(f"- {line}." for line in lines)
+    # Split into lines, preserve sentence punctuation, remove leading dashes if present
+    lines = [line.strip().lstrip('-').strip() for line in text.splitlines() if line.strip()]
+    return '\n'.join(f"- {line}" for line in lines)
 
 def format_date(text):
     for fmt in ["%d/%m/%Y", "%m/%d/%Y"]:
