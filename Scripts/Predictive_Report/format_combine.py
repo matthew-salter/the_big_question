@@ -5,18 +5,20 @@ from datetime import datetime
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
 
-# American to British spelling conversions
-american_to_british = {
-    "color": "colour", "flavor": "flavour", "humor": "humour", "labor": "labour",
-    "neighbor": "neighbour", "organize": "organise", "recognize": "recognise",
-    "emphasize": "emphasise", "theater": "theatre", "analyze": "analyse", "defense": "defence",
-    "traveling": "travelling", "counselor": "counsellor", "favorite": "favourite",
-    "center": "centre", "apologize": "apologise", "catalog": "catalogue", "dialog": "dialogue",
-    "meter": "metre", "liter": "litre", "gray": "grey", "mold": "mould", "plow": "plough",
-    "pajamas": "pyjamas", "skeptic": "sceptic", "tire": "tyre", "aluminum": "aluminium",
-    "jewelry": "jewellery", "fulfill": "fulfil", "program": "programme", "cozy": "cosy",
-    "sulfur": "sulphur"
-}
+# Load American to British dictionary from external file
+def load_american_to_british_dict(filepath):
+    mapping = {}
+    with open(filepath, 'r', encoding='utf-8') as file:
+        for line in file:
+            if ':' in line:
+                us, uk = line.strip().rstrip(',').split(':')
+                us = us.strip().strip('"')
+                uk = uk.strip().strip('"')
+                mapping[us] = uk
+    return mapping
+
+# Load the dictionary from the external text file
+american_to_british = load_american_to_british_dict("Prompts/American_to_British/american_to_british.txt")
 
 # Formatting functions
 def convert_to_british_english(text):
@@ -25,15 +27,13 @@ def convert_to_british_english(text):
         lowercase_us = us_word.lower()
         if lowercase_us in american_to_british:
             british = american_to_british[lowercase_us]
-            # Preserve capitalisation
             if us_word.isupper():
                 return british.upper()
             elif us_word[0].isupper():
                 return british.capitalize()
             else:
                 return british
-        return us_word  # fallback
-    # Build a combined regex pattern for all US spellings
+        return us_word
     pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
@@ -67,7 +67,6 @@ def format_date(text):
             continue
     return text.strip()
 
-# Key-based formatter mapping
 asset_formatters = {
     "Report Title": to_title_case,
     "Report Sub-Title": to_title_case,
@@ -109,7 +108,6 @@ def run_prompt(data):
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
 
-        # Build asset detection pattern
         key_pattern = r"^(\s*)(?P<key>[\w\- ]+):\n(?P<value>.*?)(?=^\s*[\w\- ]+:\n|\Z)"
         matches = re.finditer(key_pattern, raw_text, flags=re.DOTALL | re.MULTILINE)
 
@@ -124,7 +122,6 @@ def run_prompt(data):
             formatter = asset_formatters.get(key, lambda x: x)
             formatted_value = ensure_line_breaks(formatter(value))
 
-            # Calculate indentation level
             tabs = ""
             if "Sub-Section Related Article" in key:
                 tabs = "\t" * 3
@@ -136,7 +133,6 @@ def run_prompt(data):
             formatted_blocks.append(f"{tabs}{key}:\n{tabs}{formatted_value}")
 
         final_output = "\n\n".join(formatted_blocks)
-
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_output)
         logger.info(f"✅ Formatted content written to Supabase: {supabase_path}")
