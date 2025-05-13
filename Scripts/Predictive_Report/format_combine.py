@@ -120,7 +120,7 @@ def run_prompt(data):
 
             value = convert_to_british_english(value)
             formatter = asset_formatters.get(key, lambda x: x)
-            formatted_value = ensure_line_breaks(formatter(value))
+            formatted_value = formatter(value)  # ⬅ no line-break adjustment
 
             tabs = ""
             if "Sub-Section Related Article" in key:
@@ -138,6 +138,11 @@ def run_prompt(data):
         logger.info(f"✅ Formatted content written to Supabase: {supabase_path}")
 
         return {"status": "success", "run_id": run_id, "formatted_content": final_output}
+
+    except Exception as e:
+        logger.exception("❌ Error in formatting script")
+        return {"status": "error", "message": str(e)}
+
 
     except Exception as e:
         logger.exception("❌ Error in formatting script")
