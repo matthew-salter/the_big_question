@@ -1,10 +1,11 @@
 import uuid
 import re
+import string
 from datetime import datetime
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
 
-# Mapping for American to British English
+# American to British spelling conversions
 american_to_british = {
     "color": "colour", "flavor": "flavour", "humor": "humour", "labor": "labour",
     "neighbor": "neighbour", "organize": "organise", "recognize": "recognise",
@@ -17,7 +18,7 @@ american_to_british = {
     "sulfur": "sulphur"
 }
 
-# Formatting helper functions
+# Formatting functions
 def convert_to_british_english(text):
     for us, uk in american_to_british.items():
         text = re.sub(rf'\b{us}\b', uk, text, flags=re.IGNORECASE)
@@ -28,7 +29,7 @@ def ensure_line_breaks(text):
     return '\n\n'.join([line.strip() for line in lines if line.strip()])
 
 def to_title_case(text):
-    return string.capwords(text)
+    return string.capwords(text.strip())
 
 def to_sentence_case(text):
     text = text.strip()
@@ -43,71 +44,78 @@ def format_bullet_points(text):
     return '\n'.join(lines)
 
 def format_date(text):
-    try:
-        dt = datetime.strptime(text, "%m/%d/%Y")
-        return dt.strftime("%d/%m/%Y")
-    except ValueError:
-        return text
+    for fmt in ["%d/%m/%Y", "%m/%d/%Y"]:
+        try:
+            dt = datetime.strptime(text.strip(), fmt)
+            return dt.strftime("%d/%m/%Y")
+        except ValueError:
+            continue
+    return text.strip()
 
-# Main formatting logic based on asset key
-def format_asset(key, value):
-    value = convert_to_british_english(value)
-    formats = {
-        "Report Title": to_title_case,
-        "Report Sub-Title": to_title_case,
-        "Executive Summary": to_paragraph_case,
-        "Key Findings": format_bullet_points,
-        "Call to Action": to_sentence_case,
-        "Report Change Title": to_title_case,
-        "Report Table": to_title_case,
-        "Section Title": to_title_case,
-        "Section Header": to_title_case,
-        "Section Sub-Header": to_title_case,
-        "Section Theme": to_title_case,
-        "Section Summary": to_paragraph_case,
-        "Section Insight": to_sentence_case,
-        "Section Statistic": to_sentence_case,
-        "Section Recommendation": to_sentence_case,
-        "Section Tables": to_title_case,
-        "Section Related Article Title": to_title_case,
-        "Section Related Article Date": format_date,
-        "Section Related Article Summary": to_paragraph_case,
-        "Section Related Article Relevance": to_paragraph_case,
-        "Section Related Article Source": to_title_case,
-        "Sub-Section Title": to_title_case,
-        "Sub-Section Header": to_title_case,
-        "Sub-Section Sub-Header": to_title_case,
-        "Sub-Section Summary": to_paragraph_case,
-        "Sub-Section Statistic": to_sentence_case,
-        "Sub-Section Related Article Title": to_title_case,
-        "Sub-Section Related Article Date": format_date,
-        "Sub-Section Related Article Summary": to_paragraph_case,
-        "Sub-Section Related Article Relevance": to_paragraph_case,
-        "Sub-Section Related Article Source": to_title_case,
-        "Conclusion": to_paragraph_case,
-        "Recommendations": format_bullet_points,
-    }
-    formatter = formats.get(key, lambda x: x)
-    formatted_value = formatter(value)
-    return ensure_line_breaks(formatted_value)
+# Mapping of asset keys to formatters
+asset_formatters = {
+    "Report Title": to_title_case,
+    "Report Sub-Title": to_title_case,
+    "Executive Summary": to_paragraph_case,
+    "Key Findings": format_bullet_points,
+    "Call to Action": to_sentence_case,
+    "Report Change Title": to_title_case,
+    "Report Table": to_title_case,
+    "Section Title": to_title_case,
+    "Section Header": to_title_case,
+    "Section Sub-Header": to_title_case,
+    "Section Theme": to_title_case,
+    "Section Summary": to_paragraph_case,
+    "Section Insight": to_sentence_case,
+    "Section Statistic": to_sentence_case,
+    "Section Recommendation": to_sentence_case,
+    "Section Tables": to_title_case,
+    "Section Related Article Title": to_title_case,
+    "Section Related Article Date": format_date,
+    "Section Related Article Summary": to_paragraph_case,
+    "Section Related Article Relevance": to_paragraph_case,
+    "Section Related Article Source": to_title_case,
+    "Sub-Section Title": to_title_case,
+    "Sub-Section Header": to_title_case,
+    "Sub-Section Sub-Header": to_title_case,
+    "Sub-Section Summary": to_paragraph_case,
+    "Sub-Section Statistic": to_sentence_case,
+    "Sub-Section Related Article Title": to_title_case,
+    "Sub-Section Related Article Date": format_date,
+    "Sub-Section Related Article Summary": to_paragraph_case,
+    "Sub-Section Related Article Relevance": to_paragraph_case,
+    "Sub-Section Related Article Source": to_title_case,
+    "Conclusion": to_paragraph_case,
+    "Recommendations": format_bullet_points,
+}
 
-# Main processing function
+# Main prompt runner
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
-        formatted_assets = {}
-        for key, value in data.items():
-            formatted_assets[key] = format_asset(key, value)
+        raw_text = data.get("prompt_5_combine", "")
+        formatted_blocks = []
 
-        # Save formatted output to Supabase
+        # Build regex pattern for all asset keys
+        escaped_keys = [re.escape(key) for key in asset_formatters.keys()]
+        pattern = rf"^({'|'.join(escaped_keys)}):\s*(.*?)(?=^({'|'.join(escaped_keys)}):|\Z)"
+
+        matches = re.finditer(pattern, raw_text, flags=re.DOTALL | re.MULTILINE)
+        for match in matches:
+            key, value = match.group(1).strip(), match.group(2).strip()
+            value = convert_to_british_english(value)
+            formatter = asset_formatters.get(key, lambda x: x)
+            formatted = ensure_line_breaks(formatter(value))
+            formatted_blocks.append(f"{key}:
+{formatted}")
+
+        final_output = "\n\n".join(formatted_blocks)
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
-        content = '\n\n'.join(f"{k}:\n{v}" for k, v in formatted_assets.items())
-        write_supabase_file(supabase_path, content)
-        logger.info(f"✅ Formatted content written to Supabase: {supabase_path}")
+        write_supabase_file(supabase_path, final_output)
 
-        return {"status": "success", "run_id": run_id, "formatted_content": content}
+        logger.info(f"✅ Formatted content written to Supabase: {supabase_path}")
+        return {"status": "success", "run_id": run_id, "formatted_content": final_output}
 
     except Exception as e:
         logger.exception("❌ Error in formatting script")
         return {"status": "error", "message": str(e)}
-
