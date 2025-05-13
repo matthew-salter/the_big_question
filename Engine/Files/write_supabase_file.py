@@ -15,25 +15,33 @@ def write_supabase_file(path, content):
     headers = get_supabase_headers()
 
     if isinstance(content, str):
-        data = content.encode("utf-8")
-        logger.debug("📄 Content is UTF-8 text. Encoding before upload.")
+        try:
+            # Validate UTF-8 encoding explicitly
+            data = content.encode("utf-8", errors="strict")
+            logger.debug("📄 Content is valid UTF-8 string. Encoding before upload.")
+        except UnicodeEncodeError as e:
+            logger.error(f"❌ UTF-8 encoding failed: {e}")
+            raise
     elif isinstance(content, bytes):
         data = content
         logger.debug("🖼️ Content is raw bytes. Uploading directly.")
     else:
         raise TypeError("❌ Content must be either str or bytes.")
 
+    # Ensure correct content-type with charset
+    headers["Content-Type"] = "text/plain; charset=utf-8"
+
     try:
-        logger.info(f"Attempting Supabase file write to: {url}")
-        logger.debug(f"Headers: {headers}")
-        logger.debug(f"Data size: {len(data)} bytes")
+        logger.info(f"🚀 Attempting Supabase file write to: {url}")
+        logger.debug(f"📦 Upload headers: {headers}")
+        logger.debug(f"📏 Upload size: {len(data)} bytes")
 
-        res = requests.put(url, headers=headers, data=data)
+        response = requests.put(url, headers=headers, data=data)
 
-        logger.info(f"Supabase response status: {res.status_code}")
-        logger.debug(f"Supabase response body: {res.text}")
+        logger.info(f"📡 Supabase status: {response.status_code}")
+        logger.debug(f"📨 Supabase response: {response.text}")
 
-        res.raise_for_status()
+        response.raise_for_status()
         logger.info("✅ File write to Supabase successful.")
 
     except requests.exceptions.RequestException as e:
