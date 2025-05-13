@@ -20,9 +20,22 @@ american_to_british = {
 
 # Formatting functions
 def convert_to_british_english(text):
-    for us, uk in american_to_british.items():
-        text = re.sub(rf'(?i)\b{us}\b', lambda m: uk if m.group(0).islower() else uk.capitalize(), text)
-    return text
+    def replace_match(match):
+        us_word = match.group(0)
+        lowercase_us = us_word.lower()
+        if lowercase_us in american_to_british:
+            british = american_to_british[lowercase_us]
+            # Preserve capitalisation
+            if us_word.isupper():
+                return british.upper()
+            elif us_word[0].isupper():
+                return british.capitalize()
+            else:
+                return british
+        return us_word  # fallback
+    # Build a combined regex pattern for all US spellings
+    pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
+    return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
 def ensure_line_breaks(text):
     lines = text.splitlines()
