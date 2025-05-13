@@ -93,35 +93,37 @@ asset_formatters = {
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
-        raw_text = str(data.get("prompt_5_combine", "")).strip()
-
-        logger.info(f"📩 Incoming keys: {list(data.keys())}")
-        logger.info(f"📄 Raw prompt_5_combine type: {type(data.get('prompt_5_combine'))}")
+        raw_text = data.get("prompt_5_combine", "")
+        logger.info(f"📄 Raw prompt_5_combine type: {type(raw_text)}")
         logger.info(f"📄 Raw prompt_5_combine preview: {raw_text[:300]}")
 
-        # Build regex pattern for all asset keys
-        escaped_keys = [re.escape(k) for k in asset_formatters.keys()]
-        pattern = rf"^({'|'.join(escaped_keys)}):\s*(.*?)(?=^({'|'.join(escaped_keys)}):|\Z)"
+        # Pattern matches asset blocks with optional indentation
+        escaped_keys = [re.escape(k) for k in asset_formatters]
+        pattern = rf"^[ \t]*({'|'.join(escaped_keys)}):[ \t]*(.*?)(?=^[ \t]*({'|'.join(escaped_keys)}):|\Z)"
 
-        formatted_blocks = []
         matches = re.finditer(pattern, raw_text, flags=re.DOTALL | re.MULTILINE)
+        formatted_blocks = []
 
         for match in matches:
             key = match.group(1).strip()
             value = match.group(2).strip()
+            logger.debug(f"🔑 Matched key: {key} | 🧾 Value preview: {value[:60]}")
             value = convert_to_british_english(value)
             formatter = asset_formatters.get(key, lambda x: x)
-            formatted_value = ensure_line_breaks(formatter(value))
-            formatted_blocks.append(f"{key}:\n{formatted_value}")
+            formatted = ensure_line_breaks(formatter(value))
+            formatted_blocks.append(f"{key}:\n{formatted}")
 
         final_output = "\n\n".join(formatted_blocks)
+        logger.info(f"🧾 Final output preview:\n{final_output[:500]}")
 
+        # Write to Supabase
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_output)
-
         logger.info(f"✅ Formatted content written to Supabase: {supabase_path}")
+
         return {"status": "success", "run_id": run_id, "formatted_content": final_output}
 
     except Exception as e:
         logger.exception("❌ Error in formatting script")
         return {"status": "error", "message": str(e)}
+
