@@ -100,7 +100,7 @@ def run_prompt(data):
             formatted_assets[key] = format_asset(key, value)
 
         # Save formatted output to Supabase
-        supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Prompt_6_Formatted/{run_id}.txt"
+        supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         content = '\n\n'.join(f"{k}:\n{v}" for k, v in formatted_assets.items())
         write_supabase_file(supabase_path, content)
         logger.info(f"✅ Formatted content written to Supabase: {supabase_path}")
