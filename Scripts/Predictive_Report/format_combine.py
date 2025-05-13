@@ -5,7 +5,7 @@ from datetime import datetime
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
 
-# American to British spelling conversions
+# American to British spelling conversions (including root forms)
 american_to_british = {
     "color": "colour", "flavor": "flavour", "humor": "humour", "labor": "labour",
     "neighbor": "neighbour", "organize": "organise", "recognize": "recognise",
@@ -18,10 +18,13 @@ american_to_british = {
     "sulfur": "sulphur"
 }
 
+# Small words to lowercase in title case
+small_words = {"in", "on", "at", "to", "by", "for", "and", "of", "the", "with", "a", "an", "but", "or", "nor"}
+
 # Formatting functions
 def convert_to_british_english(text):
     for us, uk in american_to_british.items():
-        text = re.sub(rf'\b{us}\b', uk, text, flags=re.IGNORECASE)
+        text = re.sub(rf'\b{us}(e[ds]?|ing)?\b', lambda m: uk + (m.group(1) or ""), text, flags=re.IGNORECASE)
     return text
 
 def ensure_line_breaks(text):
@@ -29,7 +32,11 @@ def ensure_line_breaks(text):
     return '\n\n'.join([line.strip() for line in lines if line.strip()])
 
 def to_title_case(text):
-    return string.capwords(text.strip())
+    words = text.strip().split()
+    return ' '.join([
+        word.capitalize() if i == 0 or word.lower() not in small_words else word.lower()
+        for i, word in enumerate(words)
+    ])
 
 def to_sentence_case(text):
     text = text.strip()
@@ -40,8 +47,15 @@ def to_paragraph_case(text):
     return '\n\n'.join([to_sentence_case(p) for p in paragraphs if p.strip()])
 
 def format_bullet_points(text):
-    lines = [f"- {line.strip().rstrip('.')}" for line in text.strip().split('\n') if line.strip()]
+    lines = [line.strip().lstrip('-•').strip().capitalize() for line in text.strip().split('\n') if line.strip()]
     return '\n'.join(lines)
+
+def format_report_table(text):
+    matches = re.findall(r'Section Title: (.*?) Section Makeup: ([^%]+%) Section Change: ([^%]+%) Section Effect: ([^\n]+)', text)
+    return '\n\n'.join([
+        f"Section Title: {title}\nSection Makeup: {makeup} | Section Change: {change} | Section Effect: {effect}"
+        for title, makeup, change, effect in matches
+    ])
 
 def format_date(text):
     for fmt in ["%d/%m/%Y", "%m/%d/%Y"]:
@@ -52,6 +66,15 @@ def format_date(text):
             continue
     return text.strip()
 
+def apply_indentation(key):
+    if key.startswith("Sub-Section Related Article"):
+        return "\t\t\t"
+    elif key.startswith("Sub-Section"):
+        return "\t\t"
+    elif key.startswith("Section Related Article"):
+        return "\t"
+    return ""
+
 # Mapping of asset keys to formatters
 asset_formatters = {
     "Report Title": to_title_case,
@@ -60,7 +83,7 @@ asset_formatters = {
     "Key Findings": format_bullet_points,
     "Call to Action": to_sentence_case,
     "Report Change Title": to_title_case,
-    "Report Table": to_title_case,
+    "Report Table": format_report_table,
     "Section Title": to_title_case,
     "Section Header": to_title_case,
     "Section Sub-Header": to_title_case,
@@ -89,41 +112,32 @@ asset_formatters = {
     "Recommendations": format_bullet_points,
 }
 
-# Main prompt runner
+# Main processing logic
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
-        logger.info(f"📄 Raw prompt_5_combine type: {type(raw_text)}")
-        logger.info(f"📄 Raw prompt_5_combine preview: {raw_text[:300]}")
-
-        # Pattern matches asset blocks with optional indentation
-        escaped_keys = [re.escape(k) for k in asset_formatters]
-        pattern = rf"^[ \t]*({'|'.join(escaped_keys)}):[ \t]*(.*?)(?=^[ \t]*({'|'.join(escaped_keys)}):|\Z)"
-
-        matches = re.finditer(pattern, raw_text, flags=re.DOTALL | re.MULTILINE)
         formatted_blocks = []
 
+        escaped_keys = sorted(asset_formatters.keys(), key=lambda x: -len(x))
+        pattern = rf"^({'|'.join(re.escape(k) for k in escaped_keys)}):\s*(.*?)(?=^({'|'.join(re.escape(k) for k in escaped_keys)}):|\Z)"
+
+        matches = re.finditer(pattern, raw_text, flags=re.DOTALL | re.MULTILINE)
         for match in matches:
-            key = match.group(1).strip()
-            value = match.group(2).strip()
-            logger.debug(f"🔑 Matched key: {key} | 🧾 Value preview: {value[:60]}")
+            key, value = match.group(1).strip(), match.group(2).strip()
             value = convert_to_british_english(value)
             formatter = asset_formatters.get(key, lambda x: x)
             formatted = ensure_line_breaks(formatter(value))
-            formatted_blocks.append(f"{key}:\n{formatted}")
+            indentation = apply_indentation(key)
+            formatted_blocks.append(f"{indentation}{key}:\n{indentation}{formatted}")
 
         final_output = "\n\n".join(formatted_blocks)
-        logger.info(f"🧾 Final output preview:\n{final_output[:500]}")
-
-        # Write to Supabase
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_output)
-        logger.info(f"✅ Formatted content written to Supabase: {supabase_path}")
 
+        logger.info(f"✅ Formatted content written to Supabase: {supabase_path}")
         return {"status": "success", "run_id": run_id, "formatted_content": final_output}
 
     except Exception as e:
         logger.exception("❌ Error in formatting script")
         return {"status": "error", "message": str(e)}
-
