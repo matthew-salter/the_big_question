@@ -93,22 +93,29 @@ asset_formatters = {
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
-        raw_text = data.get("prompt_5_combine", "")
-        formatted_blocks = []
+        raw_text = str(data.get("prompt_5_combine", "")).strip()
+
+        logger.info(f"📩 Incoming keys: {list(data.keys())}")
+        logger.info(f"📄 Raw prompt_5_combine type: {type(data.get('prompt_5_combine'))}")
+        logger.info(f"📄 Raw prompt_5_combine preview: {raw_text[:300]}")
 
         # Build regex pattern for all asset keys
-        escaped_keys = [re.escape(key) for key in asset_formatters.keys()]
+        escaped_keys = [re.escape(k) for k in asset_formatters.keys()]
         pattern = rf"^({'|'.join(escaped_keys)}):\s*(.*?)(?=^({'|'.join(escaped_keys)}):|\Z)"
 
+        formatted_blocks = []
         matches = re.finditer(pattern, raw_text, flags=re.DOTALL | re.MULTILINE)
+
         for match in matches:
-            key, value = match.group(1).strip(), match.group(2).strip()
+            key = match.group(1).strip()
+            value = match.group(2).strip()
             value = convert_to_british_english(value)
             formatter = asset_formatters.get(key, lambda x: x)
-            formatted = ensure_line_breaks(formatter(value))
-            formatted_blocks.append(f"{key}:\n{formatted}")
+            formatted_value = ensure_line_breaks(formatter(value))
+            formatted_blocks.append(f"{key}:\n{formatted_value}")
 
         final_output = "\n\n".join(formatted_blocks)
+
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_output)
 
