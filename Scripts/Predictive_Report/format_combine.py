@@ -106,8 +106,7 @@ def run_prompt(data):
             value = convert_to_british_english(value)
             formatter = asset_formatters.get(key, lambda x: x)
             formatted = ensure_line_breaks(formatter(value))
-            formatted_blocks.append(f"{key}:
-{formatted}")
+            formatted_blocks.append(f"{key}:\n{formatted}")
 
         final_output = "\n\n".join(formatted_blocks)
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
