@@ -20,6 +20,12 @@ def load_american_to_british_dict(filepath):
 # Load the dictionary from the external text file
 american_to_british = load_american_to_british_dict("Prompts/American_to_British/american_to_british.txt")
 
+# Text normalisation function (strip indents and blank lines)
+def normalise_input_text(text):
+    lines = text.splitlines()
+    stripped_lines = [line.lstrip() for line in lines if line.strip()]
+    return "\n".join(stripped_lines)
+
 # Formatting functions
 def convert_to_british_english(text):
     def replace_match(match):
@@ -37,10 +43,6 @@ def convert_to_british_english(text):
     pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
-def ensure_line_breaks(text):
-    lines = text.splitlines()
-    return '\n\n'.join([line.strip() for line in lines if line.strip()])
-
 def to_title_case(text):
     exceptions = {"a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "so", "the", "to", "up", "yet"}
     words = text.strip().split()
@@ -55,7 +57,6 @@ def to_paragraph_case(text):
     return '\n\n'.join([to_sentence_case(p) for p in paragraphs if p.strip()])
 
 def format_bullet_points(text):
-    # Split into lines, preserve sentence punctuation, remove leading dashes if present
     lines = [line.strip().lstrip('-').strip() for line in text.splitlines() if line.strip()]
     return '\n'.join(f"- {line}" for line in lines)
 
@@ -108,20 +109,20 @@ def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
+        normalised_text = normalise_input_text(raw_text)
 
-        key_pattern = r"^(\s*)(?P<key>[\w\- ]+):\n(?P<value>.*?)(?=^\s*[\w\- ]+:\n|\Z)"
-        matches = re.finditer(key_pattern, raw_text, flags=re.DOTALL | re.MULTILINE)
+        key_pattern = r"^(?P<key>[\w\- ]+):\s*\n(?P<value>(?:^.+\n?)*)"
+        matches = re.finditer(key_pattern, normalised_text, flags=re.MULTILINE)
 
         formatted_blocks = []
 
         for match in matches:
-            indent = match.group(1)
             key = match.group("key").strip()
             value = match.group("value").strip()
 
             value = convert_to_british_english(value)
             formatter = asset_formatters.get(key, lambda x: x)
-            formatted_value = formatter(value)  # ⬅ no line-break adjustment
+            formatted_value = formatter(value)
 
             tabs = ""
             if "Sub-Section Related Article" in key:
@@ -131,20 +132,16 @@ def run_prompt(data):
             elif "Section Related Article" in key:
                 tabs = "\t"
 
-            formatted_blocks.append(f"{tabs}{key}:\n{tabs}{formatted_value}")
+            formatted_blocks.append(f"{tabs}{key}:
+{tabs}{formatted_value}")
 
         final_output = "\n\n".join(formatted_blocks)
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_output)
-        logger.info(f"✅ Formatted content written to Supabase: {supabase_path}")
+        logger.info(f"\u2705 Formatted content written to Supabase: {supabase_path}")
 
         return {"status": "success", "run_id": run_id, "formatted_content": final_output}
 
     except Exception as e:
-        logger.exception("❌ Error in formatting script")
-        return {"status": "error", "message": str(e)}
-
-
-    except Exception as e:
-        logger.exception("❌ Error in formatting script")
+        logger.exception("\u274C Error in formatting script")
         return {"status": "error", "message": str(e)}
