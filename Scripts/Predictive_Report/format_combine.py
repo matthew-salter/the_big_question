@@ -18,20 +18,59 @@ def load_american_to_british_dict(filepath):
 
 american_to_british = load_american_to_british_dict("Prompts/American_to_British/american_to_british.txt")
 
-# Clean indentation and blank lines
 def normalise_input_text(text):
     lines = text.splitlines()
     stripped_lines = [line.lstrip() for line in lines if line.strip()]
     return "\n".join(stripped_lines)
 
-# Insert line breaks before asset keys
 def insert_line_breaks_before_keys(text, keys):
     pattern = r'(^|\n)(?=({keys}):)'.format(
         keys='|'.join(re.escape(k) for k in keys)
     )
     return re.sub(pattern, r'\1\n', text)
 
-# Parse key-value blocks robustly
+def extract_and_format_report_table_block(text):
+    lines = text.splitlines()
+    new_lines = []
+    inside_report_table = False
+    report_table_lines = []
+
+    for line in lines:
+        if line.strip().startswith("Report Table:"):
+            inside_report_table = True
+            new_lines.append("Report Table:")
+            continue
+
+        if inside_report_table:
+            if re.match(r"^\w.*:", line) and not line.strip().startswith("Section Title"):
+                inside_report_table = False
+                new_lines.extend(format_report_table_block("\n".join(report_table_lines)).splitlines())
+                new_lines.append(line)
+            else:
+                report_table_lines.append(line)
+        else:
+            new_lines.append(line)
+
+    if inside_report_table:
+        new_lines.extend(format_report_table_block("\n".join(report_table_lines)).splitlines())
+
+    return "\n".join(new_lines)
+
+def format_report_table_block(block_text):
+    lines = block_text.strip().splitlines()
+    formatted = []
+
+    for line in lines:
+        match = re.match(
+            r"^(.*?) Section Makeup: ([^ ]+) Section Change: ([^ ]+) Section Effect: ([^%]+%)", line.strip()
+        )
+        if match:
+            title, makeup, change, effect = match.groups()
+            formatted.append(f"Section Title: {title.strip()}")
+            formatted.append(f"Section Makeup: {makeup.strip()} | Section Change: {change.strip()} | Section Effect: {effect.strip()}")
+
+    return "\n".join(formatted)
+
 def parse_key_value_blocks(text):
     blocks = []
     current_key = None
@@ -58,50 +97,6 @@ def parse_key_value_blocks(text):
         blocks.append((current_key, '\n'.join(current_value_lines).strip()))
     return blocks
 
-def format_report_table_block(raw_text):
-    """
-    Receives the raw 'Report Table' block as a single string.
-    Extracts structured data and formats it cleanly.
-    """
-    lines = raw_text.strip().splitlines()
-    formatted_lines = []
-    current_title = ""
-
-    for line in lines:
-        # Detect if line starts a new section
-        if line.startswith("Section Title:"):
-            # If previous title exists, flush it
-            if current_title:
-                formatted_lines.append(f"Section Title: {current_title}")
-                formatted_lines.append(f"Section Makeup: {makeup} | Section Change: {change} | Section Effect: {effect}")
-                current_title = ""
-
-            current_title = line.replace("Section Title:", "").strip()
-            makeup = change = effect = ""  # Reset
-        elif line.startswith("Section Makeup:"):
-            makeup = line.replace("Section Makeup:", "").strip()
-        elif line.startswith("Section Change:"):
-            change = line.replace("Section Change:", "").strip()
-        elif line.startswith("Section Effect:"):
-            effect = line.replace("Section Effect:", "").strip()
-        else:
-            # Sometimes all data is inline on one line
-            match = re.match(
-                r"(.+?) Section Makeup: ([^ ]+) Section Change: ([^ ]+) Section Effect: ([^ ]+)", line
-            )
-            if match:
-                title, makeup, change, effect = match.groups()
-                formatted_lines.append(f"Section Title: {title.strip()}")
-                formatted_lines.append(f"Section Makeup: {makeup.strip()} | Section Change: {change.strip()} | Section Effect: {effect.strip()}")
-
-    # Flush last
-    if current_title:
-        formatted_lines.append(f"Section Title: {current_title}")
-        formatted_lines.append(f"Section Makeup: {makeup} | Section Change: {change} | Section Effect: {effect}")
-
-    return "\n".join(formatted_lines)
-
-# Formatting helpers
 def convert_to_british_english(text):
     def replace_match(match):
         us_word = match.group(0)
@@ -144,7 +139,6 @@ def format_date(text):
             continue
     return text.strip()
 
-# Formatting rules for each key
 asset_formatters = {
     "Report Title": to_title_case,
     "Report Sub-Title": to_title_case,
@@ -152,7 +146,7 @@ asset_formatters = {
     "Key Findings": format_bullet_points,
     "Call to Action": to_sentence_case,
     "Report Change Title": to_title_case,
-    "Report Table": to_title_case,  # Placeholder; real formatting applied later
+    "Report Table": to_title_case,
     "Section Title": to_title_case,
     "Section Header": to_title_case,
     "Section Sub-Header": to_title_case,
@@ -181,22 +175,22 @@ asset_formatters = {
     "Recommendations": format_bullet_points,
 }
 
-# Main execution
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
 
-        # Step 1: Clean text
         normalised_text = normalise_input_text(raw_text)
-
-        # Step 2: Add line breaks before known keys
         keys_to_break_before = list(asset_formatters.keys())
         clean_text_with_breaks = insert_line_breaks_before_keys(normalised_text, keys_to_break_before)
 
-        # Step 3: Parse and format
+        # Process and format Report Table before parsing
+        clean_text_with_breaks = extract_and_format_report_table_block(clean_text_with_breaks)
+
+        raw_blocks = parse_key_value_blocks(clean_text_with_breaks)
         formatted_blocks = []
-        for key, value in parse_key_value_blocks(clean_text_with_breaks):
+
+        for key, value in raw_blocks:
             value = convert_to_british_english(value)
             formatter = asset_formatters.get(key, lambda x: x)
             formatted_value = formatter(value)
@@ -211,14 +205,6 @@ def run_prompt(data):
 
             formatted_blocks.append(f"{tabs}{key}:\n{tabs}{formatted_value}")
 
-        # Step 4: Post-process Report Table block only
-        for i, block in enumerate(formatted_blocks):
-            if block.startswith("Report Table:"):
-                label, value = block.split(":\n", 1)
-                fixed = format_report_table_block(value)
-                formatted_blocks[i] = f"{label}:\n{fixed}"
-
-        # Step 5: Save
         final_output = "\n\n".join(formatted_blocks)
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_output)
