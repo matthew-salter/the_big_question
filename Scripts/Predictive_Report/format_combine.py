@@ -58,6 +58,34 @@ def parse_key_value_blocks(text):
         blocks.append((current_key, '\n'.join(current_value_lines).strip()))
     return blocks
 
+# Post-formatting: clean up the 'Report Table' block
+def format_report_table_block(block_text):
+    lines = block_text.strip().splitlines()
+    formatted_lines = []
+    current_title = None
+
+    for line in lines:
+        if line.startswith("Section Title:"):
+            current_title = line.replace("Section Title:", "").strip()
+        elif line.startswith("Section Makeup:") and current_title:
+            makeup_line = line
+            change_match = re.search(r"Section Change:\s*([^\|]+)", makeup_line)
+            effect_match = re.search(r"Section Effect:\s*(.+)", makeup_line)
+
+            makeup_val = makeup_line.split("Section Makeup:")[1].split("Section Change:")[0].strip()
+            change_val = change_match.group(1).strip() if change_match else ""
+            effect_val = effect_match.group(1).strip() if effect_match else ""
+
+            formatted_lines.append(f"Section Title: {current_title}")
+            formatted_lines.append(
+                f"Section Makeup: {makeup_val} | Section Change: {change_val} | Section Effect: {effect_val}"
+            )
+            current_title = None
+        else:
+            formatted_lines.append(line)
+
+    return "\n".join(formatted_lines)
+
 # Formatting helpers
 def convert_to_british_english(text):
     def replace_match(match):
@@ -109,7 +137,7 @@ asset_formatters = {
     "Key Findings": format_bullet_points,
     "Call to Action": to_sentence_case,
     "Report Change Title": to_title_case,
-    "Report Table": to_title_case,
+    "Report Table": to_title_case,  # Placeholder; real formatting applied later
     "Section Title": to_title_case,
     "Section Header": to_title_case,
     "Section Sub-Header": to_title_case,
@@ -168,6 +196,14 @@ def run_prompt(data):
 
             formatted_blocks.append(f"{tabs}{key}:\n{tabs}{formatted_value}")
 
+        # Step 4: Post-process Report Table block only
+        for i, block in enumerate(formatted_blocks):
+            if block.startswith("Report Table:"):
+                label, value = block.split(":\n", 1)
+                fixed = format_report_table_block(value)
+                formatted_blocks[i] = f"{label}:\n{fixed}"
+
+        # Step 5: Save
         final_output = "\n\n".join(formatted_blocks)
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_output)
