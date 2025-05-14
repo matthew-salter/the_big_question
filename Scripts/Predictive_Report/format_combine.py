@@ -1,5 +1,6 @@
 import uuid
 import re
+from datetime import datetime
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
 
@@ -52,7 +53,6 @@ def convert_to_british_english(text):
     pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
-# Asset formatting map
 asset_formatters = {
     "Report Title": to_title_case,
     "Report Sub-Title": to_title_case,
@@ -95,63 +95,63 @@ def format_text(text):
     text = re.sub(r'\n+', '\n', text)
     text = convert_to_british_english(text)
 
-    pattern = r'(\n|^)([A-Z][A-Za-z \-]*?):'
-    keys = [match[1] for match in re.findall(pattern, text)]
-
-    section_count = 0
-    subsection_count = 0
-    in_section = False
-    current_block = 1
-    block_map = {}
-    subsection_map = {}
-
+    lines = text.split('\n')
     output_lines = []
     current_section = 0
-    current_nested = 0
+    current_subsection = 0
+    current_table_subgroup = 0
+    current_table_key = ""
+    last_root_key = 0
+    last_main_key = ""
+    current_key_count = {}
 
-    for line in text.split('\n'):
+    for line in lines:
         match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line.strip())
         if match:
             key, value = match.groups()
-            key = key.strip()
             value = value.strip()
 
-            # Numbering logic
-            if key == "Report Table":
-                current_section += 1
-                section_index = current_section
-                block_id = f"{section_index} {key}:"
-                output_lines.append(block_id)
+            if key == "Sections":
+                last_root_key += 1
+                current_section = 0
+                output_lines.append(f"{last_root_key} {key}:{value}")
                 continue
 
-            elif key == "Section Title":
-                subsection_map = {}
-                current_nested = 0
-                section_index = f"{current_section}.{current_nested + 1}"
-                current_nested += 1
-                block_id = f"{section_index} {key}:"
-
-            elif key.startswith("Section"):
-                block_id = f"{current_section}.{current_nested} {key}:"
-
-            elif key == "Sub-Section Title":
-                subsection_count += 1
-                sub_id = subsection_map.setdefault(current_nested, 0) + 1
-                subsection_map[current_nested] = sub_id
-                block_id = f"{current_section}.{current_nested}.{sub_id}.1 {key}:"
+            if key == "Section Title":
+                current_section += 1
+                current_subsection = 0
+                current_key_count.clear()
+                block_id = f"{last_root_key}.{current_section}.1"
 
             elif key.startswith("Sub-Section"):
-                sub_id = subsection_map.get(current_nested, 1)
-                sub_nested_count = len([l for l in output_lines if l.startswith(f"{current_section}.{current_nested}.{sub_id}.")]) + 1
-                block_id = f"{current_section}.{current_nested}.{sub_id}.{sub_nested_count} {key}:"
+                current_subsection += 1
+                current_key_count.clear()
+                current_table_subgroup = 1
+                block_id = f"{last_root_key}.{current_section}.12.{current_subsection}.1"
+
+            elif key == "Section Tables":
+                current_key_count.clear()
+                current_table_subgroup = 0
+                block_id = f"{last_root_key}.{current_section}.12"
+                current_table_key = block_id
+
+            elif key.startswith("Section") or key.startswith("Sub-Section"):
+                prefix = current_table_key if key.startswith("Sub-Section") else f"{last_root_key}.{current_section}"
+                if key not in current_key_count:
+                    current_key_count[key] = 1
+                else:
+                    current_key_count[key] += 1
+                subgroup = f".{current_subsection}" if key.startswith("Sub-Section") and current_table_subgroup > 0 else ""
+                block_id = f"{prefix}{subgroup}.{current_key_count[key]}"
 
             else:
-                block_id = f"{current_block} {key}:"
-                current_block += 1
+                last_root_key += 1
+                current_section = 0
+                current_key_count.clear()
+                block_id = str(last_root_key)
 
-            # Format
             formatted = asset_formatters.get(key, lambda x: x)(value)
-            output_lines.append(f"{block_id}{formatted}")
+            output_lines.append(f"{block_id} {key}:{formatted}")
         else:
             output_lines.append(line.strip())
 
