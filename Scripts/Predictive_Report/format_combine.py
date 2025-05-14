@@ -102,7 +102,7 @@ linebreak_keys = {
     "Conclusion", "Recommendations"
 }
 
-divider_keys = {"Intro", "Sections", "Outro"}
+divider_keys = {"Intro:", "Sections:", "Outro:"}
 
 def format_text(text):
     text = re.sub(r'[\t\r]+', '', text)
@@ -121,7 +121,7 @@ def format_text(text):
         line = lines[i]
 
         # --- Divider Logic ---
-        if line in {"Intro:", "Sections:", "Outro:"}:
+        if not in_report_table and not in_section_table and line in {"Intro:", "Sections:", "Outro:"}:
             formatted_lines.append("")
             formatted_lines.append("---")
 
