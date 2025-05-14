@@ -167,6 +167,38 @@ asset_formatters = {
     "Recommendations": format_bullet_points,
 }
 
+def extract_and_format_report_table_block(text):
+    pattern = r"(Report Table:\n)(.*?)(\n\w.*?:|\Z)"  # Match from 'Report Table:' to the next top-level key or EOF
+    match = re.search(pattern, text, flags=re.DOTALL)
+    if not match:
+        return text  # No Report Table found
+
+    header, block, tail_marker = match.groups()
+    lines = block.strip().splitlines()
+    formatted = []
+
+    for line in lines:
+        match_inline = re.match(
+            r"^(.*?) Section Makeup: ([^ ]+) Section Change: ([^ ]+) Section Effect: ([^%]+%)", line.strip()
+        )
+        if match_inline:
+            title, makeup, change, effect = match_inline.groups()
+            formatted.append(f"Section Title: {title.strip()}")
+            formatted.append(f"Section Makeup: {makeup.strip()} | Section Change: {change.strip()} | Section Effect: {effect.strip()}")
+            continue
+
+        if line.startswith("Section Title:"):
+            title = line.replace("Section Title:", "").strip()
+            formatted.append(f"Section Title: {title}")
+        elif all(kw in line for kw in ["Section Makeup:", "Section Change:", "Section Effect:"]):
+            makeup = re.search(r"Section Makeup: ([^ ]+)", line).group(1)
+            change = re.search(r"Section Change: ([^ ]+)", line).group(1)
+            effect = re.search(r"Section Effect: ([^%]+%)", line).group(1)
+            formatted.append(f"Section Makeup: {makeup} | Section Change: {change} | Section Effect: {effect}")
+
+    cleaned_block = header + "\n" + "\n".join(formatted) + "\n" + tail_marker.strip()
+    return text.replace(header + block + tail_marker, cleaned_block)
+    
 # Main function
 def run_prompt(data):
     try:
