@@ -49,10 +49,11 @@ def convert_to_british_english(text):
             else:
                 return british
         return us_word
+
     pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
-# Formatting logic for each asset type
+# Asset formatting map
 asset_formatters = {
     "Report Title": to_title_case,
     "Report Sub-Title": to_title_case,
@@ -90,59 +91,70 @@ asset_formatters = {
     "Recommendations": format_bullet_points,
 }
 
+
 def format_text(text):
-    text = re.sub(r'[\t\r]+', '', text)         # remove tabs and carriage returns
-    text = re.sub(r'\n+', '\n', text)           # collapse multiple line breaks
-    text = convert_to_british_english(text)     # apply UK spelling
+    text = re.sub(r'[\t\r]+', '', text)
+    text = re.sub(r'\n+', '\n', text)
+    text = convert_to_british_english(text)
 
-    section_count = 0
-    subsection_count = 0
-    current_block = 1
-    current_section = ""
-    current_subsection = ""
-
-    lines = text.strip().split('\n')
+    lines = text.split('\n')
     output_lines = []
 
+    major = 1
+    section = 0
+    sub_section = 0
+    item = 0
+
+    current_block = None
+
     for line in lines:
-        match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line.strip())
+        match = re.match(r'^([A-Z][A-Za-z \-/]*?):(.*)', line.strip())
         if match:
             key, value = match.groups()
             key = key.strip()
             value = value.strip()
-            formatter = asset_formatters.get(key, lambda x: x)
-            formatted = formatter(value)
+            formatted = asset_formatters.get(key, lambda x: x)(value)
 
-            # block ID logic
-            if key == "Section Title":
-                section_count += 1
-                subsection_count = 0
-                current_section = f"9.{section_count}"
-                block_id = f"{current_section}.1"
-            elif key == "Sub-Section Title":
-                subsection_count += 1
-                current_subsection = f"{current_section}.9.{subsection_count}"
-                block_id = f"{current_subsection}.1"
-            elif key.startswith("Sub-Section"):
-                block_id = f"{current_subsection}.{key.count('-') + 1}"
+            if key in {"Report Title", "Report Sub-Title", "Executive Summary", "Key Findings", "Call to Action", "Report Change Title", "Report Change", "Report Table"}:
+                numbering = f"{major}"
+                major += 1
+                section = sub_section = item = 0
+
+            elif key == "Section Title":
+                section += 1
+                sub_section = item = 0
+                numbering = f"9.{section}.1"
+
             elif key.startswith("Section"):
-                block_id = f"{current_section}.{key.count('-') + 1}"
-            elif key == "Report Table":
-                current_block = 8
-                block_id = "8"
-            elif key == "Sections":
-                current_block = 9
-                block_id = "9"
-            else:
-                block_id = str(current_block)
-                current_block += 1
+                item += 1
+                numbering = f"9.{section}.{item}"
 
-            output_lines.append(f"{block_id} {key}:{formatted}")
-        else:
-            if line.strip():
-                output_lines.append(line.strip())
+            elif key == "Sub-Section Title":
+                sub_section += 1
+                item = 1
+                numbering = f"9.{section}.9.{sub_section}.{item}"
+
+            elif key.startswith("Sub-Section"):
+                item += 1
+                numbering = f"9.{section}.9.{sub_section}.{item}"
+
+            elif key in {"Sections", "Conclusion", "Recommendations"}:
+                numbering = f"{major}"
+                major += 1
+                section = sub_section = item = 0
+
+            else:
+                numbering = f"{major}"
+                major += 1
+                section = sub_section = item = 0
+
+            output_lines.append(f"{numbering} {key}:{formatted}")
+
+        elif line.strip():
+            output_lines.append(line.strip())
 
     return '\n'.join(output_lines)
+
 
 def run_prompt(data):
     try:
@@ -155,6 +167,7 @@ def run_prompt(data):
         logger.info(f"\u2705 Cleaned & numbered output written to Supabase: {supabase_path}")
 
         return {"status": "success", "run_id": run_id, "formatted_content": formatted_text}
+
     except Exception as e:
         logger.exception("\u274C Error in formatting script")
         return {"status": "error", "message": str(e)}
