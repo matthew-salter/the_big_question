@@ -90,18 +90,16 @@ asset_formatters = {
     "Recommendations": format_bullet_points,
 }
 
+# Keys that should have a blank line before (outside block context)
 linebreak_keys = {
     "Report Title", "Report Sub-Title", "Executive Summary", "Key Findings", "Call to Action",
-    "Report Change Title", "Report Table", "Section Header", "Section Sub-Header",
+    "Report Change Title", "Report Table", "Section Title", "Section Header", "Section Sub-Header",
     "Section Theme", "Section Summary", "Section Makeup", "Section Statistic", "Section Recommendation",
-    "Section Tables", "Section Related Article Date", "Section Related Article Summary",
-    "Section Related Article Relevance", "Section Related Article Source", "Sub-Sections", "Sub-Section Header", "Sub-Section Sub-Header", "Sub-Section Summary",
-    "Sub-Section Makeup", "Sub-Section Related Article Title", "Sub-Section Related Article Date",
-    "Sub-Section Related Article Summary", "Sub-Section Related Article Relevance",
-    "Conclusion", "Recommendations"
+    "Section Tables", "Section Related Article Date", "Section Related Article Summary", "Section Related Article Relevance",
+    "Section Related Article Source", "Sub-Sections", "Sub-Section Title", "Sub-Section Header", "Sub-Section Sub-Header",
+    "Sub-Section Summary", "Sub-Section Makeup", "Sub-Section Related Article Title", "Sub-Section Related Article Date",
+    "Sub-Section Related Article Summary", "Sub-Section Related Article Relevance"
 }
-
-skip_keys = {"Intro:", "Sections:", "Sub-Sections:", "Outro:"}
 
 def format_text(text):
     text = re.sub(r'[\t\r]+', '', text)
@@ -119,10 +117,6 @@ def format_text(text):
     while i < len(lines):
         line = lines[i]
 
-        if line in skip_keys:
-            i += 1
-            continue
-
         # --- Report Table Block ---
         if line.startswith("Report Table:"):
             in_report_table = True
@@ -137,7 +131,7 @@ def format_text(text):
                 formatted_lines.append("")
                 current_group = {}
             in_report_table = False
-            formatted_lines.append("---")
+            formatted_lines.append("Sections:")
             i += 1
             continue
 
@@ -193,7 +187,7 @@ def format_text(text):
             i += 1
             continue
 
-        # --- Outside All Blocks: Combine Metrics ---
+        # --- Outside All Blocks: Combine grouped metrics ---
         if (
             i+2 < len(lines) and
             lines[i].startswith("Section Makeup:") and
@@ -218,21 +212,26 @@ def format_text(text):
             i += 3
             continue
 
-        # --- Default formatting ---
+        # --- Default Formatting ---
         match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line)
         if match:
             key, value = match.groups()
-            stripped_key = key.strip()
-            if stripped_key in linebreak_keys and not in_report_table and not in_section_table:
-                formatted_lines.append("")
-            formatter = asset_formatters.get(stripped_key, lambda x: x)
-            formatted = formatter(value.strip())
-            formatted_lines.append(f"{stripped_key}:{formatted}")
+            key = key.strip()
+            value = value.strip()
+            formatter = asset_formatters.get(key, lambda x: x)
+            formatted = formatter(value)
+
+            if not in_report_table and not in_section_table and key in linebreak_keys:
+                if formatted_lines and formatted_lines[-1] != "":
+                    formatted_lines.append("")  # Add a blank line
+
+            formatted_lines.append(f"{key}:{formatted}")
         else:
             formatted_lines.append(line)
 
         i += 1
 
+    # Catch trailing report block
     if in_report_table and current_group:
         summary = f"{current_group.get('Section Makeup', '')} | {current_group.get('Section Change', '')} | {current_group.get('Section Effect', '')}"
         formatted_lines.append(summary)
@@ -248,9 +247,9 @@ def run_prompt(data):
 
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, formatted_text)
-        logger.info(f"\u2705 Cleaned & formatted output written to Supabase: {supabase_path}")
+        logger.info(f"✅ Cleaned & formatted output written to Supabase: {supabase_path}")
 
         return {"status": "success", "run_id": run_id, "formatted_content": formatted_text}
     except Exception as e:
-        logger.exception("\u274C Error in formatting script")
+        logger.exception("❌ Error in formatting script")
         return {"status": "error", "message": str(e)}
