@@ -1,6 +1,5 @@
 import uuid
 import re
-from datetime import datetime
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
 
@@ -91,77 +90,84 @@ asset_formatters = {
     "Recommendations": format_bullet_points,
 }
 
+def format_text(text):
+    text = re.sub(r'[\t\r]+', '', text)
+    text = re.sub(r'\n+', '\n', text)
+    text = convert_to_british_english(text)
+
+    pattern = r'(\n|^)([A-Z][A-Za-z \-]*?):'
+    keys = [match[1] for match in re.findall(pattern, text)]
+
+    section_count = 0
+    subsection_count = 0
+    in_section = False
+    current_block = 1
+    block_map = {}
+    subsection_map = {}
+
+    output_lines = []
+    current_section = 0
+    current_nested = 0
+
+    for line in text.split('\n'):
+        match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line.strip())
+        if match:
+            key, value = match.groups()
+            key = key.strip()
+            value = value.strip()
+
+            # Numbering logic
+            if key == "Report Table":
+                current_section += 1
+                section_index = current_section
+                block_id = f"{section_index} {key}:"
+                output_lines.append(block_id)
+                continue
+
+            elif key == "Section Title":
+                subsection_map = {}
+                current_nested = 0
+                section_index = f"{current_section}.{current_nested + 1}"
+                current_nested += 1
+                block_id = f"{section_index} {key}:"
+
+            elif key.startswith("Section"):
+                block_id = f"{current_section}.{current_nested} {key}:"
+
+            elif key == "Sub-Section Title":
+                subsection_count += 1
+                sub_id = subsection_map.setdefault(current_nested, 0) + 1
+                subsection_map[current_nested] = sub_id
+                block_id = f"{current_section}.{current_nested}.{sub_id}.1 {key}:"
+
+            elif key.startswith("Sub-Section"):
+                sub_id = subsection_map.get(current_nested, 1)
+                sub_nested_count = len([l for l in output_lines if l.startswith(f"{current_section}.{current_nested}.{sub_id}.")]) + 1
+                block_id = f"{current_section}.{current_nested}.{sub_id}.{sub_nested_count} {key}:"
+
+            else:
+                block_id = f"{current_block} {key}:"
+                current_block += 1
+
+            # Format
+            formatted = asset_formatters.get(key, lambda x: x)(value)
+            output_lines.append(f"{block_id}{formatted}")
+        else:
+            output_lines.append(line.strip())
+
+    return '\n'.join(output_lines)
 
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
+        formatted_text = format_text(raw_text)
 
-        # Clean and normalise
-        text = re.sub(r'[\t\r]+', '', raw_text)
-        text = re.sub(r'\n+', '\n', text)
-        text = convert_to_british_english(text)
-
-        lines = text.split('\n')
-        output = []
-
-        section_number = 0
-        subsection_table_number = 0
-        subsection_article_number = 0
-        current_section = 0
-        current_table = 0
-        current_subsection_group = 0
-        block_number = 1
-
-        context_stack = []
-
-        for i, line in enumerate(lines):
-            line = line.strip()
-            match = re.match(r'^([A-Z][A-Za-z\- ]*?):(.*)', line)
-
-            if not match:
-                continue
-
-            key, value = match.groups()
-            key = key.strip()
-            value = value.strip()
-
-            formatted = asset_formatters.get(key, lambda x: x)(value)
-
-            if key == "Sections":
-                block_number += 1
-                context_stack = [block_number]
-                output.append(f"{block_number} {key}:{formatted}")
-                continue
-
-            if key == "Section Title":
-                current_section += 1
-                current_table = 0
-                current_subsection_group = 0
-                context_stack = [block_number, current_section, 1]
-            elif key == "Section Tables":
-                current_table = 12
-                context_stack = [block_number, current_section, current_table]
-                subsection_table_number = 0
-            elif key == "Sub-Section Title":
-                subsection_table_number += 1
-                context_stack = [block_number, current_section, current_table, subsection_table_number, 1]
-            elif key.startswith("Sub-Section"):
-                context_stack[-1] += 1
-            elif key.startswith("Section"):
-                context_stack[-1] += 1
-            else:
-                context_stack = [block_number]
-
-            block_id = '.'.join(str(x) for x in context_stack)
-            output.append(f"{block_id} {key}:{formatted}")
-
-        final_output = '\n'.join(output)
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
-        write_supabase_file(supabase_path, final_output)
-        logger.info(f"\u2705 Final formatted text written to Supabase: {supabase_path}")
+        write_supabase_file(supabase_path, formatted_text)
+        logger.info(f"\u2705 Cleaned & numbered output written to Supabase: {supabase_path}")
 
-        return {"status": "success", "run_id": run_id, "formatted_content": final_output}
+        return {"status": "success", "run_id": run_id, "formatted_content": formatted_text}
 
     except Exception as e:
         logger.exception("\u274C Error in formatting script")
