@@ -91,100 +91,78 @@ asset_formatters = {
     "Recommendations": format_bullet_points,
 }
 
-def format_text(text):
-    text = re.sub(r'[\t\r]+', '', text)
-    text = re.sub(r'\n+', '\n', text)
-    text = convert_to_british_english(text)
-
-    lines = text.split('\n')
-    output_lines = []
-
-    major = 0
-    section = 0
-    section_inner = 0
-    subsection = 0
-    subsection_inner = 0
-
-    current_context = ""
-
-    for line in lines:
-        match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line.strip())
-        if match:
-            key, value = match.groups()
-            key = key.strip()
-            value = value.strip()
-
-            # Context detection and number incrementing logic
-            if key == "Report Change":
-                major += 1
-                section = 0
-                output_lines.append(f"{major} {key}:{value}")
-                current_context = ""
-                continue
-
-            if key == "Report Table":
-                major += 1
-                section = 0
-                output_lines.append(f"{major} {key}:{value}")
-                current_context = "report_table"
-                continue
-
-            if key == "Sections":
-                major += 1
-                section = 0
-                output_lines.append(f"{major} {key}:{value}")
-                current_context = "sections"
-                continue
-
-            if current_context == "report_table":
-                if key == "Section Title":
-                    section += 1
-                    section_inner = 1
-                output_lines.append(f"{major}.{section}.{section_inner} {key}:{value}")
-                section_inner += 1
-                continue
-
-            if current_context == "sections":
-                if key == "Section Title":
-                    section += 1
-                    section_inner = 1
-                elif key == "Sub-Section Title":
-                    subsection += 1
-                    subsection_inner = 1
-                    output_lines.append(f"{major}.{section}.9.{subsection}.{subsection_inner} {key}:{value}")
-                    subsection_inner += 1
-                    continue
-                elif key.startswith("Sub-Section"):
-                    output_lines.append(f"{major}.{section}.9.{subsection}.{subsection_inner} {key}:{value}")
-                    subsection_inner += 1
-                    continue
-                output_lines.append(f"{major}.{section}.{section_inner} {key}:{value}")
-                section_inner += 1
-                continue
-
-            # Default major block (Intro etc.)
-            major += 1
-            output_lines.append(f"{major} {key}:{value}")
-
-        else:
-            if line.strip():
-                output_lines.append(line.strip())
-
-    return '\n'.join(output_lines)
 
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
-        formatted_text = format_text(raw_text)
 
+        # Clean and normalise
+        text = re.sub(r'[\t\r]+', '', raw_text)
+        text = re.sub(r'\n+', '\n', text)
+        text = convert_to_british_english(text)
+
+        lines = text.split('\n')
+        output = []
+
+        section_number = 0
+        subsection_table_number = 0
+        subsection_article_number = 0
+        current_section = 0
+        current_table = 0
+        current_subsection_group = 0
+        block_number = 1
+
+        context_stack = []
+
+        for i, line in enumerate(lines):
+            line = line.strip()
+            match = re.match(r'^([A-Z][A-Za-z\- ]*?):(.*)', line)
+
+            if not match:
+                continue
+
+            key, value = match.groups()
+            key = key.strip()
+            value = value.strip()
+
+            formatted = asset_formatters.get(key, lambda x: x)(value)
+
+            if key == "Sections":
+                block_number += 1
+                context_stack = [block_number]
+                output.append(f"{block_number} {key}:{formatted}")
+                continue
+
+            if key == "Section Title":
+                current_section += 1
+                current_table = 0
+                current_subsection_group = 0
+                context_stack = [block_number, current_section, 1]
+            elif key == "Section Tables":
+                current_table = 12
+                context_stack = [block_number, current_section, current_table]
+                subsection_table_number = 0
+            elif key == "Sub-Section Title":
+                subsection_table_number += 1
+                context_stack = [block_number, current_section, current_table, subsection_table_number, 1]
+            elif key.startswith("Sub-Section"):
+                context_stack[-1] += 1
+            elif key.startswith("Section"):
+                context_stack[-1] += 1
+            else:
+                context_stack = [block_number]
+
+            block_id = '.'.join(str(x) for x in context_stack)
+            output.append(f"{block_id} {key}:{formatted}")
+
+        final_output = '\n'.join(output)
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
-        write_supabase_file(supabase_path, formatted_text)
-        logger.info(f"\u2705 Cleaned & numbered output written to Supabase: {supabase_path}")
+        write_supabase_file(supabase_path, final_output)
+        logger.info(f"\u2705 Final formatted text written to Supabase: {supabase_path}")
 
-        return {"status": "success", "run_id": run_id, "formatted_content": formatted_text}
+        return {"status": "success", "run_id": run_id, "formatted_content": final_output}
 
     except Exception as e:
         logger.exception("\u274C Error in formatting script")
         return {"status": "error", "message": str(e)}
-
