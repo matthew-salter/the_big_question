@@ -119,6 +119,8 @@ def format_text(text):
 
         # --- Report Table Block ---
         if line.startswith("Report Table:"):
+            if not in_report_table and not in_section_table:
+                formatted_lines.append("")
             in_report_table = True
             formatted_lines.append("Report Table:")
             i += 1
@@ -156,6 +158,8 @@ def format_text(text):
 
         # --- Section Tables Block ---
         if line.startswith("Section Tables:"):
+            if not in_report_table and not in_section_table:
+                formatted_lines.append("")
             in_section_table = True
             formatted_lines.append(line)
             i += 1
