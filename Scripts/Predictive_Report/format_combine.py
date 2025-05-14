@@ -18,7 +18,7 @@ def load_american_to_british_dict(filepath):
 
 american_to_british = load_american_to_british_dict("Prompts/American_to_British/american_to_british.txt")
 
-# Text formatting functions
+# Text case functions
 def to_title_case(text):
     exceptions = {"a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "so", "the", "to", "up", "yet"}
     words = text.strip().split()
@@ -53,7 +53,7 @@ def convert_to_british_english(text):
     pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
-# Asset formatting map
+# Formatting rules per asset
 asset_formatters = {
     "Report Title": to_title_case,
     "Report Sub-Title": to_title_case,
@@ -91,87 +91,79 @@ asset_formatters = {
     "Recommendations": format_bullet_points,
 }
 
+# Key depth mapping
+key_depth = {
+    "Intro": 1,
+    "Report Title": 1,
+    "Report Sub-Title": 1,
+    "Executive Summary": 1,
+    "Key Findings": 1,
+    "Call to Action": 1,
+    "Report Change Title": 1,
+    "Report Change": 1,
+    "Report Table": 1,
+    "Section Title": 2,
+    "Section Header": 2,
+    "Section Sub-Header": 2,
+    "Section Theme": 2,
+    "Section Summary": 2,
+    "Section Insight": 2,
+    "Section Statistic": 2,
+    "Section Recommendation": 2,
+    "Section Tables": 2,
+    "Section Related Article Title": 2,
+    "Section Related Article Date": 2,
+    "Section Related Article Summary": 2,
+    "Section Related Article Relevance": 2,
+    "Section Related Article Source": 2,
+    "Sub-Section Title": 3,
+    "Sub-Section Header": 3,
+    "Sub-Section Sub-Header": 3,
+    "Sub-Section Summary": 3,
+    "Sub-Section Statistic": 3,
+    "Sub-Section Related Article Title": 3,
+    "Sub-Section Related Article Date": 3,
+    "Sub-Section Related Article Summary": 3,
+    "Sub-Section Related Article Relevance": 3,
+    "Sub-Section Related Article Source": 3,
+    "Sections": 1,
+    "Conclusion": 1,
+    "Recommendations": 1,
+}
+
 def format_text(text):
     text = re.sub(r'[\t\r]+', '', text)
     text = re.sub(r'\n+', '\n', text)
     text = convert_to_british_english(text)
 
     lines = [line.strip() for line in text.split('\n') if line.strip()]
+    stack = []
+    counters = []
+    output_lines = []
 
-    section_index = 0
-    subsection_index = 0
-    inner_index = 0
-    table_index = 0
-    inside_table = False
-    inside_sections = False
-    section_stack = []
-    current_index = 1
-
-    output = []
     for line in lines:
-        match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line)
+        match = re.match(r'^([A-Z][A-Za-z \-]*?):\s*(.*)', line)
         if match:
             key, value = match.groups()
             key = key.strip()
             value = value.strip()
+            depth = key_depth.get(key, 1)
 
-            formatted_value = asset_formatters.get(key, lambda x: x)(value)
+            # Adjust stack size to current depth
+            while len(counters) > depth:
+                counters.pop()
+            if len(counters) < depth:
+                counters.extend([0] * (depth - len(counters)))
 
-            # Hierarchy logic
-            if key == "Report Table":
-                inside_table = True
-                table_index = 0
-                output.append(f"{current_index} {key}:{formatted_value}")
-                current_index += 1
-                continue
+            counters[-1] += 1
 
-            if key == "Sections":
-                inside_sections = True
-                section_index += 1
-                subsection_index = 0
-                output.append(f"{current_index} {key}:{formatted_value}")
-                current_index += 1
-                continue
-
-            if inside_table and key == "Section Title":
-                table_index += 1
-                inner_index = 1
-                output.append(f"9.{table_index}.{inner_index} {key}:{formatted_value}")
-                continue
-
-            if inside_table and key.startswith("Section"):
-                inner_index += 1
-                output.append(f"9.{table_index}.{inner_index} {key}:{formatted_value}")
-                continue
-
-            if inside_sections:
-                if key == "Section Title":
-                    subsection_index += 1
-                    inner_index = 1
-                    output.append(f"10.{subsection_index}.{inner_index} {key}:{formatted_value}")
-                    continue
-                if key.startswith("Section"):
-                    inner_index += 1
-                    output.append(f"10.{subsection_index}.{inner_index} {key}:{formatted_value}")
-                    continue
-                if key == "Sub-Section Title":
-                    section_stack.append(inner_index)
-                    sub_block = len([l for l in output if f"10.{subsection_index}.{inner_index}." in l and "Sub-Section Title" in l]) + 1
-                    output.append(f"10.{subsection_index}.{inner_index}.{sub_block}.1 {key}:{formatted_value}")
-                    continue
-                if key.startswith("Sub-Section"):
-                    prev_section = section_stack[-1] if section_stack else 1
-                    sub_lines = len([l for l in output if f"10.{subsection_index}.{prev_section}.{sub_block}." in l]) + 1
-                    output.append(f"10.{subsection_index}.{prev_section}.{sub_block}.{sub_lines} {key}:{formatted_value}")
-                    continue
-
-            # Default
-            output.append(f"{current_index} {key}:{formatted_value}")
-            current_index += 1
+            block_id = '.'.join(str(c) for c in counters)
+            formatted = asset_formatters.get(key, lambda x: x)(value)
+            output_lines.append(f"{block_id} {key}:{formatted}")
         else:
-            output.append(line)
+            output_lines.append(line)
 
-    return '\n'.join(output)
+    return '\n'.join(output_lines)
 
 def run_prompt(data):
     try:
@@ -181,7 +173,7 @@ def run_prompt(data):
 
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, formatted_text)
-        logger.info(f"\u2705 Cleaned & numbered output written to Supabase: {supabase_path}")
+        logger.info(f"\u2705 Hierarchical output written to Supabase: {supabase_path}")
 
         return {"status": "success", "run_id": run_id, "formatted_content": formatted_text}
 
