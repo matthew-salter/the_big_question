@@ -91,9 +91,9 @@ asset_formatters = {
 }
 
 def format_text(text):
-    # Clean input
+    # Initial clean
     text = re.sub(r'[\t\r]+', '', text)
-    text = re.sub(r'\n+', '\n', text)
+    text = re.sub(r'\n+', '\n', text).strip()
     text = convert_to_british_english(text)
 
     lines = [line.strip() for line in text.split('\n') if line.strip()]
@@ -103,32 +103,33 @@ def format_text(text):
     in_section_table = False
     current_group = {}
 
-    for i, line in enumerate(lines):
-        # --- Report Table Block Formatting ---
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        # --- Report Table Block ---
         if line.startswith("Report Table:"):
             in_report_table = True
             formatted_lines.append("Report Table:")
+            i += 1
             continue
 
         if in_report_table and line.startswith("Sections:"):
             if current_group:
-                makeup = current_group.get("Section Makeup", "")
-                change = current_group.get("Section Change", "")
-                effect = current_group.get("Section Effect", "")
-                formatted_lines.append(f"{makeup} | {change} | {effect}")
+                summary = f"{current_group.get('Section Makeup', '')} | {current_group.get('Section Change', '')} | {current_group.get('Section Effect', '')}"
+                formatted_lines.append(summary)
                 formatted_lines.append("")
                 current_group = {}
             in_report_table = False
             formatted_lines.append("Sections:")
+            i += 1
             continue
 
         if in_report_table:
             if line.startswith("Section Title:"):
                 if current_group:
-                    makeup = current_group.get("Section Makeup", "")
-                    change = current_group.get("Section Change", "")
-                    effect = current_group.get("Section Effect", "")
-                    formatted_lines.append(f"{makeup} | {change} | {effect}")
+                    summary = f"{current_group.get('Section Makeup', '')} | {current_group.get('Section Change', '')} | {current_group.get('Section Effect', '')}"
+                    formatted_lines.append(summary)
                     formatted_lines.append("")
                     current_group = {}
                 formatted_lines.append(line)
@@ -140,104 +141,83 @@ def format_text(text):
                 current_group["Section Effect"] = line
             else:
                 formatted_lines.append(line)
+            i += 1
             continue
 
-        # --- Section Tables Block Formatting ---
+        # --- Section Tables Block ---
         if line.startswith("Section Tables:"):
             in_section_table = True
-            formatted_lines.append("Section Tables:")
+            formatted_lines.append(line)
+            i += 1
             continue
 
         if in_section_table and line.startswith("Section Related Article Title:"):
             in_section_table = False
             formatted_lines.append(line)
+            i += 1
             continue
 
         if in_section_table:
             if line.startswith("Sub-Section Title:"):
-                if current_group:
-                    makeup = current_group.get("Sub-Section Makeup", "")
-                    change = current_group.get("Sub-Section Change", "")
-                    effect = current_group.get("Sub-Section Effect", "")
-                    formatted_lines.append(f"{makeup} | {change} | {effect}")
-                    formatted_lines.append("")
-                    current_group = {}
                 formatted_lines.append(line)
-            elif line.startswith("Sub-Section Makeup:"):
-                current_group["Sub-Section Makeup"] = line
-            elif line.startswith("Sub-Section Change:"):
-                current_group["Sub-Section Change"] = line
-            elif line.startswith("Sub-Section Effect:"):
-                current_group["Sub-Section Effect"] = line
-            else:
-                formatted_lines.append(line)
+                if i+3 < len(lines):
+                    makeup = lines[i+1]
+                    change = lines[i+2]
+                    effect = lines[i+3]
+                    if (
+                        makeup.startswith("Sub-Section Makeup:") and
+                        change.startswith("Sub-Section Change:") and
+                        effect.startswith("Sub-Section Effect:")
+                    ):
+                        summary = f"Sub-Section Makeup: {makeup.split(':',1)[1].strip()} | Sub-Section Change: {change.split(':',1)[1].strip()} | Sub-Section Effect: {effect.split(':',1)[1].strip()}"
+                        formatted_lines.append(summary)
+                        formatted_lines.append("")
+                        i += 4
+                        continue
+            i += 1
             continue
 
-        # --- Outside block: Merge grouped lines if found ---
-        if not in_report_table and not in_section_table:
-            if (
-                i + 2 < len(lines)
-                and lines[i].startswith("Section Makeup:")
-                and lines[i + 1].startswith("Section Change:")
-                and lines[i + 2].startswith("Section Effect:")
-            ):
-                makeup_val = lines[i].split(":", 1)[1].strip()
-                change_val = lines[i + 1].split(":", 1)[1].strip()
-                effect_val = lines[i + 2].split(":", 1)[1].strip()
-                formatted_lines.append(
-                    f"Section Makeup: {makeup_val} | Section Change: {change_val} | Section Effect: {effect_val}"
-                )
-                formatted_lines.append("")
-                continue
-            if (
-                i + 2 < len(lines)
-                and lines[i].startswith("Sub-Section Makeup:")
-                and lines[i + 1].startswith("Sub-Section Change:")
-                and lines[i + 2].startswith("Sub-Section Effect:")
-            ):
-                makeup_val = lines[i].split(":", 1)[1].strip()
-                change_val = lines[i + 1].split(":", 1)[1].strip()
-                effect_val = lines[i + 2].split(":", 1)[1].strip()
-                formatted_lines.append(
-                    f"Sub-Section Makeup: {makeup_val} | Sub-Section Change: {change_val} | Sub-Section Effect: {effect_val}"
-                )
-                formatted_lines.append("")
-                continue
+        # --- Outside All Blocks: Combine Section/Sub-Section Metrics ---
+        if (
+            i+2 < len(lines) and
+            lines[i].startswith("Section Makeup:") and
+            lines[i+1].startswith("Section Change:") and
+            lines[i+2].startswith("Section Effect:")
+        ):
+            summary = f"{lines[i]} | {lines[i+1]} | {lines[i+2]}"
+            formatted_lines.append(summary)
+            formatted_lines.append("")
+            i += 3
+            continue
 
-        # --- Default Asset Formatting ---
+        if (
+            i+2 < len(lines) and
+            lines[i].startswith("Sub-Section Makeup:") and
+            lines[i+1].startswith("Sub-Section Change:") and
+            lines[i+2].startswith("Sub-Section Effect:")
+        ):
+            summary = f"{lines[i]} | {lines[i+1]} | {lines[i+2]}"
+            formatted_lines.append(summary)
+            formatted_lines.append("")
+            i += 3
+            continue
+
+        # --- Default formatting ---
         match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line)
         if match:
             key, value = match.groups()
-            key = key.strip()
-            value = value.strip()
-            formatter = asset_formatters.get(key, lambda x: x)
-            formatted = formatter(value)
-            if not in_report_table and not in_section_table:
-                if key.startswith("Sub-Section Related Article"):
-                    formatted_lines.append(f"\t\t\t{key}:{formatted}")
-                elif key.startswith("Sub-Section"):
-                    formatted_lines.append(f"\t\t{key}:{formatted}")
-                elif key.startswith("Section Related Article"):
-                    formatted_lines.append(f"\t{key}:{formatted}")
-                else:
-                    formatted_lines.append(f"{key}:{formatted}")
-            else:
-                formatted_lines.append(f"{key}:{formatted}")
+            formatter = asset_formatters.get(key.strip(), lambda x: x)
+            formatted = formatter(value.strip())
+            formatted_lines.append(f"{key.strip()}:{formatted}")
         else:
             formatted_lines.append(line)
 
-    # Catch any trailing group
+        i += 1
+
+    # Catch trailing report table block
     if in_report_table and current_group:
-        makeup = current_group.get("Section Makeup", "")
-        change = current_group.get("Section Change", "")
-        effect = current_group.get("Section Effect", "")
-        formatted_lines.append(f"{makeup} | {change} | {effect}")
-        formatted_lines.append("")
-    elif in_section_table and current_group:
-        makeup = current_group.get("Sub-Section Makeup", "")
-        change = current_group.get("Sub-Section Change", "")
-        effect = current_group.get("Sub-Section Effect", "")
-        formatted_lines.append(f"{makeup} | {change} | {effect}")
+        summary = f"{current_group.get('Section Makeup', '')} | {current_group.get('Section Change', '')} | {current_group.get('Section Effect', '')}"
+        formatted_lines.append(summary)
         formatted_lines.append("")
 
     return '\n'.join(formatted_lines)
