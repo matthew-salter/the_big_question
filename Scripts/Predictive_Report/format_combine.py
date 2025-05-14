@@ -58,31 +58,46 @@ def parse_key_value_blocks(text):
         blocks.append((current_key, '\n'.join(current_value_lines).strip()))
     return blocks
 
-# Post-formatting: clean up the 'Report Table' block
-def format_report_table_block(block_text):
-    lines = block_text.strip().splitlines()
+def format_report_table_block(raw_text):
+    """
+    Receives the raw 'Report Table' block as a single string.
+    Extracts structured data and formats it cleanly.
+    """
+    lines = raw_text.strip().splitlines()
     formatted_lines = []
-    current_title = None
+    current_title = ""
 
     for line in lines:
+        # Detect if line starts a new section
         if line.startswith("Section Title:"):
+            # If previous title exists, flush it
+            if current_title:
+                formatted_lines.append(f"Section Title: {current_title}")
+                formatted_lines.append(f"Section Makeup: {makeup} | Section Change: {change} | Section Effect: {effect}")
+                current_title = ""
+
             current_title = line.replace("Section Title:", "").strip()
-        elif line.startswith("Section Makeup:") and current_title:
-            makeup_line = line
-            change_match = re.search(r"Section Change:\s*([^\|]+)", makeup_line)
-            effect_match = re.search(r"Section Effect:\s*(.+)", makeup_line)
-
-            makeup_val = makeup_line.split("Section Makeup:")[1].split("Section Change:")[0].strip()
-            change_val = change_match.group(1).strip() if change_match else ""
-            effect_val = effect_match.group(1).strip() if effect_match else ""
-
-            formatted_lines.append(f"Section Title: {current_title}")
-            formatted_lines.append(
-                f"Section Makeup: {makeup_val} | Section Change: {change_val} | Section Effect: {effect_val}"
-            )
-            current_title = None
+            makeup = change = effect = ""  # Reset
+        elif line.startswith("Section Makeup:"):
+            makeup = line.replace("Section Makeup:", "").strip()
+        elif line.startswith("Section Change:"):
+            change = line.replace("Section Change:", "").strip()
+        elif line.startswith("Section Effect:"):
+            effect = line.replace("Section Effect:", "").strip()
         else:
-            formatted_lines.append(line)
+            # Sometimes all data is inline on one line
+            match = re.match(
+                r"(.+?) Section Makeup: ([^ ]+) Section Change: ([^ ]+) Section Effect: ([^ ]+)", line
+            )
+            if match:
+                title, makeup, change, effect = match.groups()
+                formatted_lines.append(f"Section Title: {title.strip()}")
+                formatted_lines.append(f"Section Makeup: {makeup.strip()} | Section Change: {change.strip()} | Section Effect: {effect.strip()}")
+
+    # Flush last
+    if current_title:
+        formatted_lines.append(f"Section Title: {current_title}")
+        formatted_lines.append(f"Section Makeup: {makeup} | Section Change: {change} | Section Effect: {effect}")
 
     return "\n".join(formatted_lines)
 
