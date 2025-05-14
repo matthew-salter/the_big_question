@@ -17,16 +17,20 @@ def load_american_to_british_dict(filepath):
                 mapping[us] = uk
     return mapping
 
-# Load the dictionary from the external text file
 american_to_british = load_american_to_british_dict("Prompts/American_to_British/american_to_british.txt")
 
-# Text normalisation function (strip indents and blank lines)
+# Clean indentation and blank lines
 def normalise_input_text(text):
     lines = text.splitlines()
     stripped_lines = [line.lstrip() for line in lines if line.strip()]
     return "\n".join(stripped_lines)
 
-# Formatting functions
+# Insert a line break before each key
+def insert_line_breaks_before_keys(text, keys):
+    pattern = r'(?<!\n)(' + '|'.join(re.escape(k) + r':' for k in keys) + r')'
+    return re.sub(pattern, r'\n\1', text)
+
+# Formatting helpers
 def convert_to_british_english(text):
     def replace_match(match):
         us_word = match.group(0)
@@ -69,6 +73,7 @@ def format_date(text):
             continue
     return text.strip()
 
+# Formatting rules for keys
 asset_formatters = {
     "Report Title": to_title_case,
     "Report Sub-Title": to_title_case,
@@ -109,10 +114,17 @@ def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
+
+        # Step 1: Normalise input (indents and blank lines)
         normalised_text = normalise_input_text(raw_text)
 
+        # Step 2: Add line breaks before all keys
+        keys_to_break_before = list(asset_formatters.keys())
+        clean_text_with_breaks = insert_line_breaks_before_keys(normalised_text, keys_to_break_before)
+
+        # Step 3: Extract and format key-value blocks
         key_pattern = r"^(?P<key>[\w\- ]+):\s*\n(?P<value>(?:^.+\n?)*)"
-        matches = re.finditer(key_pattern, normalised_text, flags=re.MULTILINE)
+        matches = re.finditer(key_pattern, clean_text_with_breaks, flags=re.MULTILINE)
 
         formatted_blocks = []
 
