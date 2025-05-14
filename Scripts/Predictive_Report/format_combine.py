@@ -25,10 +25,13 @@ def normalise_input_text(text):
     stripped_lines = [line.lstrip() for line in lines if line.strip()]
     return "\n".join(stripped_lines)
 
-# Insert a line break before each key
 def insert_line_breaks_before_keys(text, keys):
-    pattern = r'(?<!\n)(' + '|'.join(re.escape(k) + r':' for k in keys) + r')'
-    return re.sub(pattern, r'\n\1', text)
+    # This regex ensures we only match asset keys at the beginning of a line
+    # or after any non-newline character (such as at the start of the document)
+    pattern = r'(^|\n)(?=({keys}):)'.format(
+        keys='|'.join(re.escape(k) for k in keys)
+    )
+    return re.sub(pattern, r'\1\n', text)
 
 # Formatting helpers
 def convert_to_british_english(text):
