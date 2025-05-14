@@ -53,6 +53,7 @@ def convert_to_british_english(text):
     pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
+# Asset formatting map
 asset_formatters = {
     "Report Title": to_title_case,
     "Report Sub-Title": to_title_case,
@@ -95,65 +96,90 @@ def format_text(text):
     text = re.sub(r'\n+', '\n', text)
     text = convert_to_british_english(text)
 
-    lines = text.split('\n')
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
     output_lines = []
-    current_section = 0
-    current_subsection = 0
-    current_table_subgroup = 0
-    current_table_key = ""
-    last_root_key = 0
-    last_main_key = ""
-    current_key_count = {}
+
+    block = 1
+    section = 0
+    section_item = 0
+    subsection = 0
+    sub_item = 0
+    sub_group = 0
+    in_report_table = False
+    in_sections = False
+    in_tables = False
 
     for line in lines:
-        match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line.strip())
+        match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line)
         if match:
             key, value = match.groups()
+            key = key.strip()
             value = value.strip()
 
-            if key == "Sections":
-                last_root_key += 1
-                current_section = 0
-                output_lines.append(f"{last_root_key} {key}:{value}")
+            # format value
+            value = asset_formatters.get(key, lambda x: x)(value)
+
+            if key == "Report Table":
+                block += 1
+                output_lines.append(f"{block} {key}:{value}")
+                section = 1
+                in_report_table = True
                 continue
 
-            if key == "Section Title":
-                current_section += 1
-                current_subsection = 0
-                current_key_count.clear()
-                block_id = f"{last_root_key}.{current_section}.1"
+            if key == "Sections":
+                block += 1
+                output_lines.append(f"{block} {key}:{value}")
+                section = 1
+                in_sections = True
+                continue
 
-            elif key.startswith("Sub-Section"):
-                current_subsection += 1
-                current_key_count.clear()
-                current_table_subgroup = 1
-                block_id = f"{last_root_key}.{current_section}.12.{current_subsection}.1"
+            if key == "Section Title" and in_report_table:
+                section_item = 1
+                output_lines.append(f"{block}.{section}.{section_item} {key}:{value}")
+                continue
 
-            elif key == "Section Tables":
-                current_key_count.clear()
-                current_table_subgroup = 0
-                block_id = f"{last_root_key}.{current_section}.12"
-                current_table_key = block_id
+            if key in ["Section Makeup", "Section Change", "Section Effect"] and in_report_table:
+                section_item += 1
+                output_lines.append(f"{block}.{section}.{section_item} {key}:{value}")
+                continue
 
-            elif key.startswith("Section") or key.startswith("Sub-Section"):
-                prefix = current_table_key if key.startswith("Sub-Section") else f"{last_root_key}.{current_section}"
-                if key not in current_key_count:
-                    current_key_count[key] = 1
-                else:
-                    current_key_count[key] += 1
-                subgroup = f".{current_subsection}" if key.startswith("Sub-Section") and current_table_subgroup > 0 else ""
-                block_id = f"{prefix}{subgroup}.{current_key_count[key]}"
+            if key == "Section Title" and in_sections:
+                section_item = 1
+                output_lines.append(f"{block}.{section}.{section_item} {key}:{value}")
+                continue
 
-            else:
-                last_root_key += 1
-                current_section = 0
-                current_key_count.clear()
-                block_id = str(last_root_key)
+            if key.startswith("Section") and in_sections:
+                section_item += 1
+                output_lines.append(f"{block}.{section}.{section_item} {key}:{value}")
+                continue
 
-            formatted = asset_formatters.get(key, lambda x: x)(value)
-            output_lines.append(f"{block_id} {key}:{formatted}")
+            if key == "Section Tables":
+                in_tables = True
+                sub_group = 1
+                output_lines.append(f"{block}.{section}.{section_item} {key}:{value}")
+                continue
+
+            if key == "Sub-Section Title" and in_tables:
+                sub_item = 1
+                output_lines.append(f"{block}.{section}.{section_item}.{sub_group}.{sub_item} {key}:{value}")
+                continue
+
+            if key.startswith("Sub-Section") and in_tables:
+                sub_item += 1
+                output_lines.append(f"{block}.{section}.{section_item}.{sub_group}.{sub_item} {key}:{value}")
+                if key == "Sub-Section Effect":
+                    sub_group += 1
+                continue
+
+            if key.startswith("Sub-Section"):
+                subsection += 1
+                output_lines.append(f"{block}.{section}.{subsection} {key}:{value}")
+                continue
+
+            output_lines.append(f"{block} {key}:{value}")
+            block += 1
         else:
-            output_lines.append(line.strip())
+            output_lines.append(line)
 
     return '\n'.join(output_lines)
 
