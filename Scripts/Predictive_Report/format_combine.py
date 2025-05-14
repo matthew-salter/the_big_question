@@ -241,7 +241,10 @@ def format_text(text):
         formatted_lines.append(summary)
         formatted_lines.append("")
 
-    return '\n'.join(formatted_lines)
+    final_text = '\n'.join(formatted_lines)
+    final_text = re.sub(r':(?!\s)', ': ', final_text)  # Ensure there's a space after each colon
+    final_text = re.sub(r':\s{2,}', ': ', final_text)  # Remove any double spaces after colon
+    return final_text
 
 def run_prompt(data):
     try:
