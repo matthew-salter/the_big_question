@@ -120,12 +120,7 @@ def format_text(text):
         line = lines[i]
 
         # --- Divider Logic ---
-        if not in_report_table and not in_section_table and line.startswith(("Intro:", "Sections:", "Sub-Sections:", "Outro:")):
-            formatted_lines.append("")
-            formatted_lines.append("---------")
-            formatted_lines.append("")
-
-        elif not in_report_table and not in_section_table and line.startswith("Section Title:"):
+        if not in_report_table and not in_section_table and line.startswith("Section Title:", "Conclusion:"):
             formatted_lines.append("")
             formatted_lines.append("------")
             formatted_lines.append("")
