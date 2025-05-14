@@ -91,7 +91,6 @@ asset_formatters = {
     "Recommendations": format_bullet_points,
 }
 
-
 def format_text(text):
     text = re.sub(r'[\t\r]+', '', text)
     text = re.sub(r'\n+', '\n', text)
@@ -100,61 +99,78 @@ def format_text(text):
     lines = text.split('\n')
     output_lines = []
 
-    major = 1
+    major = 0
     section = 0
-    sub_section = 0
-    item = 0
+    section_inner = 0
+    subsection = 0
+    subsection_inner = 0
 
-    current_block = None
+    current_context = ""
 
     for line in lines:
-        match = re.match(r'^([A-Z][A-Za-z \-/]*?):(.*)', line.strip())
+        match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line.strip())
         if match:
             key, value = match.groups()
             key = key.strip()
             value = value.strip()
-            formatted = asset_formatters.get(key, lambda x: x)(value)
 
-            if key in {"Report Title", "Report Sub-Title", "Executive Summary", "Key Findings", "Call to Action", "Report Change Title", "Report Change", "Report Table"}:
-                numbering = f"{major}"
+            # Context detection and number incrementing logic
+            if key == "Report Change":
                 major += 1
-                section = sub_section = item = 0
+                section = 0
+                output_lines.append(f"{major} {key}:{value}")
+                current_context = ""
+                continue
 
-            elif key == "Section Title":
-                section += 1
-                sub_section = item = 0
-                numbering = f"9.{section}.1"
-
-            elif key.startswith("Section"):
-                item += 1
-                numbering = f"9.{section}.{item}"
-
-            elif key == "Sub-Section Title":
-                sub_section += 1
-                item = 1
-                numbering = f"9.{section}.9.{sub_section}.{item}"
-
-            elif key.startswith("Sub-Section"):
-                item += 1
-                numbering = f"9.{section}.9.{sub_section}.{item}"
-
-            elif key in {"Sections", "Conclusion", "Recommendations"}:
-                numbering = f"{major}"
+            if key == "Report Table":
                 major += 1
-                section = sub_section = item = 0
+                section = 0
+                output_lines.append(f"{major} {key}:{value}")
+                current_context = "report_table"
+                continue
 
-            else:
-                numbering = f"{major}"
+            if key == "Sections":
                 major += 1
-                section = sub_section = item = 0
+                section = 0
+                output_lines.append(f"{major} {key}:{value}")
+                current_context = "sections"
+                continue
 
-            output_lines.append(f"{numbering} {key}:{formatted}")
+            if current_context == "report_table":
+                if key == "Section Title":
+                    section += 1
+                    section_inner = 1
+                output_lines.append(f"{major}.{section}.{section_inner} {key}:{value}")
+                section_inner += 1
+                continue
 
-        elif line.strip():
-            output_lines.append(line.strip())
+            if current_context == "sections":
+                if key == "Section Title":
+                    section += 1
+                    section_inner = 1
+                elif key == "Sub-Section Title":
+                    subsection += 1
+                    subsection_inner = 1
+                    output_lines.append(f"{major}.{section}.9.{subsection}.{subsection_inner} {key}:{value}")
+                    subsection_inner += 1
+                    continue
+                elif key.startswith("Sub-Section"):
+                    output_lines.append(f"{major}.{section}.9.{subsection}.{subsection_inner} {key}:{value}")
+                    subsection_inner += 1
+                    continue
+                output_lines.append(f"{major}.{section}.{section_inner} {key}:{value}")
+                section_inner += 1
+                continue
+
+            # Default major block (Intro etc.)
+            major += 1
+            output_lines.append(f"{major} {key}:{value}")
+
+        else:
+            if line.strip():
+                output_lines.append(line.strip())
 
     return '\n'.join(output_lines)
-
 
 def run_prompt(data):
     try:
@@ -171,3 +187,4 @@ def run_prompt(data):
     except Exception as e:
         logger.exception("\u274C Error in formatting script")
         return {"status": "error", "message": str(e)}
+
