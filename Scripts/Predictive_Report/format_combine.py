@@ -1,5 +1,6 @@
 import uuid
 import re
+from datetime import datetime
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
 
@@ -52,47 +53,97 @@ def convert_to_british_english(text):
     pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
-def clean_and_format_text(text):
-    # Step 1: Strip tabs, carriage returns, and blank lines
-    text = re.sub(r'[\t\r]+', '', text)
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    text = '\n'.join(lines)
+# Asset formatting map
+asset_formatters = {
+    "Report Title": to_title_case,
+    "Report Sub-Title": to_title_case,
+    "Executive Summary": to_paragraph_case,
+    "Key Findings": format_bullet_points,
+    "Call to Action": to_sentence_case,
+    "Report Change Title": to_title_case,
+    "Report Change": to_title_case,
+    "Report Table": to_title_case,
+    "Section Title": to_title_case,
+    "Section Header": to_title_case,
+    "Section Sub-Header": to_title_case,
+    "Section Theme": to_title_case,
+    "Section Summary": to_paragraph_case,
+    "Section Insight": to_sentence_case,
+    "Section Statistic": to_sentence_case,
+    "Section Recommendation": to_sentence_case,
+    "Section Tables": to_title_case,
+    "Section Related Article Title": to_title_case,
+    "Section Related Article Date": to_title_case,
+    "Section Related Article Summary": to_paragraph_case,
+    "Section Related Article Relevance": to_paragraph_case,
+    "Section Related Article Source": to_title_case,
+    "Sub-Section Title": to_title_case,
+    "Sub-Section Header": to_title_case,
+    "Sub-Section Sub-Header": to_title_case,
+    "Sub-Section Summary": to_paragraph_case,
+    "Sub-Section Statistic": to_sentence_case,
+    "Sub-Section Related Article Title": to_title_case,
+    "Sub-Section Related Article Date": to_title_case,
+    "Sub-Section Related Article Summary": to_paragraph_case,
+    "Sub-Section Related Article Relevance": to_paragraph_case,
+    "Sub-Section Related Article Source": to_title_case,
+    "Conclusion": to_paragraph_case,
+    "Recommendations": format_bullet_points,
+}
 
-    # Step 2: Convert American to British spelling
+def format_text(text):
+    text = re.sub(r'[\t\r]+', '', text)
+    text = re.sub(r'\n+', '\n', text)
     text = convert_to_british_english(text)
 
-    # Step 3: Apply formatting
+    pattern = r'^([A-Z][A-Za-z \-]*?):'
     formatted_lines = []
     for line in text.split('\n'):
-        if re.match(r'^- ', line):
-            formatted_lines.append(format_bullet_points(line))
-        elif re.match(r'^[A-Z][A-Za-z\- ]*:', line):
-            key, value = line.split(':', 1)
-            key = key.strip()
-            value = value.strip()
-            if key in {"Executive Summary", "Section Summary", "Section Related Article Summary", "Section Related Article Relevance", "Conclusion"}:
-                value = to_paragraph_case(value)
-            elif key in {"Key Findings", "Recommendations"}:
-                value = format_bullet_points(value)
-            elif key in {"Call to Action", "Section Insight", "Section Statistic", "Section Recommendation", "Sub-Section Statistic"}:
-                value = to_sentence_case(value)
-            else:
-                value = to_title_case(value)
-            formatted_lines.append(f"{key}:{value}")
+        line = line.strip()
+        if not line:
+            continue
+        match = re.match(pattern, line)
+        if match:
+            key = match.group(1)
+            value = line[len(key)+1:].strip()
+            formatted_value = asset_formatters.get(key, lambda x: x)(value)
+            formatted_lines.append(f"{key}:{formatted_value}")
         else:
-            formatted_lines.append(to_sentence_case(line))
+            formatted_lines.append(line)
 
     return '\n'.join(formatted_lines)
+
+def indent_report_table_block(text):
+    lines = text.split('\n')
+    start_idx = end_idx = None
+
+    for i, line in enumerate(lines):
+        if line.startswith("Report Table:"):
+            start_idx = i
+        elif start_idx is not None and line.strip() == "Sections:":
+            end_idx = i
+            break
+
+    if start_idx is not None and end_idx is not None:
+        for i in range(start_idx + 1, end_idx):
+            lines[i] = '\t' + lines[i].strip()
+
+    return '\n'.join(lines)
 
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
-        formatted_text = clean_and_format_text(raw_text)
+
+        # Step 1: Clean and format base
+        formatted_text = format_text(raw_text)
+
+        # Step 2: Indent report table block only
+        formatted_text = indent_report_table_block(formatted_text)
 
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, formatted_text)
-        logger.info(f"\u2705 Cleaned & formatted output written to Supabase: {supabase_path}")
+        logger.info(f"\u2705 Output with Report Table block indented written to Supabase: {supabase_path}")
 
         return {"status": "success", "run_id": run_id, "formatted_content": formatted_text}
 
