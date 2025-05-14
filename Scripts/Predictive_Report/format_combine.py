@@ -101,7 +101,7 @@ linebreak_keys = {
     "Conclusion", "Recommendations"
 }
 
-divider_keys = {"Intro:", "Sections:", "Outro:"}
+skip_keys = {"Intro:", "Sections:", "Sub-Sections:", "Outro:"}
 
 def format_text(text):
     text = re.sub(r'[\t\r]+', '', text)
@@ -119,16 +119,9 @@ def format_text(text):
     while i < len(lines):
         line = lines[i]
 
-        # --- Divider Logic ---
-        if not in_report_table and not in_section_table and line.startswith("Section Title:", "Conclusion:"):
-            formatted_lines.append("")
-            formatted_lines.append("------")
-            formatted_lines.append("")
-
-        elif not in_report_table and not in_section_table and line.startswith("Sub-Section Title:"):
-            formatted_lines.append("")
-            formatted_lines.append("---")
-            formatted_lines.append("")
+        if line in skip_keys:
+            i += 1
+            continue
 
         # --- Report Table Block ---
         if line.startswith("Report Table:"):
@@ -144,7 +137,7 @@ def format_text(text):
                 formatted_lines.append("")
                 current_group = {}
             in_report_table = False
-            formatted_lines.append("Sections:")
+            formatted_lines.append("---")
             i += 1
             continue
 
@@ -230,7 +223,7 @@ def format_text(text):
         if match:
             key, value = match.groups()
             stripped_key = key.strip()
-            if stripped_key in linebreak_keys:
+            if stripped_key in linebreak_keys and not in_report_table and not in_section_table:
                 formatted_lines.append("")
             formatter = asset_formatters.get(stripped_key, lambda x: x)
             formatted = formatter(value.strip())
