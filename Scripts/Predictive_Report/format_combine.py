@@ -18,7 +18,7 @@ def load_american_to_british_dict(filepath):
 
 american_to_british = load_american_to_british_dict("Prompts/American_to_British/american_to_british.txt")
 
-# Text case functions
+# Text formatting functions
 def to_title_case(text):
     exceptions = {"a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "so", "the", "to", "up", "yet"}
     words = text.strip().split()
@@ -97,18 +97,17 @@ def format_text(text):
     text = convert_to_british_english(text)
 
     lines = [line.strip() for line in text.split('\n') if line.strip()]
-    output_lines = []
 
-    block = 1
-    section = 0
-    section_item = 0
-    subsection = 0
-    sub_item = 0
-    sub_group = 0
-    in_report_table = False
-    in_sections = False
-    in_tables = False
+    section_index = 0
+    subsection_index = 0
+    inner_index = 0
+    table_index = 0
+    inside_table = False
+    inside_sections = False
+    section_stack = []
+    current_index = 1
 
+    output = []
     for line in lines:
         match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line)
         if match:
@@ -116,72 +115,63 @@ def format_text(text):
             key = key.strip()
             value = value.strip()
 
-            # format value
-            value = asset_formatters.get(key, lambda x: x)(value)
+            formatted_value = asset_formatters.get(key, lambda x: x)(value)
 
+            # Hierarchy logic
             if key == "Report Table":
-                block += 1
-                output_lines.append(f"{block} {key}:{value}")
-                section = 1
-                in_report_table = True
+                inside_table = True
+                table_index = 0
+                output.append(f"{current_index} {key}:{formatted_value}")
+                current_index += 1
                 continue
 
             if key == "Sections":
-                block += 1
-                output_lines.append(f"{block} {key}:{value}")
-                section = 1
-                in_sections = True
+                inside_sections = True
+                section_index += 1
+                subsection_index = 0
+                output.append(f"{current_index} {key}:{formatted_value}")
+                current_index += 1
                 continue
 
-            if key == "Section Title" and in_report_table:
-                section_item = 1
-                output_lines.append(f"{block}.{section}.{section_item} {key}:{value}")
+            if inside_table and key == "Section Title":
+                table_index += 1
+                inner_index = 1
+                output.append(f"9.{table_index}.{inner_index} {key}:{formatted_value}")
                 continue
 
-            if key in ["Section Makeup", "Section Change", "Section Effect"] and in_report_table:
-                section_item += 1
-                output_lines.append(f"{block}.{section}.{section_item} {key}:{value}")
+            if inside_table and key.startswith("Section"):
+                inner_index += 1
+                output.append(f"9.{table_index}.{inner_index} {key}:{formatted_value}")
                 continue
 
-            if key == "Section Title" and in_sections:
-                section_item = 1
-                output_lines.append(f"{block}.{section}.{section_item} {key}:{value}")
-                continue
+            if inside_sections:
+                if key == "Section Title":
+                    subsection_index += 1
+                    inner_index = 1
+                    output.append(f"10.{subsection_index}.{inner_index} {key}:{formatted_value}")
+                    continue
+                if key.startswith("Section"):
+                    inner_index += 1
+                    output.append(f"10.{subsection_index}.{inner_index} {key}:{formatted_value}")
+                    continue
+                if key == "Sub-Section Title":
+                    section_stack.append(inner_index)
+                    sub_block = len([l for l in output if f"10.{subsection_index}.{inner_index}." in l and "Sub-Section Title" in l]) + 1
+                    output.append(f"10.{subsection_index}.{inner_index}.{sub_block}.1 {key}:{formatted_value}")
+                    continue
+                if key.startswith("Sub-Section"):
+                    prev_section = section_stack[-1] if section_stack else 1
+                    sub_lines = len([l for l in output if f"10.{subsection_index}.{prev_section}.{sub_block}." in l]) + 1
+                    output.append(f"10.{subsection_index}.{prev_section}.{sub_block}.{sub_lines} {key}:{formatted_value}")
+                    continue
 
-            if key.startswith("Section") and in_sections:
-                section_item += 1
-                output_lines.append(f"{block}.{section}.{section_item} {key}:{value}")
-                continue
-
-            if key == "Section Tables":
-                in_tables = True
-                sub_group = 1
-                output_lines.append(f"{block}.{section}.{section_item} {key}:{value}")
-                continue
-
-            if key == "Sub-Section Title" and in_tables:
-                sub_item = 1
-                output_lines.append(f"{block}.{section}.{section_item}.{sub_group}.{sub_item} {key}:{value}")
-                continue
-
-            if key.startswith("Sub-Section") and in_tables:
-                sub_item += 1
-                output_lines.append(f"{block}.{section}.{section_item}.{sub_group}.{sub_item} {key}:{value}")
-                if key == "Sub-Section Effect":
-                    sub_group += 1
-                continue
-
-            if key.startswith("Sub-Section"):
-                subsection += 1
-                output_lines.append(f"{block}.{section}.{subsection} {key}:{value}")
-                continue
-
-            output_lines.append(f"{block} {key}:{value}")
-            block += 1
+            # Default
+            output.append(f"{current_index} {key}:{formatted_value}")
+            current_index += 1
         else:
-            output_lines.append(line)
+            output.append(line)
 
-    return '\n'.join(output_lines)
+    return '\n'.join(output)
 
 def run_prompt(data):
     try:
