@@ -121,7 +121,7 @@ def format_text(text):
         line = lines[i]
 
         # --- Divider Logic ---
-        if any(line.startswith(f"{key}:") for key in divider_keys):
+        if line in {"Intro:", "Sections:", "Outro:"}:
             formatted_lines.append("---")
 
         # --- Report Table Block ---
