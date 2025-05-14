@@ -100,24 +100,23 @@ def format_text(text):
     formatted_lines = []
 
     in_report_table = False
+    in_section_table = False
     current_group = {}
-    report_table_started = False
 
-    for line in lines:
+    for i, line in enumerate(lines):
+        # --- Report Table Block Formatting ---
         if line.startswith("Report Table:"):
             in_report_table = True
-            report_table_started = True
             formatted_lines.append("Report Table:")
             continue
 
         if in_report_table and line.startswith("Sections:"):
-            # Flush last group if exists
             if current_group:
                 makeup = current_group.get("Section Makeup", "")
                 change = current_group.get("Section Change", "")
                 effect = current_group.get("Section Effect", "")
                 formatted_lines.append(f"{makeup} | {change} | {effect}")
-                formatted_lines.append("")  # blank line
+                formatted_lines.append("")
                 current_group = {}
             in_report_table = False
             formatted_lines.append("Sections:")
@@ -125,13 +124,12 @@ def format_text(text):
 
         if in_report_table:
             if line.startswith("Section Title:"):
-                # Flush existing group before starting new one
                 if current_group:
                     makeup = current_group.get("Section Makeup", "")
                     change = current_group.get("Section Change", "")
                     effect = current_group.get("Section Effect", "")
                     formatted_lines.append(f"{makeup} | {change} | {effect}")
-                    formatted_lines.append("")  # blank line
+                    formatted_lines.append("")
                     current_group = {}
                 formatted_lines.append(line)
             elif line.startswith("Section Makeup:"):
@@ -142,19 +140,36 @@ def format_text(text):
                 current_group["Section Effect"] = line
             else:
                 formatted_lines.append(line)
-        else:
-            match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line)
-            if match:
-                key, value = match.groups()
-                key = key.strip()
-                value = value.strip()
-                formatter = asset_formatters.get(key, lambda x: x)
-                formatted = formatter(value)
-                formatted_lines.append(f"{key}:{formatted}")
-            else:
-                formatted_lines.append(line)
+            continue
 
-    # Catch any trailing group if block ends without 'Sections:'
+        # --- Section Tables Block Indent ---
+        if line.startswith("Section Tables:"):
+            in_section_table = True
+            formatted_lines.append(line)
+            continue
+
+        if in_section_table and line.startswith("Section Related Article Title:"):
+            in_section_table = False
+            formatted_lines.append(line)
+            continue
+
+        if in_section_table:
+            formatted_lines.append(f"\t{line}")
+            continue
+
+        # --- Default Asset Formatting ---
+        match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line)
+        if match:
+            key, value = match.groups()
+            key = key.strip()
+            value = value.strip()
+            formatter = asset_formatters.get(key, lambda x: x)
+            formatted = formatter(value)
+            formatted_lines.append(f"{key}:{formatted}")
+        else:
+            formatted_lines.append(line)
+
+    # Catch any trailing section group
     if in_report_table and current_group:
         makeup = current_group.get("Section Makeup", "")
         change = current_group.get("Section Change", "")
