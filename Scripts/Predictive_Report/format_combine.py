@@ -98,7 +98,7 @@ linebreak_keys = {
     "Section Tables", "Section Related Article Date", "Section Related Article Summary", "Section Related Article Relevance",
     "Section Related Article Source", "Sub-Sections", "Sub-Section Title", "Sub-Section Header", "Sub-Section Sub-Header",
     "Sub-Section Summary", "Sub-Section Makeup", "Sub-Section Related Article Title", "Sub-Section Related Article Date",
-    "Sub-Section Related Article Summary", "Sub-Section Related Article Relevance"
+    "Sub-Section Related Article Summary", "Sub-Section Related Article Relevance", "Conclusion", "Recommendations"
 }
 
 def format_text(text):
