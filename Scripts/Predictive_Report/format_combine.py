@@ -122,6 +122,7 @@ def format_text(text):
 
         # --- Divider Logic ---
         if line in {"Intro:", "Sections:", "Outro:"}:
+            formatted_lines.append("")
             formatted_lines.append("---")
 
         # --- Report Table Block ---
