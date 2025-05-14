@@ -93,7 +93,7 @@ asset_formatters = {
 # Keys that should have a blank line before (outside block context)
 linebreak_keys = {
     "Report Title", "Report Sub-Title", "Executive Summary", "Key Findings", "Call to Action",
-    "Report Change Title", "Report Table", "Section Title", "Section Header", "Section Sub-Header",
+    "Report Change Title", "Report Change", "Report Table", "Section Title", "Section Header", "Section Sub-Header",
     "Section Theme", "Section Summary", "Section Makeup", "Section Statistic", "Section Recommendation",
     "Section Tables", "Section Related Article Date", "Section Related Article Summary", "Section Related Article Relevance",
     "Section Related Article Source", "Sub-Sections", "Sub-Section Title", "Sub-Section Header", "Sub-Section Sub-Header",
