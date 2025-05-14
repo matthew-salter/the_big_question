@@ -177,7 +177,7 @@ def format_text(text):
             i += 1
             continue
 
-        # --- Outside All Blocks: Combine Section/Sub-Section Metrics ---
+        # --- Outside All Blocks: Compress Section/Sub-Section Triplets ---
         if (
             i+2 < len(lines) and
             lines[i].startswith("Section Makeup:") and
@@ -202,19 +202,27 @@ def format_text(text):
             i += 3
             continue
 
-        # --- Default formatting ---
+        # --- Default Formatting w/ Conditional Indents ---
         match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line)
         if match:
             key, value = match.groups()
             formatter = asset_formatters.get(key.strip(), lambda x: x)
             formatted = formatter(value.strip())
-            formatted_lines.append(f"{key.strip()}:{formatted}")
+            indent = ""
+            if not in_report_table and not in_section_table:
+                if key.startswith("Section Related Article"):
+                    indent = "\t"
+                elif key.startswith("Sub-Section Related Article"):
+                    indent = "\t\t\t"
+                elif key.startswith("Sub-Section"):
+                    indent = "\t\t"
+            formatted_lines.append(f"{indent}{key.strip()}:{formatted}")
         else:
             formatted_lines.append(line)
 
         i += 1
 
-    # Catch trailing report table block
+    # Final catch
     if in_report_table and current_group:
         summary = f"{current_group.get('Section Makeup', '')} | {current_group.get('Section Change', '')} | {current_group.get('Section Effect', '')}"
         formatted_lines.append(summary)
