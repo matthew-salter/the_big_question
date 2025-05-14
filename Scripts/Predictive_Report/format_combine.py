@@ -92,11 +92,10 @@ asset_formatters = {
 
 linebreak_keys = {
     "Report Title", "Report Sub-Title", "Executive Summary", "Key Findings", "Call to Action",
-    "Report Change Title", "Report Table", "Section Title", "Section Header", "Section Sub-Header",
+    "Report Change Title", "Report Table", "Section Header", "Section Sub-Header",
     "Section Theme", "Section Summary", "Section Makeup", "Section Statistic", "Section Recommendation",
     "Section Tables", "Section Related Article Date", "Section Related Article Summary",
-    "Section Related Article Relevance", "Section Related Article Source", "Sub-Sections",
-    "Sub-Section Title", "Sub-Section Header", "Sub-Section Sub-Header", "Sub-Section Summary",
+    "Section Related Article Relevance", "Section Related Article Source", "Sub-Sections", "Sub-Section Header", "Sub-Section Sub-Header", "Sub-Section Summary",
     "Sub-Section Makeup", "Sub-Section Related Article Title", "Sub-Section Related Article Date",
     "Sub-Section Related Article Summary", "Sub-Section Related Article Relevance",
     "Conclusion", "Recommendations"
