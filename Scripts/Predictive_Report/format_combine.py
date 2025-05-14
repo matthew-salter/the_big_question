@@ -1,59 +1,17 @@
-import uuid
 import re
+import uuid
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
+from Prompts.American_to_British.convert_spellings import convert_to_british_english
+from Prompts.Text_Styling.formatting import (
+    to_title_case,
+    to_sentence_case,
+    to_paragraph_case,
+    format_bullet_points,
+)
 
-# Load American to British dictionary from external file
-def load_american_to_british_dict(filepath):
-    mapping = {}
-    with open(filepath, 'r', encoding='utf-8') as file:
-        for line in file:
-            if ':' in line:
-                us, uk = line.strip().rstrip(',').split(':')
-                us = us.strip().strip('"')
-                uk = uk.strip().strip('"')
-                mapping[us] = uk
-    return mapping
-
-american_to_british = load_american_to_british_dict("Prompts/American_to_British/american_to_british.txt")
-
-# Text case functions
-def to_title_case(text):
-    exceptions = {"a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "so", "the", "to", "up", "yet"}
-    words = text.strip().split()
-    return ' '.join([word.capitalize() if i == 0 or word.lower() not in exceptions else word.lower() for i, word in enumerate(words)])
-
-def to_sentence_case(text):
-    text = text.strip()
-    return text[0].upper() + text[1:] if text else ""
-
-def to_paragraph_case(text):
-    paragraphs = text.split('\n')
-    return '\n'.join([to_sentence_case(p.strip()) for p in paragraphs if p.strip()])
-
-def format_bullet_points(text):
-    lines = [line.strip().lstrip('-').strip() for line in text.splitlines() if line.strip()]
-    return '\n'.join(f"- {line}" for line in lines)
-
-def convert_to_british_english(text):
-    def replace_match(match):
-        us_word = match.group(0)
-        lowercase_us = us_word.lower()
-        if lowercase_us in american_to_british:
-            british = american_to_british[lowercase_us]
-            if us_word.isupper():
-                return british.upper()
-            elif us_word[0].isupper():
-                return british.capitalize()
-            else:
-                return british
-        return us_word
-
-    pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
-    return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
-
-# Asset formatting map
-asset_formatters = {
+# Formatting map
+format_map = {
     "Report Title": to_title_case,
     "Report Sub-Title": to_title_case,
     "Executive Summary": to_paragraph_case,
@@ -90,106 +48,94 @@ asset_formatters = {
     "Recommendations": format_bullet_points,
 }
 
-def format_text(text):
-    # Clean input
+def clean_text(text):
     text = re.sub(r'[\t\r]+', '', text)
-    text = re.sub(r'\n+', '\n', text)
-    text = convert_to_british_english(text)
+    text = re.sub(r'\n{2,}', '\n', text)
+    return text.strip()
 
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
+def apply_formatting(text):
+    lines = text.splitlines()
     formatted_lines = []
 
-    in_report_table = False
-    in_section_table = False
-    current_group = {}
-
-    for i, line in enumerate(lines):
-        # --- Report Table Block Formatting ---
-        if line.startswith("Report Table:"):
-            in_report_table = True
-            formatted_lines.append("Report Table:")
-            continue
-
-        if in_report_table and line.startswith("Sections:"):
-            if current_group:
-                makeup = current_group.get("Section Makeup", "")
-                change = current_group.get("Section Change", "")
-                effect = current_group.get("Section Effect", "")
-                formatted_lines.append(f"{makeup} | {change} | {effect}")
-                formatted_lines.append("")
-                current_group = {}
-            in_report_table = False
-            formatted_lines.append("Sections:")
-            continue
-
-        if in_report_table:
-            if line.startswith("Section Title:"):
-                if current_group:
-                    makeup = current_group.get("Section Makeup", "")
-                    change = current_group.get("Section Change", "")
-                    effect = current_group.get("Section Effect", "")
-                    formatted_lines.append(f"{makeup} | {change} | {effect}")
-                    formatted_lines.append("")
-                    current_group = {}
-                formatted_lines.append(line)
-            elif line.startswith("Section Makeup:"):
-                current_group["Section Makeup"] = line
-            elif line.startswith("Section Change:"):
-                current_group["Section Change"] = line
-            elif line.startswith("Section Effect:"):
-                current_group["Section Effect"] = line
-            else:
-                formatted_lines.append(line)
-            continue
-
-        # --- Section Tables Block Indent ---
-        if line.startswith("Section Tables:"):
-            in_section_table = True
-            formatted_lines.append(line)
-            continue
-
-        if in_section_table and line.startswith("Section Related Article Title:"):
-            in_section_table = False
-            formatted_lines.append(line)
-            continue
-
-        if in_section_table:
-            formatted_lines.append(f"\t{line}")
-            continue
-
-        # --- Default Asset Formatting ---
-        match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line)
-        if match:
-            key, value = match.groups()
+    for line in lines:
+        if ":" in line:
+            key, value = line.split(":", 1)
             key = key.strip()
             value = value.strip()
-            formatter = asset_formatters.get(key, lambda x: x)
-            formatted = formatter(value)
-            formatted_lines.append(f"{key}:{formatted}")
+            formatter = format_map.get(key, lambda x: x)
+            formatted_lines.append(f"{key}:{formatter(value)}")
         else:
-            formatted_lines.append(line)
-
-    # Catch any trailing section group
-    if in_report_table and current_group:
-        makeup = current_group.get("Section Makeup", "")
-        change = current_group.get("Section Change", "")
-        effect = current_group.get("Section Effect", "")
-        formatted_lines.append(f"{makeup} | {change} | {effect}")
-        formatted_lines.append("")
+            formatted_lines.append(line.strip())
 
     return '\n'.join(formatted_lines)
+
+def format_report_table_block(text):
+    pattern = r"(Report Table:\n)(.*?)(?=\n[A-Z][a-zA-Z ]*?:)"
+    def repl(match):
+        block = match.group(2).strip().splitlines()
+        output = [match.group(1).strip()]
+        i = 0
+        while i < len(block):
+            if block[i].startswith("Section Title:"):
+                title = block[i].strip()
+                makeup = block[i+1].strip()
+                change = block[i+2].strip()
+                effect = block[i+3].strip()
+                makeup_val = makeup.split(":", 1)[1].strip()
+                change_val = change.split(":", 1)[1].strip()
+                effect_val = effect.split(":", 1)[1].strip()
+                summary_line = f"Section Makeup: {makeup_val} | Section Change: {change_val} | Section Effect: {effect_val}"
+                output.append(title)
+                output.append(summary_line)
+                output.append("")  # blank line
+                i += 4
+            else:
+                output.append(block[i])
+                i += 1
+        return '\n'.join(output).strip()
+    return re.sub(pattern, repl, text, flags=re.DOTALL)
+
+def format_section_tables_blocks(text):
+    pattern = r"(Section Tables:\n)(.*?)(?=\nSection Related Article Title:)"
+    def repl(match):
+        block = match.group(2).strip().splitlines()
+        output = [match.group(1).strip()]
+        i = 0
+        while i < len(block):
+            if block[i].startswith("Sub-Section Title:"):
+                title = block[i].strip()
+                makeup = block[i+1].strip()
+                change = block[i+2].strip()
+                effect = block[i+3].strip()
+                makeup_val = makeup.split(":", 1)[1].strip()
+                change_val = change.split(":", 1)[1].strip()
+                effect_val = effect.split(":", 1)[1].strip()
+                summary_line = f"Sub-Section Makeup: {makeup_val} | Sub-Section Change: {change_val} | Sub-Section Effect: {effect_val}"
+                output.append(title)
+                output.append(summary_line)
+                output.append("")  # blank line
+                i += 4
+            else:
+                output.append(block[i])
+                i += 1
+        return '\n'.join(output).strip()
+    return re.sub(pattern, repl, text, flags=re.DOTALL)
 
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
-        formatted_text = format_text(raw_text)
+        cleaned = clean_text(raw_text)
+        converted = convert_to_british_english(cleaned)
+        formatted = apply_formatting(converted)
+        formatted = format_report_table_block(formatted)
+        formatted = format_section_tables_blocks(formatted)
 
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
-        write_supabase_file(supabase_path, formatted_text)
-        logger.info(f"✅ Cleaned & formatted output written to Supabase: {supabase_path}")
+        write_supabase_file(supabase_path, formatted)
+        logger.info(f"✅ Output written to Supabase: {supabase_path}")
+        return {"status": "success", "run_id": run_id, "formatted_content": formatted}
 
-        return {"status": "success", "run_id": run_id, "formatted_content": formatted_text}
     except Exception as e:
-        logger.exception("❌ Error in formatting script")
+        logger.exception("❌ Error in format_combine.py")
         return {"status": "error", "message": str(e)}
