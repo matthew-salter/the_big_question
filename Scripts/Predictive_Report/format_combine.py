@@ -30,7 +30,7 @@ def to_sentence_case(text):
 
 def to_paragraph_case(text):
     paragraphs = text.split('\n')
-    return '\n\n'.join([to_sentence_case(p) for p in paragraphs if p.strip()])
+    return '\n'.join([to_sentence_case(p.strip()) for p in paragraphs if p.strip()])
 
 def format_bullet_points(text):
     lines = [line.strip().lstrip('-').strip() for line in text.splitlines() if line.strip()]
@@ -53,56 +53,88 @@ def convert_to_british_english(text):
     pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
-# Updated placeholder hierarchy — final version to be generated dynamically later
-hierarchy_levels = {}
-
-# Dynamically assign numbering to blocks as they appear
+# Asset formatting map
+asset_formatters = {
+    "Report Title": to_title_case,
+    "Report Sub-Title": to_title_case,
+    "Executive Summary": to_paragraph_case,
+    "Key Findings": format_bullet_points,
+    "Call to Action": to_sentence_case,
+    "Report Change Title": to_title_case,
+    "Report Change": to_title_case,
+    "Report Table": to_title_case,
+    "Section Title": to_title_case,
+    "Section Header": to_title_case,
+    "Section Sub-Header": to_title_case,
+    "Section Theme": to_title_case,
+    "Section Summary": to_paragraph_case,
+    "Section Insight": to_sentence_case,
+    "Section Statistic": to_sentence_case,
+    "Section Recommendation": to_sentence_case,
+    "Section Tables": to_title_case,
+    "Section Related Article Title": to_title_case,
+    "Section Related Article Date": to_title_case,
+    "Section Related Article Summary": to_paragraph_case,
+    "Section Related Article Relevance": to_paragraph_case,
+    "Section Related Article Source": to_title_case,
+    "Sub-Section Title": to_title_case,
+    "Sub-Section Header": to_title_case,
+    "Sub-Section Sub-Header": to_title_case,
+    "Sub-Section Summary": to_paragraph_case,
+    "Sub-Section Statistic": to_sentence_case,
+    "Sub-Section Related Article Title": to_title_case,
+    "Sub-Section Related Article Date": to_title_case,
+    "Sub-Section Related Article Summary": to_paragraph_case,
+    "Sub-Section Related Article Relevance": to_paragraph_case,
+    "Sub-Section Related Article Source": to_title_case,
+    "Conclusion": to_paragraph_case,
+    "Recommendations": format_bullet_points,
+}
 
 def format_text(text):
     text = re.sub(r'[\t\r]+', '', text)
     text = re.sub(r'\n+', '\n', text)
     text = convert_to_british_english(text)
+    
+    pattern = r'(\n|^)([A-Z][A-Za-z \-]*?):'
+    keys = [match[1] for match in re.findall(pattern, text)]
 
-    pattern = r'(^|\n)([A-Z][A-Za-z \-]*?):'
-    keys = re.findall(pattern, text)
-
-    hierarchy = {}
-    block_counter = 1
-    section_counter = 1
-    subsection_counter = 1
-    numbering = {}
-
-    lines = text.split('\n')
+    section_count = 0
+    subsection_count = 0
+    in_section = False
+    in_subsection = False
     output_lines = []
-    current_key = None
+    block_id_map = {}
+    current_block = 1
 
-    for line in lines:
-        match = re.match(r'([A-Z][A-Za-z \-]*?):(.*)', line)
+    for line in text.split('\n'):
+        match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line.strip())
         if match:
             key, value = match.groups()
             key = key.strip()
             value = value.strip()
 
-            if key == "Section Title" and "Report Table:" in output_lines:
-                block_id = f"8.{section_counter}.1"
-                section_counter += 1
-            elif key == "Section Title" and "Sections:" in output_lines:
-                block_id = f"9.{section_counter}.1"
-                section_counter += 1
-            elif key.startswith("Sub-Section"):
-                block_id = f"9.{section_counter - 1}.9.{subsection_counter}.1"
-                subsection_counter += 1
+            # Hierarchical numbering logic
+            if key == "Section Title" and not in_section:
+                section_count += 1
+                subsection_count = 0
+                block_id = f"9.{section_count}.1"
+                in_section = True
+            elif key == "Sub-Section Title":
+                subsection_count += 1
+                block_id = f"9.{section_count}.9.{subsection_count}.1"
+                in_subsection = True
             else:
-                block_id = str(block_counter)
-                block_counter += 1
+                block_id = str(current_block)
+                current_block += 1
 
-            formatted_value = value  # Leave unformatted for now
-            output_lines.append(f"{block_id} {key}:\n{formatted_value}")
+            # Format content
+            formatted = asset_formatters.get(key, lambda x: x)(value)
+            output_lines.append(f"{block_id} {key}:{formatted}")
         else:
-            if line.strip():
-                output_lines.append(line.strip())
+            output_lines.append(line.strip())
 
-    return '\n\n'.join(output_lines)
+    return '\n'.join(output_lines)
 
 def run_prompt(data):
     try:
@@ -112,7 +144,7 @@ def run_prompt(data):
 
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, formatted_text)
-        logger.info(f"\u2705 Numbered output written to Supabase: {supabase_path}")
+        logger.info(f"\u2705 Cleaned & numbered output written to Supabase: {supabase_path}")
 
         return {"status": "success", "run_id": run_id, "formatted_content": formatted_text}
 
