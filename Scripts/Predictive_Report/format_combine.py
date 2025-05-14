@@ -1,6 +1,5 @@
 import uuid
 import re
-from datetime import datetime
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
 
@@ -92,61 +91,90 @@ asset_formatters = {
 }
 
 def format_text(text):
+    # Clean input
     text = re.sub(r'[\t\r]+', '', text)
     text = re.sub(r'\n+', '\n', text)
     text = convert_to_british_english(text)
 
-    pattern = r'^([A-Z][A-Za-z \-]*?):'
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
     formatted_lines = []
-    for line in text.split('\n'):
-        line = line.strip()
-        if not line:
+
+    in_report_table = False
+    current_group = {}
+    report_table_started = False
+
+    for line in lines:
+        if line.startswith("Report Table:"):
+            in_report_table = True
+            report_table_started = True
+            formatted_lines.append("Report Table:")
             continue
-        match = re.match(pattern, line)
-        if match:
-            key = match.group(1)
-            value = line[len(key)+1:].strip()
-            formatted_value = asset_formatters.get(key, lambda x: x)(value)
-            formatted_lines.append(f"{key}:{formatted_value}")
+
+        if in_report_table and line.startswith("Sections:"):
+            # Flush last group if exists
+            if current_group:
+                makeup = current_group.get("Section Makeup", "")
+                change = current_group.get("Section Change", "")
+                effect = current_group.get("Section Effect", "")
+                formatted_lines.append(f"{makeup} | {change} | {effect}")
+                formatted_lines.append("")  # blank line
+                current_group = {}
+            in_report_table = False
+            formatted_lines.append("Sections:")
+            continue
+
+        if in_report_table:
+            if line.startswith("Section Title:"):
+                # Flush existing group before starting new one
+                if current_group:
+                    makeup = current_group.get("Section Makeup", "")
+                    change = current_group.get("Section Change", "")
+                    effect = current_group.get("Section Effect", "")
+                    formatted_lines.append(f"{makeup} | {change} | {effect}")
+                    formatted_lines.append("")  # blank line
+                    current_group = {}
+                formatted_lines.append(line)
+            elif line.startswith("Section Makeup:"):
+                current_group["Section Makeup"] = line
+            elif line.startswith("Section Change:"):
+                current_group["Section Change"] = line
+            elif line.startswith("Section Effect:"):
+                current_group["Section Effect"] = line
+            else:
+                formatted_lines.append(line)
         else:
-            formatted_lines.append(line)
+            match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line)
+            if match:
+                key, value = match.groups()
+                key = key.strip()
+                value = value.strip()
+                formatter = asset_formatters.get(key, lambda x: x)
+                formatted = formatter(value)
+                formatted_lines.append(f"{key}:{formatted}")
+            else:
+                formatted_lines.append(line)
+
+    # Catch any trailing group if block ends without 'Sections:'
+    if in_report_table and current_group:
+        makeup = current_group.get("Section Makeup", "")
+        change = current_group.get("Section Change", "")
+        effect = current_group.get("Section Effect", "")
+        formatted_lines.append(f"{makeup} | {change} | {effect}")
+        formatted_lines.append("")
 
     return '\n'.join(formatted_lines)
-
-def indent_report_table_block(text):
-    lines = text.split('\n')
-    start_idx = end_idx = None
-
-    for i, line in enumerate(lines):
-        if line.startswith("Report Table:"):
-            start_idx = i
-        elif start_idx is not None and line.strip() == "Sections:":
-            end_idx = i
-            break
-
-    if start_idx is not None and end_idx is not None:
-        for i in range(start_idx + 1, end_idx):
-            lines[i] = '\t' + lines[i].strip()
-
-    return '\n'.join(lines)
 
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
-
-        # Step 1: Clean and format base
         formatted_text = format_text(raw_text)
-
-        # Step 2: Indent report table block only
-        formatted_text = indent_report_table_block(formatted_text)
 
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, formatted_text)
-        logger.info(f"\u2705 Output with Report Table block indented written to Supabase: {supabase_path}")
+        logger.info(f"✅ Cleaned & formatted output written to Supabase: {supabase_path}")
 
         return {"status": "success", "run_id": run_id, "formatted_content": formatted_text}
-
     except Exception as e:
-        logger.exception("\u274C Error in formatting script")
+        logger.exception("❌ Error in formatting script")
         return {"status": "error", "message": str(e)}
