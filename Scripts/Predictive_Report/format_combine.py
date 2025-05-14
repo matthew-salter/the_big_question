@@ -1,6 +1,5 @@
 import uuid
 import re
-import string
 from datetime import datetime
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
@@ -25,13 +24,39 @@ def normalise_input_text(text):
     stripped_lines = [line.lstrip() for line in lines if line.strip()]
     return "\n".join(stripped_lines)
 
+# Insert line breaks before asset keys
 def insert_line_breaks_before_keys(text, keys):
-    # This regex ensures we only match asset keys at the beginning of a line
-    # or after any non-newline character (such as at the start of the document)
     pattern = r'(^|\n)(?=({keys}):)'.format(
         keys='|'.join(re.escape(k) for k in keys)
     )
     return re.sub(pattern, r'\1\n', text)
+
+# Parse key-value blocks robustly
+def parse_key_value_blocks(text):
+    blocks = []
+    current_key = None
+    current_value_lines = []
+
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if ':' in line:
+            possible_key, possible_value = line.split(':', 1)
+            key = possible_key.strip()
+            if key in asset_formatters:
+                if current_key:
+                    blocks.append((current_key, '\n'.join(current_value_lines).strip()))
+                current_key = key
+                current_value_lines = [possible_value.strip()]
+            else:
+                current_value_lines.append(line)
+        else:
+            current_value_lines.append(line)
+
+    if current_key:
+        blocks.append((current_key, '\n'.join(current_value_lines).strip()))
+    return blocks
 
 # Formatting helpers
 def convert_to_british_english(text):
@@ -76,7 +101,7 @@ def format_date(text):
             continue
     return text.strip()
 
-# Formatting rules for keys
+# Formatting rules for each key
 asset_formatters = {
     "Report Title": to_title_case,
     "Report Sub-Title": to_title_case,
@@ -113,28 +138,22 @@ asset_formatters = {
     "Recommendations": format_bullet_points,
 }
 
+# Main execution
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
 
-        # Step 1: Normalise input (indents and blank lines)
+        # Step 1: Clean text
         normalised_text = normalise_input_text(raw_text)
 
-        # Step 2: Add line breaks before all keys
+        # Step 2: Add line breaks before known keys
         keys_to_break_before = list(asset_formatters.keys())
         clean_text_with_breaks = insert_line_breaks_before_keys(normalised_text, keys_to_break_before)
 
-        # Step 3: Extract and format key-value blocks
-        key_pattern = r"^(?P<key>[\w\- ]+):\s*\n(?P<value>(?:^.+\n?)*)"
-        matches = re.finditer(key_pattern, clean_text_with_breaks, flags=re.MULTILINE)
-
+        # Step 3: Parse and format
         formatted_blocks = []
-
-        for match in matches:
-            key = match.group("key").strip()
-            value = match.group("value").strip()
-
+        for key, value in parse_key_value_blocks(clean_text_with_breaks):
             value = convert_to_british_english(value)
             formatter = asset_formatters.get(key, lambda x: x)
             formatted_value = formatter(value)
