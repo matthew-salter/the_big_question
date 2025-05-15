@@ -252,6 +252,9 @@ def run_prompt(data):
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
         formatted_text = format_text(raw_text)
+        formatted_text = re.sub(r'\bIntro:\s*', '', formatted_text)
+        formatted_text = re.sub(r'\bSections:\s*', '', formatted_text)
+        formatted_text = re.sub(r'\bOutro:\s*', '', formatted_text)
 
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, formatted_text)
