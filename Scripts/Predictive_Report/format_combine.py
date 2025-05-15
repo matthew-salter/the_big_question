@@ -2,6 +2,7 @@ import uuid
 import re
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
+from Engine.Files.read_supabase_file import read_supabase_file
 
 # Load American to British dictionary from external file
 def load_american_to_british_dict(filepath):
@@ -256,7 +257,23 @@ def run_prompt(data):
         write_supabase_file(supabase_path, formatted_text)
         logger.info(f"✅ Cleaned & formatted output written to Supabase: {supabase_path}")
 
-        return {"status": "success", "run_id": run_id, "formatted_content": formatted_text}
+        # 🔁 Immediately read the file back from Supabase to include in response
+        try:
+            content_from_supabase = read_supabase_file(supabase_path).strip()
+            logger.info("📤 Supabase file content successfully read back for webhook return.")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not re-read Supabase file: {e}")
+            content_from_supabase = "[ERROR: Unable to read back file from Supabase]"
+
+        return {
+            "status": "success",
+            "run_id": run_id,
+            "formatted_content": content_from_supabase
+        }
+
     except Exception as e:
         logger.exception("❌ Error in formatting script")
-        return {"status": "error", "message": str(e)}
+        return {
+            "status": "error",
+            "message": str(e)
+        }
