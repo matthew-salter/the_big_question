@@ -257,18 +257,18 @@ def run_prompt(data):
         write_supabase_file(supabase_path, formatted_text)
         logger.info(f"✅ Cleaned & formatted output written to Supabase: {supabase_path}")
 
-        # 🔁 Immediately read the file back from Supabase to include in response
+        # Immediately read back the file from Supabase
         try:
-            content_from_supabase = read_supabase_file(supabase_path).strip()
-            logger.info("📤 Supabase file content successfully read back for webhook return.")
-        except Exception as e:
-            logger.warning(f"⚠️ Could not re-read Supabase file: {e}")
-            content_from_supabase = "[ERROR: Unable to read back file from Supabase]"
+            content = read_supabase_file(supabase_path)
+            logger.info(f"📥 Retrieved formatted content from Supabase for run_id: {run_id}")
+        except Exception as read_error:
+            logger.warning(f"⚠️ Could not read file back from Supabase immediately: {read_error}")
+            content = formatted_text  # Fallback to in-memory result
 
         return {
             "status": "success",
             "run_id": run_id,
-            "formatted_content": content_from_supabase
+            "formatted_content": content.strip()
         }
 
     except Exception as e:
