@@ -9,8 +9,8 @@ def safe_escape(value):
 
 def run_prompt(data):
     try:
-        run_id = str(uuid.uuid4())
-        data["run_id"] = run_id  # Return run_id immediately
+        run_id = data.get("run_id") or str(uuid.uuid4())
+        data["run_id"] = run_id  # ensure it's injected if missing
 
         # Extract and escape all inputs
         client = safe_escape(data["client"])
