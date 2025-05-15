@@ -239,29 +239,44 @@ def run_prompt(data):
         context = to_paragraph_case(convert_to_british_english(data.get("client_context", "")))
         question = to_title_case(data.get("main_question", ""))
         report = to_title_case(data.get("report", ""))
-
         header = f"Client: {client}\n\nWebsite: {website}\n\nAbout Client: {context}\n\nMain Question: {question}\n\nReport: {report}\n"
 
-        # Add dividers before key asset titles
-        def add_dividers(text):
-            dividers = {
-                "Report Title": "---------",
-                "Section Title": "------",
-                "Sub-Sub-Section Title": "---",
-                "Conclusion": "------"
-            }
-            lines = text.split('\n')
-            result = []
-            for line in lines:
-                match = re.match(r"^(Report Title|Section Title|Sub-Sub-Section Title|Conclusion):", line)
-                if match:
-                    result.append(dividers[match.group(1)])
-                result.append(line)
-            return '\n'.join(result)
+        # Add section dividers
+        lines = formatted_body.splitlines()
+        final_lines = []
+        in_report_table = False
+        in_section_table = False
 
-        formatted_body = add_dividers(formatted_body)
+        for i, line in enumerate(lines):
+            stripped = line.strip()
 
-        final_text = f"{header}\n\n{formatted_body.strip()}"
+            # Manage context state
+            if stripped.startswith("Report Table:"):
+                in_report_table = True
+            elif stripped.startswith("Section Tables:"):
+                in_section_table = True
+            elif stripped.startswith("Sections:"):
+                in_report_table = False
+            elif stripped.startswith("Section Related Article Title:"):
+                in_section_table = False
+
+            # Inject dividers (outside tables only)
+            divider = None
+            if not in_report_table and not in_section_table:
+                if stripped.startswith("Report Title:"):
+                    divider = "========="
+                elif stripped.startswith("Section Title:") or stripped.startswith("Conclusion:"):
+                    divider = "======"
+                elif stripped.startswith("Sub-Sub-Section Title:"):
+                    divider = "==="
+
+            if divider:
+                final_lines.append(divider)
+                final_lines.append("")  # Ensure line break after divider
+
+            final_lines.append(line)
+
+        final_text = f"{header}\n\n{'\n'.join(final_lines).strip()}"
 
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_text)
@@ -286,4 +301,3 @@ def run_prompt(data):
             "status": "error",
             "message": str(e)
         }
-
