@@ -241,6 +241,26 @@ def run_prompt(data):
         report = to_title_case(data.get("report", ""))
 
         header = f"Client: {client}\n\nWebsite: {website}\n\nAbout Client: {context}\n\nMain Question: {question}\n\nReport: {report}\n"
+
+        # Add dividers before key asset titles
+        def add_dividers(text):
+            dividers = {
+                "Report Title": "---------",
+                "Section Title": "------",
+                "Sub-Sub-Section Title": "---",
+                "Conclusion": "------"
+            }
+            lines = text.split('\n')
+            result = []
+            for line in lines:
+                match = re.match(r"^(Report Title|Section Title|Sub-Sub-Section Title|Conclusion):", line)
+                if match:
+                    result.append(dividers[match.group(1)])
+                result.append(line)
+            return '\n'.join(result)
+
+        formatted_body = add_dividers(formatted_body)
+
         final_text = f"{header}\n\n{formatted_body.strip()}"
 
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
@@ -266,3 +286,4 @@ def run_prompt(data):
             "status": "error",
             "message": str(e)
         }
+
