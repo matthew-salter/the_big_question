@@ -239,7 +239,7 @@ def run_prompt(data):
         context = to_paragraph_case(convert_to_british_english(data.get("client_context", "")))
         question = to_title_case(data.get("main_question", ""))
         report = to_title_case(data.get("report", ""))
-        header = f"Client: {client}\n\nWebsite: {website}\n\nAbout Client: {context}\n\nMain Question: {question}\n\nReport: {report}\n"
+        header = f"Client: {client}\n\nWebsite: {website}\n\nAbout Client: {context}\n\nMain Question: {question}\n\nReport: {report}"
 
         # Add section dividers
         lines = formatted_body.splitlines()
@@ -247,10 +247,10 @@ def run_prompt(data):
         in_report_table = False
         in_section_table = False
 
-        for i, line in enumerate(lines):
+        for line in lines:
             stripped = line.strip()
 
-            # Manage context state
+            # Track block entry/exit
             if stripped.startswith("Report Table:"):
                 in_report_table = True
             elif stripped.startswith("Section Tables:"):
@@ -260,24 +260,23 @@ def run_prompt(data):
             elif stripped.startswith("Section Related Article Title:"):
                 in_section_table = False
 
-            # Inject dividers (outside tables only)
+            # Inject dividers only outside block sections
             divider = None
             if not in_report_table and not in_section_table:
                 if stripped.startswith("Report Title:"):
-                    divider = "========="
+                    divider = "---------"
                 elif stripped.startswith("Section Title:") or stripped.startswith("Conclusion:"):
-                    divider = "======"
-                elif stripped.startswith("Sub-Sub-Section Title:"):
-                    divider = "==="
+                    divider = "------"
+                elif stripped.startswith("Sub-Section Title:") or stripped.startswith("Sub-Sub-Section Title:"):
+                    divider = "---"
 
             if divider:
                 final_lines.append(divider)
-                final_lines.append("")  # Ensure line break after divider
+                final_lines.append("")  # Ensure line break under divider
 
             final_lines.append(line)
 
-        body_with_dividers = '\n'.join(final_lines).strip()
-        final_text = f"{header}\n\n{body_with_dividers}"
+        final_text = header + "\n\n" + "\n".join(final_lines).strip()
 
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_text)
