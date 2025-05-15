@@ -230,7 +230,7 @@ def format_text(text):
                 if formatted_lines and formatted_lines[-1] != "":
                     formatted_lines.append("")  # Add a blank line
 
-            formatted_lines.append(f"{key}:{formatted}")
+            formatted_lines.append(f"{key}: {formatted}")
         else:
             formatted_lines.append(line)
 
@@ -243,30 +243,39 @@ def format_text(text):
         formatted_lines.append("")
 
     final_text = '\n'.join(formatted_lines)
-    final_text = re.sub(r':(?!\s)', ': ', final_text)  # Ensure there's a space after each colon
-    final_text = re.sub(r':\s{2,}', ': ', final_text)  # Remove any double spaces after colon
+    final_text = re.sub(r':(?!\s)', ': ', final_text)  # Ensure space after colon
+    final_text = re.sub(r':\s{2,}', ': ', final_text)  # Remove double spaces
     return final_text
 
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
-        formatted_text = format_text(raw_text)
-        formatted_text = re.sub(r'\bIntro:\s*', '', formatted_text)
-        formatted_text = re.sub(r'\bSections:\s*', '', formatted_text)
-        formatted_text = re.sub(r'\bOutro:\s*', '', formatted_text)
+        formatted_body = format_text(raw_text)
+        formatted_body = re.sub(r'\bIntro:\s*', '', formatted_body)
+        formatted_body = re.sub(r'\bSections:\s*', '', formatted_body)
+        formatted_body = re.sub(r'\bOutro:\s*', '', formatted_body)
+
+        # Add header block before final output
+        client = to_title_case(data.get("client", ""))
+        website = data.get("client_website_url", "").strip()
+        context = to_paragraph_case(convert_to_british_english(data.get("client_context", "")))
+        question = to_title_case(data.get("main_question", ""))
+        report = to_title_case(data.get("report", ""))
+        header = f"Client: {client}\n\nWebsite: {website}\n\nAbout Client: {context}\n\nMain Question: {question}\n\nReport: {report}\n"
+
+        final_text = f"{header}\n\n{formatted_body.strip()}"
 
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
-        write_supabase_file(supabase_path, formatted_text)
+        write_supabase_file(supabase_path, final_text)
         logger.info(f"✅ Cleaned & formatted output written to Supabase: {supabase_path}")
 
-        # Immediately read back the file from Supabase
         try:
             content = read_supabase_file(supabase_path)
             logger.info(f"📥 Retrieved formatted content from Supabase for run_id: {run_id}")
         except Exception as read_error:
             logger.warning(f"⚠️ Could not read file back from Supabase immediately: {read_error}")
-            content = formatted_text  # Fallback to in-memory result
+            content = final_text
 
         return {
             "status": "success",
