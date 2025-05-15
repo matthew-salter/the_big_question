@@ -276,7 +276,8 @@ def run_prompt(data):
 
             final_lines.append(line)
 
-        final_text = f"{header}\n\n{'\n'.join(final_lines).strip()}"
+        body_with_dividers = '\n'.join(final_lines).strip()
+        final_text = f"{header}\n\n{body_with_dividers}"
 
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_text)
