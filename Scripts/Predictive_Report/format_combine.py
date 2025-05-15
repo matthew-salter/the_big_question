@@ -239,7 +239,7 @@ def run_prompt(data):
         context = to_paragraph_case(convert_to_british_english(data.get("client_context", "")))
         question = to_title_case(data.get("main_question", ""))
         report = to_title_case(data.get("report", ""))
-        header = f"Client: {client}\n\nWebsite: {website}\n\nAbout Client: {context}\n\nMain Question: {question}\n\nReport: {report}"
+        header = f"Client: {client}\n\nWebsite: {website}\n\nAbout Client: {context}\n\nMain Question: {question}\n\nReport: {report}\n"
 
         # Add section dividers
         lines = formatted_body.splitlines()
@@ -250,17 +250,17 @@ def run_prompt(data):
         for line in lines:
             stripped = line.strip()
 
-            # Track block entry/exit
+            # Update state
             if stripped.startswith("Report Table:"):
                 in_report_table = True
-            elif stripped.startswith("Section Tables:"):
-                in_section_table = True
             elif stripped.startswith("Sections:"):
                 in_report_table = False
+            elif stripped.startswith("Section Tables:"):
+                in_section_table = True
             elif stripped.startswith("Section Related Article Title:"):
                 in_section_table = False
 
-            # Inject dividers only outside block sections
+            # Add divider only if not in a block
             divider = None
             if not in_report_table and not in_section_table:
                 if stripped.startswith("Report Title:"):
@@ -272,7 +272,7 @@ def run_prompt(data):
 
             if divider:
                 final_lines.append(divider)
-                final_lines.append("")  # Ensure line break under divider
+                final_lines.append("")  # Line break after divider
 
             final_lines.append(line)
 
