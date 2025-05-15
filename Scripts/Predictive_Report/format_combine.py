@@ -101,134 +101,11 @@ linebreak_keys = {
     "Sub-Section Related Article Summary", "Sub-Section Related Article Relevance"
 }
 
-def format_text(text):
-    text = re.sub(r'[\t\r]+', '', text)
-    text = re.sub(r'\n+', '\n', text).strip()
-    text = convert_to_british_english(text)
-
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
-    formatted_lines = []
-
-    in_report_table = False
-    in_section_table = False
-    current_group = {}
-
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-
-        if line.startswith("Report Table:"):
-            if not in_report_table and not in_section_table:
-                formatted_lines.append("")
-            in_report_table = True
-            formatted_lines.append("Report Table:")
-            i += 1
-            continue
-
-        if in_report_table and line.startswith("Sections:"):
-            if current_group:
-                summary = f"{current_group.get('Section Makeup', '')} | {current_group.get('Section Change', '')} | {current_group.get('Section Effect', '')}"
-                formatted_lines.append(summary)
-                formatted_lines.append("")
-                current_group = {}
-            in_report_table = False
-            formatted_lines.append("Sections:")
-            i += 1
-            continue
-
-        if in_report_table:
-            if line.startswith("Section Title:"):
-                if current_group:
-                    summary = f"{current_group.get('Section Makeup', '')} | {current_group.get('Section Change', '')} | {current_group.get('Section Effect', '')}"
-                    formatted_lines.append(summary)
-                    formatted_lines.append("")
-                    current_group = {}
-                formatted_lines.append(line)
-            elif line.startswith("Section Makeup:"):
-                current_group["Section Makeup"] = line
-            elif line.startswith("Section Change:"):
-                current_group["Section Change"] = line
-            elif line.startswith("Section Effect:"):
-                current_group["Section Effect"] = line
-            else:
-                formatted_lines.append(line)
-            i += 1
-            continue
-
-        if line.startswith("Section Tables:"):
-            if not in_report_table and not in_section_table:
-                formatted_lines.append("")
-            in_section_table = True
-            formatted_lines.append(line)
-            i += 1
-            continue
-
-        if in_section_table and line.startswith("Section Related Article Title:"):
-            in_section_table = False
-            formatted_lines.append(line)
-            i += 1
-            continue
-
-        if in_section_table:
-            if line.startswith("Sub-Section Title:"):
-                formatted_lines.append(line)
-                if i+3 < len(lines):
-                    makeup = lines[i+1]
-                    change = lines[i+2]
-                    effect = lines[i+3]
-                    if (makeup.startswith("Sub-Section Makeup:") and change.startswith("Sub-Section Change:") and effect.startswith("Sub-Section Effect:")):
-                        summary = f"Sub-Section Makeup: {makeup.split(':',1)[1].strip()} | Sub-Section Change: {change.split(':',1)[1].strip()} | Sub-Section Effect: {effect.split(':',1)[1].strip()}"
-                        formatted_lines.append(summary)
-                        formatted_lines.append("")
-                        i += 4
-                        continue
-            i += 1
-            continue
-
-        if (i+2 < len(lines) and lines[i].startswith("Section Makeup:") and lines[i+1].startswith("Section Change:") and lines[i+2].startswith("Section Effect:")):
-            summary = f"{lines[i]} | {lines[i+1]} | {lines[i+2]}"
-            formatted_lines.append(summary)
-            formatted_lines.append("")
-            i += 3
-            continue
-
-        if (i+2 < len(lines) and lines[i].startswith("Sub-Section Makeup:") and lines[i+1].startswith("Sub-Section Change:") and lines[i+2].startswith("Sub-Section Effect:")):
-            summary = f"{lines[i]} | {lines[i+1]} | {lines[i+2]}"
-            formatted_lines.append(summary)
-            formatted_lines.append("")
-            i += 3
-            continue
-
-        match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line)
-        if match:
-            key, value = match.groups()
-            key = key.strip()
-            value = value.strip()
-            formatter = asset_formatters.get(key, lambda x: x)
-            formatted = formatter(value)
-
-            if not in_report_table and not in_section_table and key in linebreak_keys:
-                if formatted_lines and formatted_lines[-1] != "":
-                    formatted_lines.append("")
-
-            formatted_lines.append(f"{key}: {formatted}")
-        else:
-            formatted_lines.append(line)
-
-        i += 1
-
-    if in_report_table and current_group:
-        summary = f"{current_group.get('Section Makeup', '')} | {current_group.get('Section Change', '')} | {current_group.get('Section Effect', '')}"
-        formatted_lines.append(summary)
-        formatted_lines.append("")
-
-    return '\n'.join(formatted_lines)
-
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
-        formatted_body = format_text(raw_text)
+        formatted_body = convert_to_british_english(raw_text)
         formatted_body = re.sub(r'\bIntro:\s*', '', formatted_body)
         formatted_body = re.sub(r'\bSections:\s*', '', formatted_body)
         formatted_body = re.sub(r'\bOutro:\s*', '', formatted_body)
@@ -241,40 +118,40 @@ def run_prompt(data):
         report = to_title_case(data.get("report", ""))
         header = f"Client: {client}\n\nWebsite: {website}\n\nAbout Client: {context}\n\nMain Question: {question}\n\nReport: {report}\n"
 
-        # Add section dividers
-        lines = formatted_body.splitlines()
+        lines = [line.strip() for line in formatted_body.split('\n') if line.strip()]
         final_lines = []
         in_report_table = False
         in_section_table = False
+        current_group = {}
 
-        for line in lines:
-            stripped = line.strip()
+        i = 0
+        while i < len(lines):
+            line = lines[i]
 
-            # Update state
-            if stripped.startswith("Report Table:"):
+            if line.startswith("Report Table:"):
                 in_report_table = True
-            elif stripped.startswith("Sections:"):
+            elif line.startswith("Sections:"):
                 in_report_table = False
-            elif stripped.startswith("Section Tables:"):
+            elif line.startswith("Section Tables:"):
                 in_section_table = True
-            elif stripped.startswith("Section Related Article Title:"):
+            elif line.startswith("Section Related Article Title:"):
                 in_section_table = False
 
-            # Add divider only if not in a block
             divider = None
             if not in_report_table and not in_section_table:
-                if stripped.startswith("Report Title:"):
+                if line.startswith("Report Title:"):
                     divider = "---------"
-                elif stripped.startswith("Section Title:") or stripped.startswith("Conclusion:"):
+                elif line.startswith("Section Title:") or line.startswith("Conclusion:"):
                     divider = "------"
-                elif stripped.startswith("Sub-Section Title:") or stripped.startswith("Sub-Sub-Section Title:"):
+                elif line.startswith("Sub-Section Title:") or line.startswith("Sub-Sub-Section Title:"):
                     divider = "---"
 
             if divider:
                 final_lines.append(divider)
-                final_lines.append("")  # Line break after divider
+                final_lines.append("")
 
             final_lines.append(line)
+            i += 1
 
         final_text = header + "\n\n" + "\n".join(final_lines).strip()
 
