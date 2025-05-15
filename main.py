@@ -17,7 +17,8 @@ BLOCKING_PROMPTS = {
     "read_prompt_5_combine",
     "read_section_image_prompts",
     "read_report_image_prompts",
-    "format_combine"
+    "format_combine",
+    "format_image_prompts"
 }
 
 # Explicit static mapping of prompt names to module paths
@@ -39,7 +40,8 @@ PROMPT_MODULES = {
     "write_section_image_prompts": "Scripts.Image_Prompts.write_section_image_prompts",
     "read_section_image_prompts": "Scripts.Image_Prompts.read_section_image_prompts",
     "write_report_image_prompts": "Scripts.Image_Prompts.write_report_image_prompts",
-    "read_report_image_prompts": "Scripts.Image_Prompts.read_report_image_prompts"
+    "read_report_image_prompts": "Scripts.Image_Prompts.read_report_image_prompts",
+    "format_image_prompts": "Scripts.Image_Prompts.format_image_prompts"
 }
 
 @app.route("/ingest-typeform", methods=["POST"])
