@@ -72,6 +72,13 @@ def dispatch_prompt():
         logger.info(f"Dispatching prompt asynchronously: {prompt_name}")
         result_container = {}
 
+        # Generate run_id upfront for non-blocking prompts
+        import uuid
+        if prompt_name not in BLOCKING_PROMPTS:
+            run_id = data.get("run_id") or str(uuid.uuid4())
+            data["run_id"] = run_id
+            result_container["run_id"] = run_id
+
         def run_and_capture():
             try:
                 result = module.run_prompt(data)
@@ -89,10 +96,9 @@ def dispatch_prompt():
         return jsonify({
             "status": "processing",
             "message": "Script launched, run_id will be available via follow-up.",
-            "run_id": data.get("run_id")
+            "run_id": result_container.get("run_id")
         })
 
     except Exception as e:
         logger.exception("Error in dispatch_prompt")
         return jsonify({"error": str(e)}), 500
-
