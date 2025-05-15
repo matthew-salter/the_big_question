@@ -251,53 +251,12 @@ def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
         raw_text = data.get("prompt_5_combine", "")
-
-        # Initial formatting from format_text()
         formatted_body = format_text(raw_text)
         formatted_body = re.sub(r'\bIntro:\s*', '', formatted_body)
         formatted_body = re.sub(r'\bSections:\s*', '', formatted_body)
         formatted_body = re.sub(r'\bOutro:\s*', '', formatted_body)
 
-        # Inject dividers while respecting block context
-        lines = formatted_body.splitlines()
-        final_lines = []
-        in_report_table = False
-        in_section_table = False
-
-        for line in lines:
-            stripped = line.strip()
-
-            # Track block states
-            if stripped == "Report Table:":
-                in_report_table = True
-            elif stripped == "Sections:":
-                in_report_table = False
-            elif stripped == "Section Tables:":
-                in_section_table = True
-            elif stripped == "Section Related Article Title:":
-                in_section_table = False
-
-            # Only inject dividers when outside of blocks
-            divider = None
-            if not in_report_table and not in_section_table:
-                if stripped.startswith("Report Title:"):
-                    divider = "---------"
-                elif stripped.startswith("Section Title:") or stripped.startswith("Conclusion:"):
-                    divider = "------"
-                elif stripped.startswith("Sub-Section Title:") or stripped.startswith("Sub-Sub-Section Title:"):
-                    divider = "---"
-
-            if divider:
-                if final_lines and final_lines[-1] != "":
-                    final_lines.append("")  # Blank line before divider
-                final_lines.append(divider)
-                final_lines.append("")  # Blank line after divider
-
-            final_lines.append(line)
-
-        formatted_with_dividers = "\n".join(final_lines)
-
-        # Header block
+        # Add header block before final output
         client = to_title_case(data.get("client", ""))
         website = data.get("client_website_url", "").strip()
         context = to_paragraph_case(convert_to_british_english(data.get("client_context", "")))
@@ -305,18 +264,17 @@ def run_prompt(data):
         report = to_title_case(data.get("report", ""))
         header = f"Client: {client}\n\nWebsite: {website}\n\nAbout Client: {context}\n\nMain Question: {question}\n\nReport: {report}\n"
 
-        final_text = f"{header}\n\n{formatted_with_dividers.strip()}"
+        final_text = f"{header}\n\n{formatted_body.strip()}"
 
-        # Write to Supabase
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_text)
-        logger.info(f"\u2705 Cleaned & formatted output written to Supabase: {supabase_path}")
+        logger.info(f"✅ Cleaned & formatted output written to Supabase: {supabase_path}")
 
         try:
             content = read_supabase_file(supabase_path)
-            logger.info(f"\ud83d\udcc5 Retrieved formatted content from Supabase for run_id: {run_id}")
+            logger.info(f"📥 Retrieved formatted content from Supabase for run_id: {run_id}")
         except Exception as read_error:
-            logger.warning(f"\u26a0\ufe0f Could not read file back from Supabase immediately: {read_error}")
+            logger.warning(f"⚠️ Could not read file back from Supabase immediately: {read_error}")
             content = final_text
 
         return {
@@ -326,7 +284,7 @@ def run_prompt(data):
         }
 
     except Exception as e:
-        logger.exception("\u274c Error in formatting script")
+        logger.exception("❌ Error in formatting script")
         return {
             "status": "error",
             "message": str(e)
