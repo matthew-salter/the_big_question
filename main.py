@@ -16,7 +16,8 @@ BLOCKING_PROMPTS = {
     "read_prompt_4_tables",
     "read_prompt_5_combine",
     "read_section_image_prompts",
-    "read_report_image_prompts"
+    "read_report_image_prompts",
+    "format_combine"
 }
 
 # Explicit static mapping of prompt names to module paths
