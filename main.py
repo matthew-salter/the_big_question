@@ -9,7 +9,7 @@ app = Flask(__name__)
 # Prompts that should block until the result is returned
 BLOCKING_PROMPTS = {
     "website",
-    "year"
+    "year",
     "read_client_context",
     "read_question_context",
     "read_prompt_1_thinking",
