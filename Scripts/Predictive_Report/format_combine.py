@@ -263,7 +263,7 @@ def run_prompt(data):
         question = to_title_case(data.get("main_question", ""))
         report = to_title_case(data.get("report", ""))
         year = data.get("year", "").strip()
-        header = f"Client: {client}\n\nWebsite: {website}\n\nAbout Client: {context}\n\nMain Question: {question}\n\nReport: {report}\n\nYear: {year}\n"
+        header = f"Client: {client}\n\nWebsite: {website}\n\nAbout Client: {context}\n\nMain Question: {question}\n\nReport: {report}\n\nYear: {year}"
 
         final_text = f"{header}\n\n{formatted_body.strip()}"
 
