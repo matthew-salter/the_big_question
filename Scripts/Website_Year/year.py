@@ -2,16 +2,18 @@ from logger import logger
 from datetime import datetime
 
 def run_prompt(_: dict) -> dict:
-    # Get the current year
-    current_year = datetime.now().year
+    # Get current year and month
+    now = datetime.now()
+    current_year = now.year
+    month = now.month
 
-    # Calculate the next year
-    next_year = current_year + 1
-
-    # Format next year as "'YY" (e.g., '26 for 2026)
-    formatted_next_year = f"'{str(next_year)[-2:]}"
-
-    # Combine into the desired output format
-    year_range = f"{current_year} - {formatted_next_year}"
+    # Determine year output based on quarter
+    if month in [1, 2, 3]:  # Q1
+        year_range = f"{current_year}"
+    elif month in [4, 5, 6, 7, 8, 9]:  # Q2 or Q3
+        next_year_suffix = f"'{str(current_year + 1)[-2:]}"
+        year_range = f"{current_year} - {next_year_suffix}"
+    else:  # Q4 (Oct–Dec)
+        year_range = f"{current_year + 1}"
 
     return {"year": year_range}
