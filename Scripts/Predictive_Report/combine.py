@@ -4,17 +4,25 @@ from collections import defaultdict
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
 
-def clean_text_block(text: str) -> list:
-    lines = text.strip().splitlines()
-    return [line.strip() for line in lines if line.strip()]
+def clean_text_block(text: str) -> str:
+    """
+    Flatten the input:
+    - Remove real line breaks
+    - Replace them with literal '\\n'
+    - Strip blank lines and indents
+    """
+    text = text.replace('\r\n', '\n').replace('\r', '\n')  # Normalise
+    lines = text.strip().split('\n')
+    cleaned_lines = [line.strip() for line in lines if line.strip()]
+    return '\\n'.join(cleaned_lines)
 
-def extract_key_value_pairs(blocks: dict) -> dict:
+def extract_key_value_pairs(text: str) -> dict:
     kv_pairs = {}
-    for block in blocks.values():
-        for line in block:
-            if ":" in line:
-                key, value = line.split(":", 1)
-                kv_pairs[key.strip()] = value.strip()
+    lines = text.split('\\n')
+    for line in lines:
+        if ":" in line:
+            key, value = line.split(":", 1)
+            kv_pairs[key.strip()] = value.strip()
     return kv_pairs
 
 def build_output_from_ordered_keys(kv_pairs: dict, section_map: dict, subsection_map: dict) -> str:
@@ -44,12 +52,10 @@ def build_output_from_ordered_keys(kv_pairs: dict, section_map: dict, subsection
 
     OUTRO_KEYS = ["Conclusion", "Recommendations"]
 
-    # Intro assets
     for key in INTRO_KEYS:
         if key in kv_pairs:
             output.append(f"{key}: {kv_pairs[key]}")
 
-    # Section and Sub-Section assets
     for section_num in sorted(section_map.keys()):
         output.append("")
         output.append(f"Section #: {section_num}")
@@ -66,7 +72,6 @@ def build_output_from_ordered_keys(kv_pairs: dict, section_map: dict, subsection
                 if key in sub_data:
                     output.append(f"{key}: {sub_data[key]}")
 
-    # Outro assets
     output.append("")
     for key in OUTRO_KEYS:
         if key in kv_pairs:
@@ -79,14 +84,17 @@ def run_prompt(data: dict) -> dict:
         run_id = data.get("run_id") or str(uuid.uuid4())
         data["run_id"] = run_id
 
-        blocks = {
+        # Flatten and clean all blocks into single-line string with literal \n markers
+        flat_blocks = {
             "prompt_1_thinking": clean_text_block(data.get("prompt_1_thinking", "")),
             "prompt_2_section_assets": clean_text_block(data.get("prompt_2_section_assets", "")),
             "prompt_3_report_assets": clean_text_block(data.get("prompt_3_report_assets", "")),
             "prompt_4_tables": clean_text_block(data.get("prompt_4_tables", ""))
         }
 
-        kv_pairs = extract_key_value_pairs(blocks)
+        # Combine all into one string and extract key-values from \n-delimited lines
+        combined_text = '\\n'.join(flat_blocks.values())
+        kv_pairs = extract_key_value_pairs(combined_text)
 
         # Group section and sub-section data
         section_map = defaultdict(dict)
@@ -99,12 +107,8 @@ def run_prompt(data: dict) -> dict:
             if key == "Section #":
                 match = re.match(r"(\d+)(?:\.(\d+))?", value)
                 if match:
-                    if match.group(2):
-                        current_section = int(match.group(1))
-                        current_sub = int(match.group(2))
-                    else:
-                        current_section = int(match.group(1))
-                        current_sub = None
+                    current_section = int(match.group(1))
+                    current_sub = int(match.group(2)) if match.group(2) else None
                 continue
 
             if current_section is not None:
@@ -115,8 +119,11 @@ def run_prompt(data: dict) -> dict:
 
         formatted_output = build_output_from_ordered_keys(kv_pairs, section_map, subsection_map)
 
+        # Convert literal \n back to real line breaks
+        final_output = formatted_output.replace('\\n', '\n')
+
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Combine/{run_id}.txt"
-        write_supabase_file(supabase_path, formatted_output)
+        write_supabase_file(supabase_path, final_output)
         logger.info(f"✅ Reordered structured output written to: {supabase_path}")
 
         return {
