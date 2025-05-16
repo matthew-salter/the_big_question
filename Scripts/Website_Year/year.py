@@ -1,3 +1,4 @@
+from logger import logger
 from datetime import datetime
 
 def run_prompt(_: dict) -> dict:
