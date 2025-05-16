@@ -1,13 +1,12 @@
 import re
 
-def normalize_website(website: str) -> dict:
-    # Remove URL scheme (http:// or https://) and 'www.' prefix if present
+def normalize_website(website: str) -> str:
     domain = re.sub(r'^(?:https?://)?(?:www\.)?', '', website, flags=re.IGNORECASE)
-
-    # Remove any trailing slash
     domain = domain.rstrip('/')
+    return f"www.{domain}"
 
-    # Add 'www.' prefix
-    normalized_website = f"www.{domain}"
-
-    return {"normalized_website": normalized_website}
+def run_prompt(data: dict) -> dict:
+    website = data.get("client_website_url")
+    if not website:
+        return {"error": "Missing client_website_url"}
+    return {"normalized_website": normalize_website(website)}
