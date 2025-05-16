@@ -1,4 +1,5 @@
 import re
+from logger import logger
 
 def normalize_website(website: str) -> str:
     domain = re.sub(r'^(?:https?://)?(?:www\.)?', '', website, flags=re.IGNORECASE)
