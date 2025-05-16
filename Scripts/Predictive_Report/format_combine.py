@@ -262,7 +262,8 @@ def run_prompt(data):
         context = to_paragraph_case(convert_to_british_english(data.get("client_context", "")))
         question = to_title_case(data.get("main_question", ""))
         report = to_title_case(data.get("report", ""))
-        header = f"Client: {client}\n\nWebsite: {website}\n\nAbout Client: {context}\n\nMain Question: {question}\n\nReport: {report}\n"
+        year = data.get("year", "").strip()
+        header = f"Client: {client}\n\nWebsite: {website}\n\nAbout Client: {context}\n\nMain Question: {question}\n\nReport: {report}\n\nYear: {year}\n"
 
         final_text = f"{header}\n\n{formatted_body.strip()}"
 
