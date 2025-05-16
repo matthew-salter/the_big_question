@@ -5,13 +5,7 @@ from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
 
 def clean_text_block(text: str) -> str:
-    """
-    Flatten the input:
-    - Remove real line breaks
-    - Replace them with literal '\\n'
-    - Strip blank lines and indents
-    """
-    text = text.replace('\r\n', '\n').replace('\r', '\n')  # Normalise
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
     lines = text.strip().split('\n')
     cleaned_lines = [line.strip() for line in lines if line.strip()]
     return '\\n'.join(cleaned_lines)
@@ -84,7 +78,6 @@ def run_prompt(data: dict) -> dict:
         run_id = data.get("run_id") or str(uuid.uuid4())
         data["run_id"] = run_id
 
-        # Flatten and clean all blocks into single-line string with literal \n markers
         flat_blocks = {
             "prompt_1_thinking": clean_text_block(data.get("prompt_1_thinking", "")),
             "prompt_2_section_assets": clean_text_block(data.get("prompt_2_section_assets", "")),
@@ -92,34 +85,37 @@ def run_prompt(data: dict) -> dict:
             "prompt_4_tables": clean_text_block(data.get("prompt_4_tables", ""))
         }
 
-        # Combine all into one string and extract key-values from \n-delimited lines
         combined_text = '\\n'.join(flat_blocks.values())
         kv_pairs = extract_key_value_pairs(combined_text)
 
-        # Group section and sub-section data
         section_map = defaultdict(dict)
         subsection_map = defaultdict(lambda: defaultdict(dict))
 
         current_section = None
-        current_sub = None
+        current_subsection = None
+        section_counter = 1
+        subsection_counter = defaultdict(int)
 
         for key, value in kv_pairs.items():
-            if key == "Section #":
-                match = re.match(r"(\d+)(?:\.(\d+))?", value)
-                if match:
-                    current_section = int(match.group(1))
-                    current_sub = int(match.group(2)) if match.group(2) else None
+            if re.match(r"Section \d+", key):
+                current_section = int(re.findall(r"\d+", key)[0])
+                continue
+            elif re.match(r"Sub-Section \d+", key):
+                if current_section is None:
+                    current_section = section_counter
+                    section_counter += 1
+                subsection_counter[current_section] += 1
+                current_subsection = subsection_counter[current_section]
                 continue
 
-            if current_section is not None:
-                if current_sub is not None:
-                    subsection_map[current_section][current_sub][key] = value
-                else:
-                    section_map[current_section][key] = value
+            if current_section is not None and current_subsection is not None and key.startswith("Sub-Section"):
+                subsection_map[current_section][current_subsection][key] = value
+            elif current_section is not None:
+                section_map[current_section][key] = value
+            else:
+                continue
 
         formatted_output = build_output_from_ordered_keys(kv_pairs, section_map, subsection_map)
-
-        # Convert literal \n back to real line breaks
         final_output = formatted_output.replace('\\n', '\n')
 
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Combine/{run_id}.txt"
