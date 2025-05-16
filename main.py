@@ -8,6 +8,8 @@ app = Flask(__name__)
 
 # Prompts that should block until the result is returned
 BLOCKING_PROMPTS = {
+    "website",
+    "year"
     "read_client_context",
     "read_question_context",
     "read_prompt_1_thinking",
@@ -23,6 +25,8 @@ BLOCKING_PROMPTS = {
 
 # Explicit static mapping of prompt names to module paths
 PROMPT_MODULES = {
+    "website": "Scripts.Website_Year.website",
+    "year": "Scripts.Website_Year.year",
     "read_client_context": "Scripts.Client_Context.read_client_context",
     "write_client_context": "Scripts.Client_Context.write_client_context",
     "read_question_context": "Scripts.Predictive_Report.read_question_context",
