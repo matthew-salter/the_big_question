@@ -31,8 +31,12 @@ def convert_to_british_english(text):
                 return british
         return us_word
 
-    pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
+    pattern = r'\\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
+
+# Strip all line breaks, extra spacing and indentation
+def clean_whitespace(text):
+    return re.sub(r'\s+', ' ', text).strip()
 
 # Format full report
 def run_prompt(data):
@@ -51,8 +55,8 @@ def run_prompt(data):
         if not combine:
             raise ValueError("Missing 'combine' content in input data.")
 
-        # Apply British English conversion
-        combine_text = convert_to_british_english(combine)
+        # Clean and convert
+        combine_text = clean_whitespace(convert_to_british_english(combine))
 
         # Assemble formatted output
         header = f"""Client:
@@ -74,7 +78,7 @@ Year:
 {year}
 
 """
-        final_text = f"{header}{combine_text.strip()}"
+        final_text = f"{header}{combine_text}"
 
         # Write to Supabase
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/New_Format_Combine/{run_id}.txt"
@@ -99,3 +103,4 @@ Year:
             "status": "error",
             "message": str(e)
         }
+
