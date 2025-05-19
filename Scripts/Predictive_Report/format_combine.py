@@ -174,9 +174,8 @@ def format_text(text):
             value = value.strip()
             formatter = asset_formatters.get(key, lambda x: x)
             formatted_value = formatter(value)
-            if key in linebreak_keys:
-                if formatted_lines and formatted_lines[-1] != "":
-                    formatted_lines.append("")
+            if key in linebreak_keys and (not formatted_lines or formatted_lines[-1] != ""):
+                formatted_lines.append("")
             formatted_lines.append(f"{key}:")
             if formatted_value:
                 formatted_lines.append(formatted_value)
