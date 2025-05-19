@@ -146,7 +146,7 @@ def build_output(kv_pairs: dict, structure: dict, section_tables: dict) -> str:
             "Section Related Article Summary", "Section Related Article Relevance",
             "Section Related Article Source"]:
             if key in section["meta"]:
-                output.append(f"{key}: {section["meta"][key]}")
+                output.append(f"{key}: {section['meta'][key]}")
 
         section_title = section["meta"].get("Section Title")
         if section_title and section_title in section_tables:
