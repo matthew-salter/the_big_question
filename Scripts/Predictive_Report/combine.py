@@ -10,30 +10,64 @@ def clean_text_block(text: str) -> str:
     cleaned_lines = [line.strip() for line in lines if line.strip()]
     return '\\n'.join(cleaned_lines)
 
-def extract_key_value_pairs(text: str) -> dict:
+def extract_key_value_pairs_by_block(blocks: dict) -> dict:
     kv_pairs = {}
-    lines = text.split('\\n')
+    for label, block in blocks.items():
+        lines = block.split('\\n')
+        current_key = None
+        current_value = []
+        inside_report_table = False
+        inside_section_tables = False
+        section_table_content = defaultdict(list)
 
-    current_key = None
-    current_value = []
+        for line in lines:
+            if line.startswith("Report Table:"):
+                inside_report_table = True
+                current_key = "Report Table"
+                current_value = []
+                continue
+            if line.startswith("Section Tables:"):
+                inside_report_table = False
+                inside_section_tables = True
+                current_key = "Section Tables"
+                current_value = []
+                continue
 
-    for line in lines:
-        if ':' in line:
-            key_part, value_part = line.split(':', 1)
-            key = key_part.strip()
-            value = value_part.strip()
+            if inside_report_table:
+                current_value.append(line)
+                continue
 
-            if current_key:
-                kv_pairs[current_key] = '\\n'.join(current_value).strip()
+            if inside_section_tables:
+                if re.match(r"^[A-Z][A-Za-z\s\-&]+:$", line):  # start of a new section
+                    current_section = line.rstrip(":")
+                else:
+                    section_table_content[current_section].append(line)
+                continue
 
-            current_key = key
-            current_value = [value] if value else []
-        else:
-            if current_key:
-                current_value.append(line.strip())
+            if ':' in line:
+                key, value = line.split(':', 1)
+                key = key.strip()
+                value = value.strip()
+                if current_key:
+                    kv_pairs[current_key] = '\\n'.join(current_value).strip()
+                current_key = key
+                current_value = [value] if value else []
+            else:
+                if current_key:
+                    current_value.append(line.strip())
 
-    if current_key:
-        kv_pairs[current_key] = '\\n'.join(current_value).strip()
+        if current_key and not inside_report_table and not inside_section_tables:
+            kv_pairs[current_key] = '\\n'.join(current_value).strip()
+
+        if inside_report_table:
+            kv_pairs["Report Table"] = '\\n'.join(current_value).strip()
+
+        if inside_section_tables:
+            formatted = []
+            for sec, items in section_table_content.items():
+                formatted.append(f"{sec}:")
+                formatted.extend(items)
+            kv_pairs["Section Tables"] = '\\n'.join(formatted)
 
     return kv_pairs
 
@@ -66,7 +100,8 @@ def build_output_from_ordered_keys(kv_pairs: dict, section_map: dict, subsection
 
     for key in INTRO_KEYS:
         if key in kv_pairs:
-            output.append(f"{key}: {kv_pairs[key]}")
+            output.append(f"{key}:")
+            output.append(kv_pairs[key])
 
     for section_num in sorted(section_map.keys()):
         output.append("")
@@ -84,10 +119,16 @@ def build_output_from_ordered_keys(kv_pairs: dict, section_map: dict, subsection
                 if key in sub_data:
                     output.append(f"{key}: {sub_data[key]}")
 
+    if "Section Tables" in kv_pairs:
+        output.append("")
+        output.append("Section Tables:")
+        output.append(kv_pairs["Section Tables"])
+
     output.append("")
     for key in OUTRO_KEYS:
         if key in kv_pairs:
-            output.append(f"{key}: {kv_pairs[key]}")
+            output.append(f"{key}:")
+            output.append(kv_pairs[key])
 
     return "\n".join(output)
 
@@ -103,8 +144,7 @@ def run_prompt(data: dict) -> dict:
             "prompt_4_tables": clean_text_block(data.get("prompt_4_tables", ""))
         }
 
-        combined_text = '\\n'.join(flat_blocks.values())
-        kv_pairs = extract_key_value_pairs(combined_text)
+        kv_pairs = extract_key_value_pairs_by_block(flat_blocks)
 
         section_map = defaultdict(dict)
         subsection_map = defaultdict(lambda: defaultdict(dict))
@@ -130,8 +170,6 @@ def run_prompt(data: dict) -> dict:
                 subsection_map[current_section][current_subsection][key] = value
             elif current_section is not None:
                 section_map[current_section][key] = value
-            else:
-                continue
 
         formatted_output = build_output_from_ordered_keys(kv_pairs, section_map, subsection_map)
         final_output = formatted_output.replace('\\n', '\n')
