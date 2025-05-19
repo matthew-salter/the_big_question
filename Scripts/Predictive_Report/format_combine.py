@@ -91,7 +91,6 @@ asset_formatters = {
     "Recommendations": format_bullet_points,
 }
 
-# Keys that should have a blank line before (outside block context)
 linebreak_keys = {
     "Report Title", "Report Sub-Title", "Executive Summary", "Key Findings", "Call to Action",
     "Report Change Title", "Report Change", "Report Table", "Section Title", "Section Header", "Section Sub-Header",
@@ -109,16 +108,14 @@ def format_text(text):
 
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     formatted_lines = []
-
     in_report_table = False
     in_section_table = False
     current_group = {}
-
     i = 0
+
     while i < len(lines):
         line = lines[i]
 
-        # --- Report Table Block ---
         if line.startswith("Report Table:"):
             if not in_report_table and not in_section_table:
                 formatted_lines.append("")
@@ -157,7 +154,6 @@ def format_text(text):
             i += 1
             continue
 
-        # --- Section Tables Block ---
         if line.startswith("Section Tables:"):
             if not in_report_table and not in_section_table:
                 formatted_lines.append("")
@@ -192,7 +188,6 @@ def format_text(text):
             i += 1
             continue
 
-        # --- Outside All Blocks: Combine grouped metrics ---
         if (
             i+2 < len(lines) and
             lines[i].startswith("Section Makeup:") and
@@ -217,7 +212,6 @@ def format_text(text):
             i += 3
             continue
 
-        # --- Default Formatting ---
         match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line)
         if match:
             key, value = match.groups()
@@ -225,26 +219,24 @@ def format_text(text):
             value = value.strip()
             formatter = asset_formatters.get(key, lambda x: x)
             formatted = formatter(value)
-
             if not in_report_table and not in_section_table and key in linebreak_keys:
                 if formatted_lines and formatted_lines[-1] != "":
-                    formatted_lines.append("")  # Add a blank line
-
-            formatted_lines.append(f"{key}: {formatted}")
+                    formatted_lines.append("")
+            formatted_lines.append(f"{key}:")
+            formatted_lines.append(formatted)
         else:
             formatted_lines.append(line)
 
         i += 1
 
-    # Catch trailing report block
     if in_report_table and current_group:
         summary = f"{current_group.get('Section Makeup', '')} | {current_group.get('Section Change', '')} | {current_group.get('Section Effect', '')}"
         formatted_lines.append(summary)
         formatted_lines.append("")
 
     final_text = '\n'.join(formatted_lines)
-    final_text = re.sub(r':(?!\s)', ': ', final_text)  # Ensure space after colon
-    final_text = re.sub(r':\s{2,}', ': ', final_text)  # Remove double spaces
+    final_text = re.sub(r':(?!\s)', ': ', final_text)
+    final_text = re.sub(r':\s{2,}', ': ', final_text)
     return final_text
 
 def run_prompt(data):
@@ -256,14 +248,13 @@ def run_prompt(data):
         formatted_body = re.sub(r'\bSections:\s*', '', formatted_body)
         formatted_body = re.sub(r'\bOutro:\s*', '', formatted_body)
 
-        # Add header block before final output
         client = to_title_case(data.get("client", ""))
         website = data.get("client_website_url", "").strip()
         context = to_paragraph_case(convert_to_british_english(data.get("client_context", "")))
         question = to_title_case(data.get("main_question", ""))
         report = to_title_case(data.get("report", ""))
         year = data.get("year", "").strip()
-        header = f"Client: {client}\n\nWebsite: {website}\n\nAbout Client: {context}\n\nMain Question: {question}\n\nReport: {report}\n\nYear: {year}"
+        header = f"Client:\n{client}\n\nWebsite:\n{website}\n\nAbout Client:\n{context}\n\nMain Question:\n{question}\n\nReport:\n{report}\n\nYear:\n{year}"
 
         final_text = f"{header}\n\n{formatted_body.strip()}"
 
