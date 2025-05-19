@@ -19,7 +19,6 @@ def load_american_to_british_dict(filepath):
 american_to_british = load_american_to_british_dict("Prompts/American_to_British/american_to_british.txt")
 
 # Text case functions
-
 def to_title_case(text):
     exceptions = {"a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "so", "the", "to", "up", "yet"}
     words = text.strip().split()
@@ -54,7 +53,7 @@ def convert_to_british_english(text):
     pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
-# Formatting maps
+# Asset formatting map
 asset_formatters = {
     "Report Title": to_title_case,
     "Report Sub-Title": to_title_case,
@@ -96,7 +95,6 @@ asset_formatters = {
 }
 
 linebreak_keys = set(asset_formatters.keys())
-
 
 def format_text(text):
     text = re.sub(r'[\t\r]+', '', text)
@@ -175,13 +173,13 @@ def format_text(text):
             key = key.strip()
             value = value.strip()
             formatter = asset_formatters.get(key, lambda x: x)
-            formatted = formatter(value)
+            formatted_value = formatter(value)
             if key in linebreak_keys:
                 if formatted_lines and formatted_lines[-1] != "":
                     formatted_lines.append("")
             formatted_lines.append(f"{key}:")
-            if formatted:
-                formatted_lines.append(formatted)
+            if formatted_value:
+                formatted_lines.append(formatted_value)
         else:
             formatted_lines.append(line)
 
@@ -193,7 +191,6 @@ def format_text(text):
         formatted_lines.append("")
 
     return '\n'.join(formatted_lines)
-
 
 def run_prompt(data):
     try:
@@ -210,7 +207,6 @@ def run_prompt(data):
         question = to_title_case(data.get("main_question", ""))
         report = to_title_case(data.get("report", ""))
         year = data.get("year", "").strip()
-
         header = f"Client:\n{client}\n\nWebsite:\n{website}\n\nAbout Client:\n{context}\n\nMain Question:\n{question}\n\nReport:\n{report}\n\nYear:\n{year}"
 
         final_text = f"{header}\n\n{formatted_body.strip()}"
