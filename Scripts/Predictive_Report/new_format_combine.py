@@ -51,57 +51,55 @@ def indent_block_content(text, start_marker, end_marker):
 
 # Reformat asset blocks
 def reformat_assets(text):
-    inline_keys = {
-        "Section #:", "Section Makeup:", "Section Change:", "Section Effect:",
-        "Sub-Section #:", "Sub-Section Makeup:", "Sub-Section Change:", "Sub-Section Effect:"
-    }
-
     lines = text.split('\n')
     formatted_lines = []
     inside_table_block = False
-    buffer = []
 
-    for i, line in enumerate(lines):
-        stripped = line.strip()
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
 
         # Detect start/end of Report or Section Tables
-        if stripped in {"Report Table:", "Section Tables:"}:
+        if line in {"Report Table:", "Section Tables:"}:
             inside_table_block = True
-        elif stripped.startswith("Section #:") or stripped.startswith("Sub-Section #:"):
+        elif line.startswith("Section #:") or line.startswith("Sub-Section #:"):
             inside_table_block = False
 
-        # Skip changes inside table blocks
-        if inside_table_block or not stripped:
-            formatted_lines.append(line)
+        if inside_table_block or not line:
+            formatted_lines.append(lines[i])
+            i += 1
             continue
 
-        # Handle grouped Section Makeup + Change + Effect
-        if stripped.startswith("Section Makeup:"):
-            prev_line = formatted_lines[-1] if formatted_lines else ""
-            if prev_line.strip() != "":
-                formatted_lines.append("")
-            formatted_lines.append(line.strip() + " | " + lines[i + 1].strip() + " | " + lines[i + 2].strip())
-            continue  # Skip next two lines
+        # Section formatting
+        if line.startswith("Section Summary:"):
+            formatted_lines.append(lines[i])
+            i += 1
+            formatted_lines.append("")
+            combined = f'{lines[i].strip()} | {lines[i+1].strip()} | {lines[i+2].strip()}'
+            formatted_lines.append(combined)
+            i += 3
+            formatted_lines.append("")
+            formatted_lines.append(lines[i].strip().replace("Section Insight:", "Section Insight:"))
+            i += 1
+            formatted_lines.append("\n---")
+            continue
 
-        if stripped.startswith("Sub-Section Makeup:"):
-            prev_line = formatted_lines[-1] if formatted_lines else ""
-            if prev_line.strip() != "":
-                formatted_lines.append("")
-            formatted_lines.append(line.strip() + " | " + lines[i + 1].strip() + " | " + lines[i + 2].strip())
-            continue  # Skip next two lines
+        # Sub-Section formatting
+        if line.startswith("Sub-Section Summary:"):
+            formatted_lines.append(lines[i])
+            i += 1
+            formatted_lines.append("")
+            combined = f'{lines[i].strip()} | {lines[i+1].strip()} | {lines[i+2].strip()}'
+            formatted_lines.append(combined)
+            i += 3
+            formatted_lines.append("")
+            formatted_lines.append(lines[i].strip().replace("Sub-Section Statistic:", "Sub-Section Statistic:"))
+            i += 1
+            formatted_lines.append("\n---")
+            continue
 
-        # Break inline values unless key is in exception list
-        if ':' in line:
-            key, value = line.split(':', 1)
-            full_key = f"{key.strip()}:"
-            if full_key in inline_keys:
-                formatted_lines.append(line)
-            else:
-                formatted_lines.append(f"\n{full_key}")
-                if value.strip():
-                    formatted_lines.append(value.strip())
-        else:
-            formatted_lines.append(line)
+        formatted_lines.append(lines[i])
+        i += 1
 
     return '\n'.join(formatted_lines)
 
