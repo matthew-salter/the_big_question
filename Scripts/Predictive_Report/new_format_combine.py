@@ -120,7 +120,7 @@ def reformat_assets(text):
 
         if stripped in {"Report Table:", "Section Tables:"}:
             inside_table_block = True
-            formatted_lines.append(stripped)  # Keep header tight to next line
+            formatted_lines.append(stripped)
             i += 1
             continue
         elif stripped.startswith("Section #:") or stripped.startswith("Sub-Section #:"):
@@ -197,6 +197,12 @@ def run_prompt(data):
 
         combine_text = convert_to_british_english(combine)
         combine_text = reformat_assets(combine_text)
+
+        # Adjust Report Table and Section Tables spacing
+        combine_text = re.sub(r'(?<!\n)(Report Table:)', r'\n\1', combine_text)
+        combine_text = re.sub(r'(Report Table:)\n+', r'\1\n', combine_text)
+        combine_text = re.sub(r'(?<!\n)(Section Tables:)', r'\n\1', combine_text)
+        combine_text = re.sub(r'(Section Tables:)\n+', r'\1\n', combine_text)
 
         header = f"""Client:
 {to_title_case(client)}
