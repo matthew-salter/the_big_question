@@ -59,10 +59,9 @@ def reformat_assets(text):
     lines = text.split('\n')
     formatted_lines = []
     inside_table_block = False
-    buffer = []
-
-    for i, line in enumerate(lines):
-        stripped = line.strip()
+    i = 0
+    while i < len(lines):
+        stripped = lines[i].strip()
 
         # Detect start/end of Report or Section Tables
         if stripped in {"Report Table:", "Section Tables:"}:
@@ -72,36 +71,38 @@ def reformat_assets(text):
 
         # Skip changes inside table blocks
         if inside_table_block or not stripped:
-            formatted_lines.append(line)
+            formatted_lines.append(lines[i])
+            i += 1
             continue
 
         # Handle grouped Section Makeup + Change + Effect
-        if stripped.startswith("Section Makeup:"):
-            prev_line = formatted_lines[-1] if formatted_lines else ""
-            if prev_line.strip() != "":
-                formatted_lines.append("")
-            formatted_lines.append(line.strip() + " | " + lines[i + 1].strip() + " | " + lines[i + 2].strip())
-            continue  # Skip next two lines
+        if stripped.startswith("Section Makeup:") and i + 2 < len(lines):
+            combined = lines[i].strip() + " | " + lines[i + 1].strip() + " | " + lines[i + 2].strip()
+            formatted_lines.append(combined)
+            i += 3
+            continue
 
-        if stripped.startswith("Sub-Section Makeup:"):
-            prev_line = formatted_lines[-1] if formatted_lines else ""
-            if prev_line.strip() != "":
-                formatted_lines.append("")
-            formatted_lines.append(line.strip() + " | " + lines[i + 1].strip() + " | " + lines[i + 2].strip())
-            continue  # Skip next two lines
+        # Handle grouped Sub-Section Makeup + Change + Effect
+        if stripped.startswith("Sub-Section Makeup:") and i + 2 < len(lines):
+            combined = lines[i].strip() + " | " + lines[i + 1].strip() + " | " + lines[i + 2].strip()
+            formatted_lines.append(combined)
+            i += 3
+            continue
 
         # Break inline values unless key is in exception list
-        if ':' in line:
-            key, value = line.split(':', 1)
+        if ':' in lines[i]:
+            key, value = lines[i].split(':', 1)
             full_key = f"{key.strip()}:"
             if full_key in inline_keys:
-                formatted_lines.append(line)
+                formatted_lines.append(lines[i])
             else:
                 formatted_lines.append(f"\n{full_key}")
                 if value.strip():
                     formatted_lines.append(value.strip())
         else:
-            formatted_lines.append(line)
+            formatted_lines.append(lines[i])
+
+        i += 1
 
     return '\n'.join(formatted_lines)
 
