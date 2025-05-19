@@ -104,7 +104,8 @@ def convert_to_british_english(text):
     pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
-# Reformat assets with adjusted Report Table and Section Table spacing
+# Reformat assets with spacing preserved before each new block except Report Table/Section Tables
+
 def reformat_assets(text):
     inline_keys = {
         "Section #:", "Section Makeup:", "Section Change:", "Section Effect:",
@@ -117,17 +118,14 @@ def reformat_assets(text):
     while i < len(lines):
         stripped = lines[i].strip()
 
-        # Track start of Report Table / Section Tables
         if stripped in {"Report Table:", "Section Tables:"}:
             inside_table_block = True
-            formatted_lines.append(stripped)  # Do not insert line break after these
+            formatted_lines.append(stripped)  # Keep header tight to next line
             i += 1
             continue
-
         elif stripped.startswith("Section #:") or stripped.startswith("Sub-Section #:"):
             inside_table_block = False
 
-        # Compact Report Table block formatting
         if (
             stripped.startswith("Section Title:") and 
             i + 3 < len(lines) and
@@ -135,6 +133,7 @@ def reformat_assets(text):
             lines[i + 2].strip().startswith("Section Change:") and
             lines[i + 3].strip().startswith("Section Effect:")
         ):
+            formatted_lines.append("")
             formatted_lines.append(lines[i].strip())
             combined = (
                 lines[i + 1].strip() + " | " +
@@ -145,7 +144,6 @@ def reformat_assets(text):
             i += 4
             continue
 
-        # Compact Section Table block formatting
         if (
             stripped.startswith("Sub-Section Title:") and 
             i + 3 < len(lines) and
@@ -153,6 +151,7 @@ def reformat_assets(text):
             lines[i + 2].strip().startswith("Sub-Section Change:") and
             lines[i + 3].strip().startswith("Sub-Section Effect:")
         ):
+            formatted_lines.append("")
             formatted_lines.append(lines[i].strip())
             combined = (
                 lines[i + 1].strip() + " | " +
