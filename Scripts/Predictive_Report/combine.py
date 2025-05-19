@@ -3,6 +3,7 @@ import re
 from collections import defaultdict
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
+from Engine.Files.read_supabase_file import read_supabase_file
 
 def clean_text_block(text: str) -> str:
     text = text.replace('\r\n', '\n').replace('\r', '\n')
@@ -199,10 +200,18 @@ def run_prompt(data: dict) -> dict:
         write_supabase_file(supabase_path, final_output)
         logger.info(f"✅ Structured section output written to: {supabase_path}")
 
+        try:
+            content = read_supabase_file(supabase_path)
+            logger.info(f"📥 Retrieved structured output from Supabase for run_id: {run_id}")
+        except Exception as read_error:
+            logger.warning(f"⚠️ Could not read file back from Supabase immediately: {read_error}")
+            content = final_output
+
         return {
             "status": "success",
             "run_id": run_id,
-            "path": supabase_path
+            "path": supabase_path,
+            "structured_output": content.strip()
         }
 
     except Exception as e:
@@ -211,4 +220,3 @@ def run_prompt(data: dict) -> dict:
             "status": "error",
             "message": str(e)
         }
-
