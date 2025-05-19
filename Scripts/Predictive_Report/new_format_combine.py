@@ -104,17 +104,7 @@ def convert_to_british_english(text):
     pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
-# Indent block content (unchanged, still included in case needed elsewhere)
-def indent_block_content(text, start_marker, end_marker):
-    pattern = re.compile(rf'({re.escape(start_marker)}\n)(.*?)(?=\n{re.escape(end_marker)})', re.DOTALL)
-    def replacer(match):
-        header = match.group(1)
-        block_content = match.group(2)
-        indented = '\n'.join(['\t' + line if line.strip() else '' for line in block_content.split('\n')])
-        return header + indented
-    return re.sub(pattern, replacer, text)
-
-# Reformat assets with new logic for report/section tables
+# Reformat assets with adjusted Report Table and Section Table spacing
 def reformat_assets(text):
     inline_keys = {
         "Section #:", "Section Makeup:", "Section Change:", "Section Effect:",
@@ -127,13 +117,17 @@ def reformat_assets(text):
     while i < len(lines):
         stripped = lines[i].strip()
 
-        # Toggle table block mode
+        # Track start of Report Table / Section Tables
         if stripped in {"Report Table:", "Section Tables:"}:
             inside_table_block = True
+            formatted_lines.append(stripped)  # Do not insert line break after these
+            i += 1
+            continue
+
         elif stripped.startswith("Section #:") or stripped.startswith("Sub-Section #:"):
             inside_table_block = False
 
-        # Report Table: compact formatting
+        # Compact Report Table block formatting
         if (
             stripped.startswith("Section Title:") and 
             i + 3 < len(lines) and
@@ -141,7 +135,6 @@ def reformat_assets(text):
             lines[i + 2].strip().startswith("Section Change:") and
             lines[i + 3].strip().startswith("Section Effect:")
         ):
-            formatted_lines.append("")
             formatted_lines.append(lines[i].strip())
             combined = (
                 lines[i + 1].strip() + " | " +
@@ -152,7 +145,7 @@ def reformat_assets(text):
             i += 4
             continue
 
-        # Section Tables: compact formatting
+        # Compact Section Table block formatting
         if (
             stripped.startswith("Sub-Section Title:") and 
             i + 3 < len(lines) and
@@ -160,7 +153,6 @@ def reformat_assets(text):
             lines[i + 2].strip().startswith("Sub-Section Change:") and
             lines[i + 3].strip().startswith("Sub-Section Effect:")
         ):
-            formatted_lines.append("")
             formatted_lines.append(lines[i].strip())
             combined = (
                 lines[i + 1].strip() + " | " +
@@ -171,7 +163,6 @@ def reformat_assets(text):
             i += 4
             continue
 
-        # General inline key or new paragraph block
         if ':' in lines[i]:
             key, value = lines[i].split(':', 1)
             full_key = f"{key.strip()}:"
@@ -206,8 +197,6 @@ def run_prompt(data):
             raise ValueError("Missing 'combine' content in input data.")
 
         combine_text = convert_to_british_english(combine)
-        combine_text = indent_block_content(combine_text, "Report Table:", "Section #:")
-        combine_text = indent_block_content(combine_text, "Section Tables:", "Sub-Section #:")
         combine_text = reformat_assets(combine_text)
 
         header = f"""Client:
