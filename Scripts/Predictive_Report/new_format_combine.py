@@ -126,7 +126,6 @@ def reformat_assets(text):
         elif stripped.startswith("Section #:") or stripped.startswith("Sub-Section #:"):
             inside_table_block = False
 
-        # Inside block-style Report Table or Section Table
         if (
             stripped.startswith("Section Title:") and 
             i + 3 < len(lines) and
@@ -161,50 +160,6 @@ def reformat_assets(text):
             )
             formatted_lines.append(combined)
             i += 4
-            continue
-
-        # Collapse Section Summary + Makeup + Change + Effect
-        if (
-            stripped.startswith("Section Summary:") and
-            i + 3 < len(lines) and
-            lines[i + 1].strip().startswith("Section Makeup:") and
-            lines[i + 2].strip().startswith("Section Change:") and
-            lines[i + 3].strip().startswith("Section Effect:")
-        ):
-            formatted_lines.append(lines[i].strip())  # Section Summary:
-            i += 1
-            formatted_lines.append(lines[i].strip())  # summary text
-            i += 1
-            combined = (
-                lines[i].strip() + " | " +
-                lines[i + 1].strip() + " | " +
-                lines[i + 2].strip()
-            )
-            formatted_lines.append("")
-            formatted_lines.append(combined)
-            i += 3
-            continue
-
-        # Collapse Sub-Section Summary + Makeup + Change + Effect
-        if (
-            stripped.startswith("Sub-Section Summary:") and
-            i + 3 < len(lines) and
-            lines[i + 1].strip().startswith("Sub-Section Makeup:") and
-            lines[i + 2].strip().startswith("Sub-Section Change:") and
-            lines[i + 3].strip().startswith("Sub-Section Effect:")
-        ):
-            formatted_lines.append(lines[i].strip())  # Sub-Section Summary:
-            i += 1
-            formatted_lines.append(lines[i].strip())  # summary text
-            i += 1
-            combined = (
-                lines[i].strip() + " | " +
-                lines[i + 1].strip() + " | " +
-                lines[i + 2].strip()
-            )
-            formatted_lines.append("")
-            formatted_lines.append(combined)
-            i += 3
             continue
 
         if ':' in lines[i]:
