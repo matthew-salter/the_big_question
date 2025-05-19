@@ -163,45 +163,48 @@ def reformat_assets(text):
             i += 4
             continue
 
-        # OUTSIDE TABLE BLOCKS: collapse makeup-change-effect under summary
+        # Collapse Section Summary + Makeup + Change + Effect
         if (
             stripped.startswith("Section Summary:") and
-            i + 4 < len(lines) and
+            i + 3 < len(lines) and
             lines[i + 1].strip().startswith("Section Makeup:") and
             lines[i + 2].strip().startswith("Section Change:") and
-            lines[i + 3].strip().startswith("Section Effect:") and
-            lines[i + 4].strip().startswith("Section Insight:")
+            lines[i + 3].strip().startswith("Section Effect:")
         ):
-            formatted_lines.append(lines[i].strip())
-            formatted_lines.append(lines[i + 1].strip())  # summary text
-            formatted_lines.append("")
+            formatted_lines.append(lines[i].strip())  # Section Summary:
+            i += 1
+            formatted_lines.append(lines[i].strip())  # summary text
+            i += 1
             combined = (
-                lines[i + 2].strip() + " | " +
-                lines[i + 3].strip() + " | " +
-                lines[i + 4].strip()
+                lines[i].strip() + " | " +
+                lines[i + 1].strip() + " | " +
+                lines[i + 2].strip()
             )
+            formatted_lines.append("")
             formatted_lines.append(combined)
-            i += 5
+            i += 3
             continue
 
+        # Collapse Sub-Section Summary + Makeup + Change + Effect
         if (
             stripped.startswith("Sub-Section Summary:") and
-            i + 4 < len(lines) and
+            i + 3 < len(lines) and
             lines[i + 1].strip().startswith("Sub-Section Makeup:") and
             lines[i + 2].strip().startswith("Sub-Section Change:") and
-            lines[i + 3].strip().startswith("Sub-Section Effect:") and
-            lines[i + 4].strip().startswith("Sub-Section Statistic:")
+            lines[i + 3].strip().startswith("Sub-Section Effect:")
         ):
-            formatted_lines.append(lines[i].strip())
-            formatted_lines.append(lines[i + 1].strip())  # summary text
-            formatted_lines.append("")
+            formatted_lines.append(lines[i].strip())  # Sub-Section Summary:
+            i += 1
+            formatted_lines.append(lines[i].strip())  # summary text
+            i += 1
             combined = (
-                lines[i + 2].strip() + " | " +
-                lines[i + 3].strip() + " | " +
-                lines[i + 4].strip()
+                lines[i].strip() + " | " +
+                lines[i + 1].strip() + " | " +
+                lines[i + 2].strip()
             )
+            formatted_lines.append("")
             formatted_lines.append(combined)
-            i += 5
+            i += 3
             continue
 
         if ':' in lines[i]:
