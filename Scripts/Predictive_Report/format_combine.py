@@ -19,6 +19,7 @@ def load_american_to_british_dict(filepath):
 american_to_british = load_american_to_british_dict("Prompts/American_to_British/american_to_british.txt")
 
 # Text case functions
+
 def to_title_case(text):
     exceptions = {"a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "so", "the", "to", "up", "yet"}
     words = text.strip().split()
@@ -81,6 +82,9 @@ asset_formatters = {
     "Sub-Section Header": to_title_case,
     "Sub-Section Sub-Header": to_title_case,
     "Sub-Section Summary": to_paragraph_case,
+    "Sub-Section Makeup": to_sentence_case,
+    "Sub-Section Change": to_sentence_case,
+    "Sub-Section Effect": to_sentence_case,
     "Sub-Section Statistic": to_sentence_case,
     "Sub-Section Related Article Title": to_title_case,
     "Sub-Section Related Article Date": to_title_case,
@@ -91,15 +95,8 @@ asset_formatters = {
     "Recommendations": format_bullet_points,
 }
 
-linebreak_keys = {
-    "Report Title", "Report Sub-Title", "Executive Summary", "Key Findings", "Call to Action",
-    "Report Change Title", "Report Change", "Report Table", "Section Title", "Section Header", "Section Sub-Header",
-    "Section Theme", "Section Summary", "Section Makeup", "Section Statistic", "Section Recommendation",
-    "Section Tables", "Section Related Article Date", "Section Related Article Summary", "Section Related Article Relevance",
-    "Section Related Article Source", "Sub-Sections", "Sub-Section Title", "Sub-Section Header", "Sub-Section Sub-Header",
-    "Sub-Section Summary", "Sub-Section Makeup", "Sub-Section Related Article Title", "Sub-Section Related Article Date",
-    "Sub-Section Related Article Summary", "Sub-Section Related Article Relevance"
-}
+linebreak_keys = set(asset_formatters.keys())
+
 
 def format_text(text):
     text = re.sub(r'[\t\r]+', '', text)
@@ -112,8 +109,8 @@ def format_text(text):
     in_report_table = False
     in_section_table = False
     current_group = {}
-    i = 0
 
+    i = 0
     while i < len(lines):
         line = lines[i]
 
@@ -183,7 +180,8 @@ def format_text(text):
                 if formatted_lines and formatted_lines[-1] != "":
                     formatted_lines.append("")
             formatted_lines.append(f"{key}:")
-            formatted_lines.append(formatted)
+            if formatted:
+                formatted_lines.append(formatted)
         else:
             formatted_lines.append(line)
 
@@ -195,6 +193,7 @@ def format_text(text):
         formatted_lines.append("")
 
     return '\n'.join(formatted_lines)
+
 
 def run_prompt(data):
     try:
@@ -211,6 +210,7 @@ def run_prompt(data):
         question = to_title_case(data.get("main_question", ""))
         report = to_title_case(data.get("report", ""))
         year = data.get("year", "").strip()
+
         header = f"Client:\n{client}\n\nWebsite:\n{website}\n\nAbout Client:\n{context}\n\nMain Question:\n{question}\n\nReport:\n{report}\n\nYear:\n{year}"
 
         final_text = f"{header}\n\n{formatted_body.strip()}"
