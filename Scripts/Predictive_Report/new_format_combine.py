@@ -77,6 +77,7 @@ def reformat_assets(text):
 
         # Handle grouped Section Makeup + Change + Effect
         if stripped.startswith("Section Makeup:") and i + 2 < len(lines):
+            formatted_lines.append("")
             combined = lines[i].strip() + " | " + lines[i + 1].strip() + " | " + lines[i + 2].strip()
             formatted_lines.append(combined)
             i += 3
@@ -84,6 +85,7 @@ def reformat_assets(text):
 
         # Handle grouped Sub-Section Makeup + Change + Effect
         if stripped.startswith("Sub-Section Makeup:") and i + 2 < len(lines):
+            formatted_lines.append("")
             combined = lines[i].strip() + " | " + lines[i + 1].strip() + " | " + lines[i + 2].strip()
             formatted_lines.append(combined)
             i += 3
