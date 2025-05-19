@@ -198,11 +198,9 @@ def run_prompt(data):
         combine_text = convert_to_british_english(combine)
         combine_text = reformat_assets(combine_text)
 
-        # Adjust Report Table and Section Tables spacing
-        combine_text = re.sub(r'(?<!\n)(Report Table:)', r'\n\1', combine_text)
-        combine_text = re.sub(r'(Report Table:)\n+', r'\1\n', combine_text)
-        combine_text = re.sub(r'(?<!\n)(Section Tables:)', r'\n\1', combine_text)
-        combine_text = re.sub(r'(Section Tables:)\n+', r'\1\n', combine_text)
+        # Ensure one line before and exactly one line after each block header
+        combine_text = re.sub(r'(\n)?(Report Table:)\n+', r'\n\2\n', combine_text)
+        combine_text = re.sub(r'(\n)?(Section Tables:)\n+', r'\n\2\n', combine_text)
 
         header = f"""Client:
 {to_title_case(client)}
