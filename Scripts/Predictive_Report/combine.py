@@ -10,6 +10,48 @@ def clean_text_block(text: str) -> str:
     cleaned_lines = [line.strip() for line in lines if line.strip()]
     return '\\n'.join(cleaned_lines)
 
+def parse_hierarchical_blocks(blocks: dict) -> dict:
+    structure = defaultdict(lambda: {
+        "meta": {},
+        "subsections": defaultdict(dict)
+    })
+    current_section = None
+    current_sub = None
+    active_block = None
+
+    for label, text in blocks.items():
+        lines = text.split('\\n')
+        for line in lines:
+            if re.match(r"^Section \d+:?", line):
+                current_section = int(re.findall(r"\d+", line)[0])
+                current_sub = None
+                continue
+            elif re.match(r"^Sub-Section \d+:?", line):
+                current_sub = int(re.findall(r"\d+", line)[0])
+                continue
+            elif ":" in line:
+                key, value = line.split(":", 1)
+                key = key.strip()
+                value = value.strip()
+                if current_section is not None:
+                    if current_sub is not None:
+                        structure[current_section]["subsections"][current_sub][key] = value
+                    else:
+                        structure[current_section]["meta"][key] = value
+    return structure
+
+def parse_section_tables(blocks: dict) -> dict:
+    table_data = defaultdict(list)
+    block = blocks.get("prompt_4_tables", "")
+    lines = block.split('\\n')
+    current_title = None
+    for line in lines:
+        if re.match(r"^[A-Z][A-Za-z \-]+:$", line):
+            current_title = line.strip(':')
+        elif current_title:
+            table_data[current_title].append(line)
+    return table_data
+
 def extract_key_value_pairs_by_block(blocks: dict) -> dict:
     kv_pairs = {}
     for label, block in blocks.items():
@@ -19,7 +61,6 @@ def extract_key_value_pairs_by_block(blocks: dict) -> dict:
         inside_report_table = False
         inside_section_tables = False
         section_table_content = defaultdict(list)
-        capture_next = None
 
         for line in lines:
             if line.startswith("Report Table:"):
@@ -41,8 +82,7 @@ def extract_key_value_pairs_by_block(blocks: dict) -> dict:
                 continue
 
             if inside_report_table:
-                if re.match(r'^[A-Z][A-Za-z\s\-]+:', line):
-                    current_value.append(line)
+                current_value.append(line)
                 continue
 
             if inside_section_tables:
@@ -79,66 +119,60 @@ def extract_key_value_pairs_by_block(blocks: dict) -> dict:
 
     return kv_pairs
 
-def build_output_from_ordered_keys(kv_pairs: dict, section_map: dict, subsection_map: dict) -> str:
+def build_output(kv_pairs: dict, structure: dict, section_tables: dict) -> str:
     output = []
 
-    INTRO_KEYS = [
+    intro_keys = [
         "Report Title", "Report Sub-Title", "Executive Summary", "Key Findings",
         "Call to Action", "Report Change Title", "Report Change", "Report Table"
     ]
+    outro_keys = ["Conclusion", "Recommendations"]
 
-    SECTION_KEYS = [
-        "Section Title", "Section Header", "Section Sub-Header", "Section Theme",
-        "Section Summary", "Section Makeup", "Section Change", "Section Effect",
-        "Section Insight", "Section Statistic", "Section Recommendation",
-        "Section Related Article Title", "Section Related Article Date",
-        "Section Related Article Summary", "Section Related Article Relevance",
-        "Section Related Article Source"
-    ]
-
-    SUBSECTION_KEYS = [
-        "Sub-Section Title", "Sub-Section Header", "Sub-Section Sub-Header",
-        "Sub-Section Summary", "Sub-Section Makeup", "Sub-Section Change", "Sub-Section Effect",
-        "Sub-Section Statistic", "Sub-Section Related Article Title",
-        "Sub-Section Related Article Date", "Sub-Section Related Article Summary",
-        "Sub-Section Related Article Relevance", "Sub-Section Related Article Source"
-    ]
-
-    OUTRO_KEYS = ["Conclusion", "Recommendations"]
-
-    for key in INTRO_KEYS:
+    for key in intro_keys:
         if key in kv_pairs:
             output.append(f"{key}:")
             output.append(kv_pairs[key])
 
-    for section_num in sorted(section_map.keys()):
+    for section_num in sorted(structure.keys()):
+        section = structure[section_num]
         output.append("")
         output.append(f"Section #: {section_num}")
-        section_data = section_map[section_num]
-        for key in SECTION_KEYS:
-            if key in section_data:
-                output.append(f"{key}: {section_data[key]}")
 
-        for sub_num in sorted(subsection_map[section_num].keys()):
+        for key in [
+            "Section Title", "Section Header", "Section Sub-Header", "Section Theme",
+            "Section Summary", "Section Makeup", "Section Change", "Section Effect",
+            "Section Insight", "Section Statistic", "Section Recommendation",
+            "Section Related Article Title", "Section Related Article Date",
+            "Section Related Article Summary", "Section Related Article Relevance",
+            "Section Related Article Source"]:
+            if key in section["meta"]:
+                output.append(f"{key}: {section["meta"][key]}")
+
+        section_title = section["meta"].get("Section Title")
+        if section_title and section_title in section_tables:
+            output.append("Section Tables:")
+            output.extend(section_tables[section_title])
+
+        for sub_num in sorted(section["subsections"].keys()):
             output.append("")
-            output.append(f"Section #: {section_num}.{sub_num}")
-            sub_data = subsection_map[section_num][sub_num]
-            for key in SUBSECTION_KEYS:
-                if key in sub_data:
-                    output.append(f"{key}: {sub_data[key]}")
-
-    if "Section Tables" in kv_pairs:
-        output.append("")
-        output.append("Section Tables:")
-        output.append(kv_pairs["Section Tables"])
+            output.append(f"Sub-Section #: {section_num}.{sub_num}")
+            sub = section["subsections"][sub_num]
+            for key in [
+                "Sub-Section Title", "Sub-Section Header", "Sub-Section Sub-Header",
+                "Sub-Section Summary", "Sub-Section Makeup", "Sub-Section Change", "Sub-Section Effect",
+                "Sub-Section Statistic", "Sub-Section Related Article Title",
+                "Sub-Section Related Article Date", "Sub-Section Related Article Summary",
+                "Sub-Section Related Article Relevance", "Sub-Section Related Article Source"]:
+                if key in sub:
+                    output.append(f"{key}: {sub[key]}")
 
     output.append("")
-    for key in OUTRO_KEYS:
+    for key in outro_keys:
         if key in kv_pairs:
             output.append(f"{key}:")
             output.append(kv_pairs[key])
 
-    return "\n".join(output)
+    return '\n'.join(output)
 
 def run_prompt(data: dict) -> dict:
     try:
@@ -153,38 +187,15 @@ def run_prompt(data: dict) -> dict:
         }
 
         kv_pairs = extract_key_value_pairs_by_block(flat_blocks)
+        structure = parse_hierarchical_blocks(flat_blocks)
+        section_tables = parse_section_tables(flat_blocks)
 
-        section_map = defaultdict(dict)
-        subsection_map = defaultdict(lambda: defaultdict(dict))
-
-        current_section = None
-        current_subsection = None
-        section_counter = 1
-        subsection_counter = defaultdict(int)
-
-        for key, value in kv_pairs.items():
-            if re.match(r"Section \d+", key):
-                current_section = int(re.findall(r"\d+", key)[0])
-                continue
-            elif re.match(r"Sub-Section \d+", key):
-                if current_section is None:
-                    current_section = section_counter
-                    section_counter += 1
-                subsection_counter[current_section] += 1
-                current_subsection = subsection_counter[current_section]
-                continue
-
-            if current_section is not None and current_subsection is not None and key.startswith("Sub-Section"):
-                subsection_map[current_section][current_subsection][key] = value
-            elif current_section is not None:
-                section_map[current_section][key] = value
-
-        formatted_output = build_output_from_ordered_keys(kv_pairs, section_map, subsection_map)
+        formatted_output = build_output(kv_pairs, structure, section_tables)
         final_output = formatted_output.replace('\\n', '\n')
 
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_output)
-        logger.info(f"✅ Reordered structured output written to: {supabase_path}")
+        logger.info(f"✅ Structured section output written to: {supabase_path}")
 
         return {
             "status": "success",
