@@ -198,9 +198,26 @@ def run_prompt(data):
         combine_text = convert_to_british_english(combine)
         combine_text = reformat_assets(combine_text)
 
-        # Ensure one line before and exactly one line after each block header
-        combine_text = re.sub(r'(\n)?(Report Table:)\n+', r'\n\2\n', combine_text)
-        combine_text = re.sub(r'(\n)?(Section Tables:)\n+', r'\n\2\n', combine_text)
+        # Post-formatting: ensure a blank line above and no blank line below for specific headers
+        def normalise_table_headers(text, keyword):
+            lines = text.split('\n')
+            new_lines = []
+            i = 0
+            while i < len(lines):
+                if lines[i].strip() == keyword:
+                    if new_lines and new_lines[-1].strip() != "":
+                        new_lines.append("")  # ensure blank line before
+                    new_lines.append(keyword)
+                    # skip any blank line after
+                    if i + 1 < len(lines) and lines[i + 1].strip() == "":
+                        i += 1
+                else:
+                    new_lines.append(lines[i])
+                i += 1
+            return '\n'.join(new_lines)
+
+        combine_text = normalise_table_headers(combine_text, "Report Table:")
+        combine_text = normalise_table_headers(combine_text, "Section Tables:")
 
         header = f"""Client:
 {to_title_case(client)}
