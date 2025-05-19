@@ -53,7 +53,7 @@ def convert_to_british_english(text):
     pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
-# Asset formatting map
+# Formatting maps
 asset_formatters = {
     "Report Title": to_title_case,
     "Report Sub-Title": to_title_case,
@@ -108,6 +108,7 @@ def format_text(text):
 
     lines = [line.strip() for line in text.split('\n') if line.strip()]
     formatted_lines = []
+
     in_report_table = False
     in_section_table = False
     current_group = {}
@@ -117,9 +118,8 @@ def format_text(text):
         line = lines[i]
 
         if line.startswith("Report Table:"):
-            if not in_report_table and not in_section_table:
-                formatted_lines.append("")
             in_report_table = True
+            formatted_lines.append("")
             formatted_lines.append("Report Table:")
             i += 1
             continue
@@ -155,9 +155,8 @@ def format_text(text):
             continue
 
         if line.startswith("Section Tables:"):
-            if not in_report_table and not in_section_table:
-                formatted_lines.append("")
             in_section_table = True
+            formatted_lines.append("")
             formatted_lines.append(line)
             i += 1
             continue
@@ -169,57 +168,18 @@ def format_text(text):
             continue
 
         if in_section_table:
-            if line.startswith("Sub-Section Title:"):
-                formatted_lines.append(line)
-                if i+3 < len(lines):
-                    makeup = lines[i+1]
-                    change = lines[i+2]
-                    effect = lines[i+3]
-                    if (
-                        makeup.startswith("Sub-Section Makeup:") and
-                        change.startswith("Sub-Section Change:") and
-                        effect.startswith("Sub-Section Effect:")
-                    ):
-                        summary = f"Sub-Section Makeup: {makeup.split(':',1)[1].strip()} | Sub-Section Change: {change.split(':',1)[1].strip()} | Sub-Section Effect: {effect.split(':',1)[1].strip()}"
-                        formatted_lines.append(summary)
-                        formatted_lines.append("")
-                        i += 4
-                        continue
+            formatted_lines.append(line)
             i += 1
             continue
 
-        if (
-            i+2 < len(lines) and
-            lines[i].startswith("Section Makeup:") and
-            lines[i+1].startswith("Section Change:") and
-            lines[i+2].startswith("Section Effect:")
-        ):
-            summary = f"{lines[i]} | {lines[i+1]} | {lines[i+2]}"
-            formatted_lines.append(summary)
-            formatted_lines.append("")
-            i += 3
-            continue
-
-        if (
-            i+2 < len(lines) and
-            lines[i].startswith("Sub-Section Makeup:") and
-            lines[i+1].startswith("Sub-Section Change:") and
-            lines[i+2].startswith("Sub-Section Effect:")
-        ):
-            summary = f"{lines[i]} | {lines[i+1]} | {lines[i+2]}"
-            formatted_lines.append(summary)
-            formatted_lines.append("")
-            i += 3
-            continue
-
         match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line)
-        if match:
+        if match and not in_report_table and not in_section_table:
             key, value = match.groups()
             key = key.strip()
             value = value.strip()
             formatter = asset_formatters.get(key, lambda x: x)
             formatted = formatter(value)
-            if not in_report_table and not in_section_table and key in linebreak_keys:
+            if key in linebreak_keys:
                 if formatted_lines and formatted_lines[-1] != "":
                     formatted_lines.append("")
             formatted_lines.append(f"{key}:")
@@ -234,10 +194,7 @@ def format_text(text):
         formatted_lines.append(summary)
         formatted_lines.append("")
 
-    final_text = '\n'.join(formatted_lines)
-    final_text = re.sub(r':(?!\s)', ': ', final_text)
-    final_text = re.sub(r':\s{2,}', ': ', final_text)
-    return final_text
+    return '\n'.join(formatted_lines)
 
 def run_prompt(data):
     try:
