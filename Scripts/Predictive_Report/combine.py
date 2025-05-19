@@ -13,10 +13,30 @@ def clean_text_block(text: str) -> str:
 def extract_key_value_pairs(text: str) -> dict:
     kv_pairs = {}
     lines = text.split('\\n')
+
+    current_key = None
+    current_value = []
+
     for line in lines:
-        if ":" in line:
-            key, value = line.split(":", 1)
-            kv_pairs[key.strip()] = value.strip()
+        if ':' in line:
+            key_part, value_part = line.split(':', 1)
+            key = key_part.strip()
+            value = value_part.strip()
+
+            # New key detected
+            if current_key:
+                kv_pairs[current_key] = '\\n'.join(current_value).strip()
+
+            current_key = key
+            current_value = [value] if value else []
+        else:
+            # Continuation of current key block
+            if current_key:
+                current_value.append(line.strip())
+
+    if current_key:
+        kv_pairs[current_key] = '\\n'.join(current_value).strip()
+
     return kv_pairs
 
 def build_output_from_ordered_keys(kv_pairs: dict, section_map: dict, subsection_map: dict) -> str:
