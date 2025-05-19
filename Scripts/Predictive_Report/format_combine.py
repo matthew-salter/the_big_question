@@ -97,6 +97,8 @@ asset_formatters = {
 linebreak_keys = set(asset_formatters.keys())
 
 def format_text(text):
+    import re
+
     text = re.sub(r'[\t\r]+', '', text)
     text = re.sub(r'\n+', '\n', text).strip()
     text = convert_to_british_english(text)
@@ -112,6 +114,7 @@ def format_text(text):
     while i < len(lines):
         line = lines[i]
 
+        # Handle Report Table block
         if line.startswith("Report Table:"):
             in_report_table = True
             formatted_lines.append("")
@@ -149,10 +152,11 @@ def format_text(text):
             i += 1
             continue
 
+        # Handle Section Tables block
         if line.startswith("Section Tables:"):
             in_section_table = True
             formatted_lines.append("")
-            formatted_lines.append(line)
+            formatted_lines.append("Section Tables:")
             i += 1
             continue
 
@@ -167,6 +171,7 @@ def format_text(text):
             i += 1
             continue
 
+        # Match all other asset lines (not in table blocks)
         match = re.match(r'^([A-Z][A-Za-z \-]*?):(.*)', line)
         if match and not in_report_table and not in_section_table:
             key, value = match.groups()
@@ -174,16 +179,24 @@ def format_text(text):
             value = value.strip()
             formatter = asset_formatters.get(key, lambda x: x)
             formatted_value = formatter(value)
-            if key in linebreak_keys and (not formatted_lines or formatted_lines[-1] != ""):
-                formatted_lines.append("")
+
+            # Add line break before certain keys
+            if key in linebreak_keys:
+                if formatted_lines and formatted_lines[-1] != "":
+                    formatted_lines.append("")
+
+            # Write key and value on separate lines
             formatted_lines.append(f"{key}:")
             if formatted_value:
                 formatted_lines.append(formatted_value)
+            else:
+                formatted_lines.append("")  # Blank if no content
         else:
             formatted_lines.append(line)
 
         i += 1
 
+    # Add final group summary if needed
     if in_report_table and current_group:
         summary = f"{current_group.get('Section Makeup', '')} | {current_group.get('Section Change', '')} | {current_group.get('Section Effect', '')}"
         formatted_lines.append(summary)
