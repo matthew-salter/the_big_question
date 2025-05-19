@@ -19,26 +19,34 @@ def extract_key_value_pairs_by_block(blocks: dict) -> dict:
         inside_report_table = False
         inside_section_tables = False
         section_table_content = defaultdict(list)
+        capture_next = None
 
         for line in lines:
             if line.startswith("Report Table:"):
-                inside_report_table = True
+                if current_key:
+                    kv_pairs[current_key] = '\\n'.join(current_value).strip()
                 current_key = "Report Table"
                 current_value = []
+                inside_report_table = True
+                inside_section_tables = False
                 continue
+
             if line.startswith("Section Tables:"):
+                if current_key:
+                    kv_pairs[current_key] = '\\n'.join(current_value).strip()
+                current_key = None
                 inside_report_table = False
                 inside_section_tables = True
-                current_key = "Section Tables"
                 current_value = []
                 continue
 
             if inside_report_table:
-                current_value.append(line)
+                if re.match(r'^[A-Z][A-Za-z\s\-]+:', line):
+                    current_value.append(line)
                 continue
 
             if inside_section_tables:
-                if re.match(r"^[A-Z][A-Za-z\s\-&]+:$", line):  # start of a new section
+                if re.match(r"^[A-Z][A-Za-z\s\-&]+:$", line):
                     current_section = line.rstrip(":")
                 else:
                     section_table_content[current_section].append(line)
@@ -82,7 +90,7 @@ def build_output_from_ordered_keys(kv_pairs: dict, section_map: dict, subsection
     SECTION_KEYS = [
         "Section Title", "Section Header", "Section Sub-Header", "Section Theme",
         "Section Summary", "Section Makeup", "Section Change", "Section Effect",
-        "Section Insight", "Section Statistic", "Section Recommendation", "Section Tables",
+        "Section Insight", "Section Statistic", "Section Recommendation",
         "Section Related Article Title", "Section Related Article Date",
         "Section Related Article Summary", "Section Related Article Relevance",
         "Section Related Article Source"
