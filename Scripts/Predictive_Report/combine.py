@@ -23,14 +23,12 @@ def extract_key_value_pairs(text: str) -> dict:
             key = key_part.strip()
             value = value_part.strip()
 
-            # New key detected
             if current_key:
                 kv_pairs[current_key] = '\\n'.join(current_value).strip()
 
             current_key = key
             current_value = [value] if value else []
         else:
-            # Continuation of current key block
             if current_key:
                 current_value.append(line.strip())
 
