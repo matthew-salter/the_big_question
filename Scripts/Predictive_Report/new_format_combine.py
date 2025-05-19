@@ -59,22 +59,42 @@ def reformat_assets(text):
     lines = text.split('\n')
     formatted_lines = []
     inside_table_block = False
+    buffer = []
 
-    for i, line in enumerate(lines):
+    def flush_buffer():
+        if len(buffer) == 3:
+            keys = [l.split(':')[0].strip() + ':' for l in buffer]
+            values = [l.split(':', 1)[1].strip() for l in buffer]
+            combined = f"{keys[0]} {values[0]} | {keys[1]} {values[1]} | {keys[2]} {values[2]}"
+            formatted_lines.append(combined)
+        else:
+            formatted_lines.extend(buffer)
+        buffer.clear()
+
+    for line in lines:
         stripped = line.strip()
 
-        # Detect start/end of Report or Section Tables
         if stripped in {"Report Table:", "Section Tables:"}:
+            flush_buffer()
             inside_table_block = True
         elif stripped.startswith("Section #:") or stripped.startswith("Sub-Section #:"):
+            flush_buffer()
             inside_table_block = False
 
-        # Skip changes inside table blocks
         if inside_table_block or not stripped:
+            flush_buffer()
             formatted_lines.append(line)
             continue
 
-        # Break inline values unless key is in exception list
+        # Collect formatting lines for grouped inline rewrite
+        if any(stripped.startswith(prefix) for prefix in ["Section Makeup:", "Section Change:", "Section Effect:", "Sub-Section Makeup:", "Sub-Section Change:", "Sub-Section Effect:"]):
+            buffer.append(line)
+            if len(buffer) == 3:
+                flush_buffer()
+            continue
+
+        flush_buffer()
+
         if ':' in line:
             key, value = line.split(':', 1)
             full_key = f"{key.strip()}:"
@@ -87,6 +107,7 @@ def reformat_assets(text):
         else:
             formatted_lines.append(line)
 
+    flush_buffer()
     return '\n'.join(formatted_lines)
 
 # Format full report
@@ -113,7 +134,7 @@ def run_prompt(data):
         combine_text = indent_block_content(combine_text, "Report Table:", "Section #:")
         combine_text = indent_block_content(combine_text, "Section Tables:", "Sub-Section #:")
 
-        # Step 3: Apply line-break rules for all other assets
+        # Step 3: Apply line-break and merge rules for all other assets
         combine_text = reformat_assets(combine_text)
 
         # Step 4: Assemble output
