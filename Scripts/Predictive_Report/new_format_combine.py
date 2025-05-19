@@ -16,12 +16,20 @@ def load_american_to_british_dict(filepath):
 
 american_to_british = load_american_to_british_dict("Prompts/American_to_British/american_to_british.txt")
 
-# Text case formatting
-
+# Case formatting helpers
 def to_title_case(text):
     exceptions = {"a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "so", "the", "to", "up", "yet"}
+    def format_word(word):
+        if '-' in word:
+            return '-'.join(format_word(part) for part in word.split('-'))
+        if word.upper() in {"UK", "EU", "US", "UN"}:
+            return word.upper()
+        return word.capitalize()
     words = text.strip().split()
-    return ' '.join([word.capitalize() if i == 0 or word.lower() not in exceptions else word.lower() for i, word in enumerate(words)])
+    return ' '.join([
+        format_word(word) if i == 0 or word.lower() not in exceptions else word.lower()
+        for i, word in enumerate(words)
+    ])
 
 def to_sentence_case(text):
     text = text.strip()
@@ -37,13 +45,16 @@ def format_bullet_points(text):
 
 # Asset formatting map
 asset_formatters = {
+    "Client": to_title_case,
+    "About Client": to_paragraph_case,
+    "Main Question": to_title_case,
+    "Report": to_title_case,
     "Report Title": to_title_case,
     "Report Sub-Title": to_title_case,
     "Executive Summary": to_paragraph_case,
     "Key Findings": format_bullet_points,
     "Call to Action": to_sentence_case,
     "Report Change Title": to_title_case,
-    "Report Change": to_title_case,
     "Report Table": to_title_case,
     "Section Title": to_title_case,
     "Section Header": to_title_case,
@@ -58,26 +69,20 @@ asset_formatters = {
     "Section Related Article Date": to_title_case,
     "Section Related Article Summary": to_paragraph_case,
     "Section Related Article Relevance": to_paragraph_case,
-    "Section Related Article Source": to_title_case,
     "Sub-Section Title": to_title_case,
     "Sub-Section Header": to_title_case,
     "Sub-Section Sub-Header": to_title_case,
     "Sub-Section Summary": to_paragraph_case,
-    "Sub-Section Makeup": to_sentence_case,
-    "Sub-Section Change": to_sentence_case,
-    "Sub-Section Effect": to_sentence_case,
     "Sub-Section Statistic": to_sentence_case,
     "Sub-Section Related Article Title": to_title_case,
     "Sub-Section Related Article Date": to_title_case,
     "Sub-Section Related Article Summary": to_paragraph_case,
     "Sub-Section Related Article Relevance": to_paragraph_case,
-    "Sub-Section Related Article Source": to_title_case,
     "Conclusion": to_paragraph_case,
     "Recommendations": format_bullet_points,
 }
 
 # Convert to British English
-
 def convert_to_british_english(text):
     def replace_match(match):
         us_word = match.group(0)
@@ -97,33 +102,26 @@ def convert_to_british_english(text):
 
 # Indent block content
 def indent_block_content(text, start_marker, end_marker):
-    pattern = re.compile(
-        rf'({re.escape(start_marker)}\n)(.*?)(?=\n{re.escape(end_marker)})',
-        re.DOTALL
-    )
-
+    pattern = re.compile(rf'({re.escape(start_marker)}\n)(.*?)(?=\n{re.escape(end_marker)})', re.DOTALL)
     def replacer(match):
         header = match.group(1)
         block_content = match.group(2)
         indented = '\n'.join(['\t' + line if line.strip() else '' for line in block_content.split('\n')])
         return header + indented
-
     return re.sub(pattern, replacer, text)
 
-# Reformat asset blocks
+# Reformat assets
 def reformat_assets(text):
     inline_keys = {
         "Section #:", "Section Makeup:", "Section Change:", "Section Effect:",
         "Sub-Section #:", "Sub-Section Makeup:", "Sub-Section Change:", "Sub-Section Effect:"
     }
-
     lines = text.split('\n')
     formatted_lines = []
     inside_table_block = False
     i = 0
     while i < len(lines):
         stripped = lines[i].strip()
-
         if stripped in {"Report Table:", "Section Tables:"}:
             inside_table_block = True
         elif stripped.startswith("Section #:") or stripped.startswith("Sub-Section #:"):
@@ -157,20 +155,17 @@ def reformat_assets(text):
             else:
                 formatted_lines.append(f"\n{full_key}")
                 if value:
-                    formatter = asset_formatters.get(full_key.rstrip(':'), lambda x: x)
+                    formatter = asset_formatters.get(key.strip(), lambda x: x)
                     formatted_lines.append(formatter(value))
         else:
             formatted_lines.append(lines[i])
-
         i += 1
-
     return '\n'.join(formatted_lines)
 
 # Format full report
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
-
         client = data.get("client", "").strip()
         website = data.get("client_website_url", "").strip()
         context = data.get("client_context", "").strip()
@@ -188,42 +183,38 @@ def run_prompt(data):
         combine_text = reformat_assets(combine_text)
 
         header = f"""Client:
-{client}
+{to_title_case(client)}
 
 Website:
 {website}
 
 About Client:
-{context}
+{to_paragraph_case(context)}
 
 Main Question:
-{question}
+{to_title_case(question)}
 
 Report:
-{report}
+{to_title_case(report)}
 
 Year:
 {year}
 
 """
         final_text = f"{header}{combine_text.strip()}"
-
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/New_Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_text)
         logger.info(f"✅ New formatted file written to: {supabase_path}")
-
         try:
             content = read_supabase_file(supabase_path)
         except Exception as e:
             logger.warning(f"⚠️ Could not read file back from Supabase: {e}")
             content = final_text
-
         return {
             "status": "success",
             "run_id": run_id,
             "formatted_content": content.strip()
         }
-
     except Exception as e:
         logger.exception("❌ Error in new_format_combine.py")
         return {
