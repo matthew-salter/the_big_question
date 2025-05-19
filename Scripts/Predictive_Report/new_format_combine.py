@@ -31,19 +31,14 @@ def convert_to_british_english(text):
                 return british
         return us_word
 
-    pattern = r'\\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\\b'
+    pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
-
-# Strip all line breaks, extra spacing and indentation
-def clean_whitespace(text):
-    return re.sub(r'\s+', ' ', text).strip()
 
 # Format full report
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
 
-        # Extract fields
         client = data.get("client", "").strip()
         website = data.get("client_website_url", "").strip()
         context = data.get("client_context", "").strip()
@@ -54,11 +49,12 @@ def run_prompt(data):
 
         if not combine:
             raise ValueError("Missing 'combine' content in input data.")
+        
+        logger.info(f"✅ Combine payload received with {len(combine)} characters")
 
-        # Clean and convert
-        combine_text = clean_whitespace(convert_to_british_english(combine))
+        combine_british = convert_to_british_english(combine)
+        logger.info(f"✅ Combine converted to British English ({len(combine_british)} characters)")
 
-        # Assemble formatted output
         header = f"""Client:
 {client}
 
@@ -78,15 +74,16 @@ Year:
 {year}
 
 """
-        final_text = f"{header}{combine_text}"
 
-        # Write to Supabase
+        final_text = f"{header}{combine_british.strip()}"
+
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/New_Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_text)
-        logger.info(f"✅ New formatted file written to: {supabase_path}")
+        logger.info(f"✅ Formatted file written to Supabase path: {supabase_path}")
 
         try:
             content = read_supabase_file(supabase_path)
+            logger.info(f"✅ Read-back content successfully retrieved from Supabase")
         except Exception as e:
             logger.warning(f"⚠️ Could not read file back from Supabase: {e}")
             content = final_text
@@ -103,4 +100,3 @@ Year:
             "status": "error",
             "message": str(e)
         }
-
