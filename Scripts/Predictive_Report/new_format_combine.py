@@ -16,7 +16,68 @@ def load_american_to_british_dict(filepath):
 
 american_to_british = load_american_to_british_dict("Prompts/American_to_British/american_to_british.txt")
 
-# Convert words to British English
+# Text case formatting
+
+def to_title_case(text):
+    exceptions = {"a", "an", "and", "as", "at", "but", "by", "for", "in", "nor", "of", "on", "or", "so", "the", "to", "up", "yet"}
+    words = text.strip().split()
+    return ' '.join([word.capitalize() if i == 0 or word.lower() not in exceptions else word.lower() for i, word in enumerate(words)])
+
+def to_sentence_case(text):
+    text = text.strip()
+    return text[0].upper() + text[1:] if text else ""
+
+def to_paragraph_case(text):
+    paragraphs = text.split('\n')
+    return '\n'.join([to_sentence_case(p.strip()) for p in paragraphs if p.strip()])
+
+def format_bullet_points(text):
+    lines = [line.strip().lstrip('-').strip() for line in text.splitlines() if line.strip()]
+    return '\n'.join(f"- {line}" for line in lines)
+
+# Asset formatting map
+asset_formatters = {
+    "Report Title": to_title_case,
+    "Report Sub-Title": to_title_case,
+    "Executive Summary": to_paragraph_case,
+    "Key Findings": format_bullet_points,
+    "Call to Action": to_sentence_case,
+    "Report Change Title": to_title_case,
+    "Report Change": to_title_case,
+    "Report Table": to_title_case,
+    "Section Title": to_title_case,
+    "Section Header": to_title_case,
+    "Section Sub-Header": to_title_case,
+    "Section Theme": to_title_case,
+    "Section Summary": to_paragraph_case,
+    "Section Insight": to_sentence_case,
+    "Section Statistic": to_sentence_case,
+    "Section Recommendation": to_sentence_case,
+    "Section Tables": to_title_case,
+    "Section Related Article Title": to_title_case,
+    "Section Related Article Date": to_title_case,
+    "Section Related Article Summary": to_paragraph_case,
+    "Section Related Article Relevance": to_paragraph_case,
+    "Section Related Article Source": to_title_case,
+    "Sub-Section Title": to_title_case,
+    "Sub-Section Header": to_title_case,
+    "Sub-Section Sub-Header": to_title_case,
+    "Sub-Section Summary": to_paragraph_case,
+    "Sub-Section Makeup": to_sentence_case,
+    "Sub-Section Change": to_sentence_case,
+    "Sub-Section Effect": to_sentence_case,
+    "Sub-Section Statistic": to_sentence_case,
+    "Sub-Section Related Article Title": to_title_case,
+    "Sub-Section Related Article Date": to_title_case,
+    "Sub-Section Related Article Summary": to_paragraph_case,
+    "Sub-Section Related Article Relevance": to_paragraph_case,
+    "Sub-Section Related Article Source": to_title_case,
+    "Conclusion": to_paragraph_case,
+    "Recommendations": format_bullet_points,
+}
+
+# Convert to British English
+
 def convert_to_british_english(text):
     def replace_match(match):
         us_word = match.group(0)
@@ -63,19 +124,16 @@ def reformat_assets(text):
     while i < len(lines):
         stripped = lines[i].strip()
 
-        # Detect start/end of Report or Section Tables
         if stripped in {"Report Table:", "Section Tables:"}:
             inside_table_block = True
         elif stripped.startswith("Section #:") or stripped.startswith("Sub-Section #:"):
             inside_table_block = False
 
-        # Skip changes inside table blocks
         if inside_table_block or not stripped:
             formatted_lines.append(lines[i])
             i += 1
             continue
 
-        # Handle grouped Section Makeup + Change + Effect
         if stripped.startswith("Section Makeup:") and i + 2 < len(lines):
             formatted_lines.append("")
             combined = lines[i].strip() + " | " + lines[i + 1].strip() + " | " + lines[i + 2].strip()
@@ -83,7 +141,6 @@ def reformat_assets(text):
             i += 3
             continue
 
-        # Handle grouped Sub-Section Makeup + Change + Effect
         if stripped.startswith("Sub-Section Makeup:") and i + 2 < len(lines):
             formatted_lines.append("")
             combined = lines[i].strip() + " | " + lines[i + 1].strip() + " | " + lines[i + 2].strip()
@@ -91,16 +148,17 @@ def reformat_assets(text):
             i += 3
             continue
 
-        # Break inline values unless key is in exception list
         if ':' in lines[i]:
             key, value = lines[i].split(':', 1)
             full_key = f"{key.strip()}:"
+            value = value.strip()
             if full_key in inline_keys:
                 formatted_lines.append(lines[i])
             else:
                 formatted_lines.append(f"\n{full_key}")
-                if value.strip():
-                    formatted_lines.append(value.strip())
+                if value:
+                    formatter = asset_formatters.get(full_key.rstrip(':'), lambda x: x)
+                    formatted_lines.append(formatter(value))
         else:
             formatted_lines.append(lines[i])
 
@@ -113,7 +171,6 @@ def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
 
-        # Extract fields
         client = data.get("client", "").strip()
         website = data.get("client_website_url", "").strip()
         context = data.get("client_context", "").strip()
@@ -125,17 +182,11 @@ def run_prompt(data):
         if not combine:
             raise ValueError("Missing 'combine' content in input data.")
 
-        # Step 1: Convert to British English
         combine_text = convert_to_british_english(combine)
-
-        # Step 2: Isolate and indent Report Table and Section Table blocks
         combine_text = indent_block_content(combine_text, "Report Table:", "Section #:")
         combine_text = indent_block_content(combine_text, "Section Tables:", "Sub-Section #:")
-
-        # Step 3: Apply line-break rules for all other assets
         combine_text = reformat_assets(combine_text)
 
-        # Step 4: Assemble output
         header = f"""Client:
 {client}
 
@@ -157,7 +208,6 @@ Year:
 """
         final_text = f"{header}{combine_text.strip()}"
 
-        # Write to Supabase
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/New_Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_text)
         logger.info(f"✅ New formatted file written to: {supabase_path}")
