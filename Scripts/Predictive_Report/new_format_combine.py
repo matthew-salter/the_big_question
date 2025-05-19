@@ -46,9 +46,11 @@ def format_bullet_points(text):
 # Asset formatting map
 asset_formatters = {
     "Client": to_title_case,
+    "Website": lambda x: x,
     "About Client": to_paragraph_case,
     "Main Question": to_title_case,
     "Report": to_title_case,
+    "Year": lambda x: x,
     "Report Title": to_title_case,
     "Report Sub-Title": to_title_case,
     "Executive Summary": to_paragraph_case,
@@ -69,6 +71,7 @@ asset_formatters = {
     "Section Related Article Date": to_title_case,
     "Section Related Article Summary": to_paragraph_case,
     "Section Related Article Relevance": to_paragraph_case,
+    "Section Related Article Source": to_title_case,
     "Sub-Section Title": to_title_case,
     "Sub-Section Header": to_title_case,
     "Sub-Section Sub-Header": to_title_case,
@@ -78,6 +81,7 @@ asset_formatters = {
     "Sub-Section Related Article Date": to_title_case,
     "Sub-Section Related Article Summary": to_paragraph_case,
     "Sub-Section Related Article Relevance": to_paragraph_case,
+    "Sub-Section Related Article Source": to_title_case,
     "Conclusion": to_paragraph_case,
     "Recommendations": format_bullet_points,
 }
@@ -100,7 +104,7 @@ def convert_to_british_english(text):
     pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
-# Indent block content
+# Indent block content (unchanged, still included in case needed elsewhere)
 def indent_block_content(text, start_marker, end_marker):
     pattern = re.compile(rf'({re.escape(start_marker)}\n)(.*?)(?=\n{re.escape(end_marker)})', re.DOTALL)
     def replacer(match):
@@ -110,7 +114,7 @@ def indent_block_content(text, start_marker, end_marker):
         return header + indented
     return re.sub(pattern, replacer, text)
 
-# Reformat assets
+# Reformat assets with new logic for report/section tables
 def reformat_assets(text):
     inline_keys = {
         "Section #:", "Section Makeup:", "Section Change:", "Section Effect:",
@@ -122,30 +126,52 @@ def reformat_assets(text):
     i = 0
     while i < len(lines):
         stripped = lines[i].strip()
+
+        # Toggle table block mode
         if stripped in {"Report Table:", "Section Tables:"}:
             inside_table_block = True
         elif stripped.startswith("Section #:") or stripped.startswith("Sub-Section #:"):
             inside_table_block = False
 
-        if inside_table_block or not stripped:
-            formatted_lines.append(lines[i])
-            i += 1
-            continue
-
-        if stripped.startswith("Section Makeup:") and i + 2 < len(lines):
+        # Report Table: compact formatting
+        if (
+            stripped.startswith("Section Title:") and 
+            i + 3 < len(lines) and
+            lines[i + 1].strip().startswith("Section Makeup:") and
+            lines[i + 2].strip().startswith("Section Change:") and
+            lines[i + 3].strip().startswith("Section Effect:")
+        ):
             formatted_lines.append("")
-            combined = lines[i].strip() + " | " + lines[i + 1].strip() + " | " + lines[i + 2].strip()
+            formatted_lines.append(lines[i].strip())
+            combined = (
+                lines[i + 1].strip() + " | " +
+                lines[i + 2].strip() + " | " +
+                lines[i + 3].strip()
+            )
             formatted_lines.append(combined)
-            i += 3
+            i += 4
             continue
 
-        if stripped.startswith("Sub-Section Makeup:") and i + 2 < len(lines):
+        # Section Tables: compact formatting
+        if (
+            stripped.startswith("Sub-Section Title:") and 
+            i + 3 < len(lines) and
+            lines[i + 1].strip().startswith("Sub-Section Makeup:") and
+            lines[i + 2].strip().startswith("Sub-Section Change:") and
+            lines[i + 3].strip().startswith("Sub-Section Effect:")
+        ):
             formatted_lines.append("")
-            combined = lines[i].strip() + " | " + lines[i + 1].strip() + " | " + lines[i + 2].strip()
+            formatted_lines.append(lines[i].strip())
+            combined = (
+                lines[i + 1].strip() + " | " +
+                lines[i + 2].strip() + " | " +
+                lines[i + 3].strip()
+            )
             formatted_lines.append(combined)
-            i += 3
+            i += 4
             continue
 
+        # General inline key or new paragraph block
         if ':' in lines[i]:
             key, value = lines[i].split(':', 1)
             full_key = f"{key.strip()}:"
@@ -159,59 +185,10 @@ def reformat_assets(text):
                     formatted_lines.append(formatter(value))
         else:
             formatted_lines.append(lines[i])
+
         i += 1
+
     return '\n'.join(formatted_lines)
-
-# Format Report & Section Tables
-def collapse_table_blocks(text):
-    lines = text.split("\n")
-    output = []
-    i = 0
-    while i < len(lines):
-        line = lines[i].strip()
-
-        # Match Section Table block
-        if (
-            line.startswith("Section Title:") and
-            i + 3 < len(lines) and
-            lines[i + 1].strip().startswith("Section Makeup:") and
-            lines[i + 2].strip().startswith("Section Change:") and
-            lines[i + 3].strip().startswith("Section Effect:")
-        ):
-            output.append("")  # blank line before block
-            output.append(lines[i].strip())
-            combined = (
-                lines[i + 1].strip() + " | " +
-                lines[i + 2].strip() + " | " +
-                lines[i + 3].strip()
-            )
-            output.append(combined)
-            i += 4
-            continue
-
-        # Match Sub-Section Table block
-        if (
-            line.startswith("Sub-Section Title:") and
-            i + 3 < len(lines) and
-            lines[i + 1].strip().startswith("Sub-Section Makeup:") and
-            lines[i + 2].strip().startswith("Sub-Section Change:") and
-            lines[i + 3].strip().startswith("Sub-Section Effect:")
-        ):
-            output.append("")  # blank line before block
-            output.append(lines[i].strip())
-            combined = (
-                lines[i + 1].strip() + " | " +
-                lines[i + 2].strip() + " | " +
-                lines[i + 3].strip()
-            )
-            output.append(combined)
-            i += 4
-            continue
-
-        output.append(lines[i])
-        i += 1
-
-    return "\n".join(output)
 
 # Format full report
 def run_prompt(data):
@@ -252,8 +229,7 @@ Year:
 {year}
 
 """
-        collapsed_text = collapse_table_blocks(combine_text)
-        final_text = f"{header}{collapsed_text.strip()}"
+        final_text = f"{header}{combine_text.strip()}"
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/New_Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_text)
         logger.info(f"✅ New formatted file written to: {supabase_path}")
