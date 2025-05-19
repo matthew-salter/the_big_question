@@ -40,7 +40,7 @@ def indent_block_content(text, start_marker, end_marker):
         rf'({re.escape(start_marker)}\n)(.*?)(?=\n{re.escape(end_marker)})',
         re.DOTALL
     )
-    
+
     def replacer(match):
         header = match.group(1)
         block_content = match.group(2)
@@ -48,6 +48,46 @@ def indent_block_content(text, start_marker, end_marker):
         return header + indented
 
     return re.sub(pattern, replacer, text)
+
+# Reformat asset blocks
+def reformat_assets(text):
+    inline_keys = {
+        "Section #:", "Section Makeup:", "Section Change:", "Section Effect:",
+        "Sub-Section #:", "Sub-Section Makeup:", "Sub-Section Change:", "Sub-Section Effect:"
+    }
+
+    lines = text.split('\n')
+    formatted_lines = []
+    inside_table_block = False
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+
+        # Detect start/end of Report or Section Tables
+        if stripped in {"Report Table:", "Section Tables:"}:
+            inside_table_block = True
+        elif stripped.startswith("Section #:") or stripped.startswith("Sub-Section #:"):
+            inside_table_block = False
+
+        # Skip changes inside table blocks
+        if inside_table_block or not stripped:
+            formatted_lines.append(line)
+            continue
+
+        # Break inline values unless key is in exception list
+        if ':' in line:
+            key, value = line.split(':', 1)
+            full_key = f"{key.strip()}:"
+            if full_key in inline_keys:
+                formatted_lines.append(line)
+            else:
+                formatted_lines.append(f"\n{full_key}")
+                if value.strip():
+                    formatted_lines.append(value.strip())
+        else:
+            formatted_lines.append(line)
+
+    return '\n'.join(formatted_lines)
 
 # Format full report
 def run_prompt(data):
@@ -73,7 +113,10 @@ def run_prompt(data):
         combine_text = indent_block_content(combine_text, "Report Table:", "Section #:")
         combine_text = indent_block_content(combine_text, "Section Tables:", "Sub-Section #:")
 
-        # Assemble output
+        # Step 3: Apply line-break rules for all other assets
+        combine_text = reformat_assets(combine_text)
+
+        # Step 4: Assemble output
         header = f"""Client:
 {client}
 
