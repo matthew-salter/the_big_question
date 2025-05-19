@@ -10,6 +10,9 @@ def clean_text_block(text: str) -> str:
     cleaned_lines = [line.strip() for line in lines if line.strip()]
     return '\\n'.join(cleaned_lines)
 
+def normalise_key(key: str) -> str:
+    return key.replace("MakeUp", "Makeup")
+
 def parse_hierarchical_blocks(blocks: dict) -> dict:
     structure = defaultdict(lambda: {
         "meta": {},
@@ -17,7 +20,6 @@ def parse_hierarchical_blocks(blocks: dict) -> dict:
     })
     current_section = None
     current_sub = None
-    active_block = None
 
     for label, text in blocks.items():
         lines = text.split('\\n')
@@ -31,7 +33,7 @@ def parse_hierarchical_blocks(blocks: dict) -> dict:
                 continue
             elif ":" in line:
                 key, value = line.split(":", 1)
-                key = key.strip()
+                key = normalise_key(key.strip())
                 value = value.strip()
                 if current_section is not None:
                     if current_sub is not None:
@@ -94,7 +96,7 @@ def extract_key_value_pairs_by_block(blocks: dict) -> dict:
 
             if ':' in line:
                 key, value = line.split(':', 1)
-                key = key.strip()
+                key = normalise_key(key.strip())
                 value = value.strip()
                 if current_key:
                     kv_pairs[current_key] = '\\n'.join(current_value).strip()
@@ -209,3 +211,4 @@ def run_prompt(data: dict) -> dict:
             "status": "error",
             "message": str(e)
         }
+
