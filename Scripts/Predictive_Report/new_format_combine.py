@@ -34,11 +34,27 @@ def convert_to_british_english(text):
     pattern = r'\b(' + '|'.join(re.escape(word) for word in american_to_british.keys()) + r')\b'
     return re.sub(pattern, replace_match, text, flags=re.IGNORECASE)
 
+# Indent block content
+def indent_block_content(text, start_marker, end_marker):
+    pattern = re.compile(
+        rf'({re.escape(start_marker)}\n)(.*?)(?=\n{re.escape(end_marker)})',
+        re.DOTALL
+    )
+    
+    def replacer(match):
+        header = match.group(1)
+        block_content = match.group(2)
+        indented = '\n'.join(['\t' + line if line.strip() else '' for line in block_content.split('\n')])
+        return header + indented
+
+    return re.sub(pattern, replacer, text)
+
 # Format full report
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
 
+        # Extract fields
         client = data.get("client", "").strip()
         website = data.get("client_website_url", "").strip()
         context = data.get("client_context", "").strip()
@@ -49,12 +65,15 @@ def run_prompt(data):
 
         if not combine:
             raise ValueError("Missing 'combine' content in input data.")
-        
-        logger.info(f"✅ Combine payload received with {len(combine)} characters")
 
-        combine_british = convert_to_british_english(combine)
-        logger.info(f"✅ Combine converted to British English ({len(combine_british)} characters)")
+        # Step 1: Convert to British English
+        combine_text = convert_to_british_english(combine)
 
+        # Step 2: Isolate and indent Report Table and Section Table blocks
+        combine_text = indent_block_content(combine_text, "Report Table:", "Section #:")
+        combine_text = indent_block_content(combine_text, "Section Tables:", "Sub-Section #:")
+
+        # Assemble output
         header = f"""Client:
 {client}
 
@@ -74,16 +93,15 @@ Year:
 {year}
 
 """
+        final_text = f"{header}{combine_text.strip()}"
 
-        final_text = f"{header}{combine_british.strip()}"
-
+        # Write to Supabase
         supabase_path = f"The_Big_Question/Predictive_Report/Ai_Responses/New_Format_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, final_text)
-        logger.info(f"✅ Formatted file written to Supabase path: {supabase_path}")
+        logger.info(f"✅ New formatted file written to: {supabase_path}")
 
         try:
             content = read_supabase_file(supabase_path)
-            logger.info(f"✅ Read-back content successfully retrieved from Supabase")
         except Exception as e:
             logger.warning(f"⚠️ Could not read file back from Supabase: {e}")
             content = final_text
