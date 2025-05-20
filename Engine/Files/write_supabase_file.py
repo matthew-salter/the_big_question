@@ -6,7 +6,7 @@ from logger import logger
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_BUCKET = "panelitix"
 
-def write_supabase_file(path, content):
+def write_supabase_file(path, content, content_type=None):
     if not SUPABASE_URL:
         logger.error("❌ SUPABASE_URL is not set in environment variables.")
         raise ValueError("SUPABASE_URL not configured")
@@ -14,9 +14,9 @@ def write_supabase_file(path, content):
     url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}"
     headers = get_supabase_headers()
 
+    # --- Encode content ---
     if isinstance(content, str):
         try:
-            # Validate UTF-8 encoding explicitly
             data = content.encode("utf-8", errors="strict")
             logger.debug("📄 Content is valid UTF-8 string. Encoding before upload.")
         except UnicodeEncodeError as e:
@@ -28,9 +28,18 @@ def write_supabase_file(path, content):
     else:
         raise TypeError("❌ Content must be either str or bytes.")
 
-    # Ensure correct content-type with charset
-    headers["Content-Type"] = "text/plain; charset=utf-8"
+    # --- Determine Content-Type ---
+    if content_type:
+        headers["Content-Type"] = content_type
+        logger.debug(f"🧾 Custom Content-Type provided: {content_type}")
+    elif path.endswith(".csv"):
+        headers["Content-Type"] = "text/csv; charset=utf-8"
+        logger.debug("🧾 CSV file detected. Using Content-Type: text/csv")
+    else:
+        headers["Content-Type"] = "text/plain; charset=utf-8"
+        logger.debug("📑 Defaulting to Content-Type: text/plain")
 
+    # --- Upload to Supabase ---
     try:
         logger.info(f"🚀 Attempting Supabase file write to: {url}")
         logger.debug(f"📦 Upload headers: {headers}")
