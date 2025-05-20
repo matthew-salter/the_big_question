@@ -223,7 +223,10 @@ def reformat_assets(text):
             if full_key in inline_keys:
                 formatted_lines.append(lines[i])
             else:
-                formatted_lines.append(f"\n{full_key}")
+                # Add a blank line before the key only if previous line is not already blank
+                if formatted_lines and formatted_lines[-1].strip() != "":
+                    formatted_lines.append("")
+                formatted_lines.append(f"{full_key}")
                 if value:
                     formatter = asset_formatters.get(key.strip(), lambda x: x)
                     formatted_lines.append(formatter(value))
