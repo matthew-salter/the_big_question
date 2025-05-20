@@ -27,6 +27,8 @@ def parse_section_1_and_subsections(text: str):
         "section_recommendation": re.search(r"Section Recommendation:\n(.*?)\n", text).group(1).strip(),
         "section_related_article_title": re.search(r"Section Related Article Title:\n(.*?)\n", text).group(1).strip(),
         "section_related_article_date": re.search(r"Section Related Article Date:\n(.*?)\n", text).group(1).strip(),
+        "section_related_article_summary": re.search(r"Section Related Article Summary:\n(.*?)\n", text).group(1).strip(),
+        "section_related_article_relevance": re.search(r"Section Related Article Relevance:\n(.*?)\n", text).group(1).strip(),
         "section_related_article_source": re.search(r"Section Related Article Source:\n(.*?)\n", text).group(1).strip()
     }
     rows.append(section_row)
@@ -42,6 +44,8 @@ def parse_section_1_and_subsections(text: str):
         r"Sub-Section Statistic:\n(.*?)\n.*?"
         r"Sub-Section Related Article Title:\n(.*?)\n.*?"
         r"Sub-Section Related Article Date:\n(.*?)\n.*?"
+        r"Sub-Section Related Article Summary:\n(.*?)\n.*?"
+        r"Sub-Section Related Article Relevance:\n(.*?)\n.*?"
         r"Sub-Section Related Article Source:\n(.*?)\n",
         text, re.DOTALL
     )
@@ -59,7 +63,9 @@ def parse_section_1_and_subsections(text: str):
             "sub_section_statistic": s[8].strip(),
             "sub_section_related_article_title": s[9].strip(),
             "sub_section_related_article_date": s[10].strip(),
-            "sub_section_related_article_source": s[11].strip()
+            "sub_section_related_article_summary": s[11].strip(),
+            "sub_section_related_article_relevance": s[12].strip(),
+            "sub_section_related_article_source": s[13].strip()
         })
 
     return rows
@@ -77,24 +83,25 @@ def run_prompt(payload):
     raw_text = payload.get("format_combine", "")
     rows = parse_section_1_and_subsections(raw_text)
 
-    # --- Prepare CSV in-memory ---
-    output = io.StringIO()
-    writer = csv.writer(output)
-
-    # --- Final column header layout (match your reference exactly) ---
+    # --- Final header structure (confirmed from user CSV example) ---
     header_order = [
         "section_no", "section_title", "section_header", "section_subheader", "section_theme",
         "section_summary", "section_makeup", "section_change", "section_effect",
         "section_insight", "section_statistic", "section_recommendation",
-        "section_related_article_title", "section_related_article_date", "section_related_article_source",
+        "section_related_article_title", "section_related_article_date",
+        "section_related_article_summary", "section_related_article_relevance",
+        "section_related_article_source",
         "sub_section_no", "sub_section_title", "sub_section_header", "sub_section_subheader",
         "sub_section_summary", "sub_section_makeup", "sub_section_change", "sub_section_effect",
-        "sub_section_statistic", "sub_section_related_article_title",
-        "sub_section_related_article_date", "sub_section_related_article_source"
+        "sub_section_statistic", "sub_section_related_article_title", "sub_section_related_article_date",
+        "sub_section_related_article_summary", "sub_section_related_article_relevance",
+        "sub_section_related_article_source"
     ]
+
+    output = io.StringIO()
+    writer = csv.writer(output)
     writer.writerow(header_order)
 
-    # --- Compose rows with section data repeated on each sub-section row ---
     section_data = {k: v for k, v in rows[0].items() if k.startswith("section_")}
 
     if len(rows) > 1:
@@ -103,15 +110,11 @@ def run_prompt(payload):
             combined.update(row)
             writer.writerow([combined.get(col, "") for col in header_order])
     else:
-        # If no sub-sections exist, write a single section-only row
         writer.writerow([section_data.get(col, "") for col in header_order])
 
     csv_bytes = output.getvalue().encode("utf-8")
 
-    # --- Upload to Supabase ---
     write_supabase_file(path=file_path, content=csv_bytes, content_type="text/csv")
-
-    # --- Read the uploaded CSV back as text ---
     csv_text = read_supabase_file(path=file_path, binary=False)
 
     return {
