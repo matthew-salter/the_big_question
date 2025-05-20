@@ -119,7 +119,7 @@ def reformat_assets(text):
     while i < len(lines):
         stripped = lines[i].strip()
 
-        # Track entry/exit of table blocks
+        # Block tracking
         if stripped in {"Report Table:", "Section Tables:"}:
             inside_table_block = True
             formatted_lines.append(stripped)
@@ -128,7 +128,40 @@ def reformat_assets(text):
         elif stripped.startswith("Section #:") or stripped.startswith("Sub-Section #:"):
             inside_table_block = False
 
-        # Collapse Section Makeup + Change + Effect
+        # CASE A: Report Table / Section Tables – preserve default 3-line format
+        if (
+            inside_table_block and
+            i + 3 < len(lines) and
+            stripped.startswith("Section Title:") and
+            lines[i + 1].strip().startswith("Section Makeup:") and
+            lines[i + 2].strip().startswith("Section Change:") and
+            lines[i + 3].strip().startswith("Section Effect:")
+        ):
+            formatted_lines.append("")
+            formatted_lines.append(lines[i].strip())
+            formatted_lines.append(lines[i + 1].strip())
+            formatted_lines.append(lines[i + 2].strip())
+            formatted_lines.append(lines[i + 3].strip())
+            i += 4
+            continue
+
+        if (
+            inside_table_block and
+            i + 3 < len(lines) and
+            stripped.startswith("Sub-Section Title:") and
+            lines[i + 1].strip().startswith("Sub-Section Makeup:") and
+            lines[i + 2].strip().startswith("Sub-Section Change:") and
+            lines[i + 3].strip().startswith("Sub-Section Effect:")
+        ):
+            formatted_lines.append("")
+            formatted_lines.append(lines[i].strip())
+            formatted_lines.append(lines[i + 1].strip())
+            formatted_lines.append(lines[i + 2].strip())
+            formatted_lines.append(lines[i + 3].strip())
+            i += 4
+            continue
+
+        # CASE B: Outside tables – collapse Makeup | Change | Effect
         if (
             not inside_table_block and
             i + 2 < len(lines) and
@@ -146,7 +179,6 @@ def reformat_assets(text):
             i += 3
             continue
 
-        # Collapse Sub-Section Makeup + Change + Effect
         if (
             not inside_table_block and
             i + 2 < len(lines) and
@@ -164,7 +196,7 @@ def reformat_assets(text):
             i += 3
             continue
 
-        # Normal asset formatting logic
+        # Default formatting
         if ':' in lines[i]:
             key, value = lines[i].split(':', 1)
             full_key = f"{key.strip()}:"
