@@ -72,7 +72,10 @@ def parse_sections_and_subsections(text: str):
                 "sub_section_related_article_relevance": re.search(r"Sub-Section Related Article Relevance:\n(.*?)\n", sub),
                 "sub_section_related_article_source": re.search(r"Sub-Section Related Article Source:\n(.*?)\n", sub),
             }
-            sub_data = {k: (v.group(1).strip() if v else "") for k, v in sub_data.items()}
+            section_data = {
+                k: (v.strip() if isinstance(v, str) else v.group(1).strip()) if v else ""
+                for k, v in section_data.items()
+            }
 
             # Combine and append
             row = {**section_data, **sub_data}
