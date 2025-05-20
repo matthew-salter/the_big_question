@@ -113,24 +113,36 @@ def reformat_assets(text):
     }
     lines = text.split('\n')
     formatted_lines = []
-    inside_table_block = False
+    inside_report_table = False
+    inside_section_tables = False
     i = 0
 
     while i < len(lines):
         stripped = lines[i].strip()
 
-        # Block tracking
-        if stripped in {"Report Table:", "Section Tables:"}:
-            inside_table_block = True
+        # --- Block scope entry ---
+        if stripped == "Report Table:":
+            inside_report_table = True
+            inside_section_tables = False
             formatted_lines.append(stripped)
             i += 1
             continue
-        elif stripped.startswith("Section #:") or stripped.startswith("Sub-Section #:"):
-            inside_table_block = False
 
-        # CASE A: Report Table / Section Tables – preserve default 3-line format
+        if stripped == "Section Tables:":
+            inside_report_table = False
+            inside_section_tables = True
+            formatted_lines.append(stripped)
+            i += 1
+            continue
+
+        # --- Block scope exit ---
+        if stripped.startswith("Section #:") or stripped.startswith("Sub-Section #:"):
+            inside_report_table = False
+            inside_section_tables = False
+
+        # --- Format Report Table entries ---
         if (
-            inside_table_block and
+            inside_report_table and
             i + 3 < len(lines) and
             stripped.startswith("Section Title:") and
             lines[i + 1].strip().startswith("Section Makeup:") and
@@ -139,14 +151,18 @@ def reformat_assets(text):
         ):
             formatted_lines.append("")
             formatted_lines.append(lines[i].strip())
-            formatted_lines.append(lines[i + 1].strip())
-            formatted_lines.append(lines[i + 2].strip())
-            formatted_lines.append(lines[i + 3].strip())
+            combined = (
+                lines[i + 1].strip() + " | " +
+                lines[i + 2].strip() + " | " +
+                lines[i + 3].strip()
+            )
+            formatted_lines.append(combined)
             i += 4
             continue
 
+        # --- Format Section Tables entries ---
         if (
-            inside_table_block and
+            inside_section_tables and
             i + 3 < len(lines) and
             stripped.startswith("Sub-Section Title:") and
             lines[i + 1].strip().startswith("Sub-Section Makeup:") and
@@ -155,15 +171,18 @@ def reformat_assets(text):
         ):
             formatted_lines.append("")
             formatted_lines.append(lines[i].strip())
-            formatted_lines.append(lines[i + 1].strip())
-            formatted_lines.append(lines[i + 2].strip())
-            formatted_lines.append(lines[i + 3].strip())
+            combined = (
+                lines[i + 1].strip() + " | " +
+                lines[i + 2].strip() + " | " +
+                lines[i + 3].strip()
+            )
+            formatted_lines.append(combined)
             i += 4
             continue
 
-        # CASE B: Outside tables – collapse Makeup | Change | Effect
+        # --- Format outside tables: combine Section Makeup + Change + Effect only ---
         if (
-            not inside_table_block and
+            not inside_report_table and not inside_section_tables and
             i + 2 < len(lines) and
             stripped.startswith("Section Makeup:") and
             lines[i + 1].strip().startswith("Section Change:") and
@@ -180,7 +199,7 @@ def reformat_assets(text):
             continue
 
         if (
-            not inside_table_block and
+            not inside_report_table and not inside_section_tables and
             i + 2 < len(lines) and
             stripped.startswith("Sub-Section Makeup:") and
             lines[i + 1].strip().startswith("Sub-Section Change:") and
@@ -195,6 +214,25 @@ def reformat_assets(text):
             formatted_lines.append(combined)
             i += 3
             continue
+
+        # --- Standard formatting ---
+        if ':' in lines[i]:
+            key, value = lines[i].split(':', 1)
+            full_key = f"{key.strip()}:"
+            value = value.strip()
+            if full_key in inline_keys:
+                formatted_lines.append(lines[i])
+            else:
+                formatted_lines.append(f"\n{full_key}")
+                if value:
+                    formatter = asset_formatters.get(key.strip(), lambda x: x)
+                    formatted_lines.append(formatter(value))
+        else:
+            formatted_lines.append(lines[i])
+
+        i += 1
+
+    return '\n'.join(formatted_lines)
 
         # Default formatting
         if ':' in lines[i]:
