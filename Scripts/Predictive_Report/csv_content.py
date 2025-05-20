@@ -7,10 +7,12 @@ from Engine.Files.read_supabase_file import read_supabase_file
 from logger import logger
 
 def strip_excluded_blocks(text):
-    # Remove content between 'Report Table:' and next 'Section #:'
-    text = re.sub(r"Report Table:(.*?)Section #:", "", text, flags=re.DOTALL)
-    # Remove content between 'Section Tables:' and next 'Sub-Section #:'
-    text = re.sub(r"Section Tables:(.*?)Sub-Section #:", "", text, flags=re.DOTALL)
+    # Remove content *after* "Report Table:" up to but not including next "Section #:"
+    text = re.sub(r"(Report Table:\n)(.*?)(?=\nSection #:)", r"\1", text, flags=re.DOTALL)
+    
+    # Remove content *after* "Section Tables:" up to but not including next "Sub-Section #:"
+    text = re.sub(r"(Section Tables:\n)(.*?)(?=\nSub-Section #:)", r"\1", text, flags=re.DOTALL)
+    
     return text
 
 def parse_section_1_and_subsections(text: str):
