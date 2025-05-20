@@ -46,7 +46,7 @@ def extract_sections(text):
 def extract_subsections(text):
     subsections = []
     pattern = re.compile(
-        r"Sub-Section #: (\d+)\.(\d).*?"
+        r"Sub-Section #: (\d+)\.(\d+)\n.*?"
         r"Sub-Section Title:\n(.*?)\n.*?"
         r"Sub-Section Header:\n(.*?)\n.*?"
         r"Sub-Section Sub-Header:\n(.*?)\n.*?"
@@ -63,8 +63,8 @@ def extract_subsections(text):
     matches = pattern.findall(text)
     for match in matches:
         subsections.append({
-            "section_no": match[0],
-            "sub_section_no": f"{match[0]}.{match[1]}",
+            "section_no": match[0].strip(),
+            "sub_section_no": f"{match[0].strip()}.{match[1].strip()}",
             "sub_section_title": match[2].strip(),
             "sub_section_header": match[3].strip(),
             "sub_section_subheader": match[4].strip(),
@@ -99,6 +99,9 @@ def run_prompt(payload):
     rows = []
     for sub in subsections:
         sec = sections.get(sub["section_no"], {})
+        if not sec:
+            logger.warning(f"⚠️ No matching section found for sub-section {sub['sub_section_no']}")
+            continue
         row = {**sec, **sub}
         rows.append(row)
 
