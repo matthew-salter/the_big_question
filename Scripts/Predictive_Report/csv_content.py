@@ -81,15 +81,30 @@ def run_prompt(payload):
     output = io.StringIO()
     writer = csv.writer(output)
 
-    # --- Write headers (union of section and sub-section keys) ---
-    all_keys = set()
-    for row in rows:
-        all_keys.update(row.keys())
-    header_order = sorted(all_keys)  # Ensure stable order
-
+    # --- Final column header layout (match your reference exactly) ---
+    header_order = [
+        "section_no", "section_title", "section_header", "section_subheader", "section_theme",
+        "section_summary", "section_makeup", "section_change", "section_effect",
+        "section_insight", "section_statistic", "section_recommendation",
+        "section_related_article_title", "section_related_article_date", "section_related_article_source",
+        "sub_section_no", "sub_section_title", "sub_section_header", "sub_section_subheader",
+        "sub_section_summary", "sub_section_makeup", "sub_section_change", "sub_section_effect",
+        "sub_section_statistic", "sub_section_related_article_title",
+        "sub_section_related_article_date", "sub_section_related_article_source"
+    ]
     writer.writerow(header_order)
-    for row in rows:
-        writer.writerow([row.get(col, "") for col in header_order])
+
+    # --- Compose rows with section data repeated on each sub-section row ---
+    section_data = {k: v for k, v in rows[0].items() if k.startswith("section_")}
+
+    if len(rows) > 1:
+        for row in rows[1:]:
+            combined = section_data.copy()
+            combined.update(row)
+            writer.writerow([combined.get(col, "") for col in header_order])
+    else:
+        # If no sub-sections exist, write a single section-only row
+        writer.writerow([section_data.get(col, "") for col in header_order])
 
     csv_bytes = output.getvalue().encode("utf-8")
 
