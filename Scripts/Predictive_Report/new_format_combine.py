@@ -115,9 +115,11 @@ def reformat_assets(text):
     formatted_lines = []
     inside_table_block = False
     i = 0
+
     while i < len(lines):
         stripped = lines[i].strip()
 
+        # Track entry/exit of table blocks
         if stripped in {"Report Table:", "Section Tables:"}:
             inside_table_block = True
             formatted_lines.append(stripped)
@@ -126,42 +128,43 @@ def reformat_assets(text):
         elif stripped.startswith("Section #:") or stripped.startswith("Sub-Section #:"):
             inside_table_block = False
 
+        # Collapse Section Makeup + Change + Effect
         if (
-            stripped.startswith("Section Title:") and 
-            i + 3 < len(lines) and
-            lines[i + 1].strip().startswith("Section Makeup:") and
-            lines[i + 2].strip().startswith("Section Change:") and
-            lines[i + 3].strip().startswith("Section Effect:")
+            not inside_table_block and
+            i + 2 < len(lines) and
+            stripped.startswith("Section Makeup:") and
+            lines[i + 1].strip().startswith("Section Change:") and
+            lines[i + 2].strip().startswith("Section Effect:")
         ):
             formatted_lines.append("")
-            formatted_lines.append(lines[i].strip())
             combined = (
+                lines[i].strip() + " | " +
                 lines[i + 1].strip() + " | " +
-                lines[i + 2].strip() + " | " +
-                lines[i + 3].strip()
+                lines[i + 2].strip()
             )
             formatted_lines.append(combined)
-            i += 4
+            i += 3
             continue
 
+        # Collapse Sub-Section Makeup + Change + Effect
         if (
-            stripped.startswith("Sub-Section Title:") and 
-            i + 3 < len(lines) and
-            lines[i + 1].strip().startswith("Sub-Section Makeup:") and
-            lines[i + 2].strip().startswith("Sub-Section Change:") and
-            lines[i + 3].strip().startswith("Sub-Section Effect:")
+            not inside_table_block and
+            i + 2 < len(lines) and
+            stripped.startswith("Sub-Section Makeup:") and
+            lines[i + 1].strip().startswith("Sub-Section Change:") and
+            lines[i + 2].strip().startswith("Sub-Section Effect:")
         ):
             formatted_lines.append("")
-            formatted_lines.append(lines[i].strip())
             combined = (
+                lines[i].strip() + " | " +
                 lines[i + 1].strip() + " | " +
-                lines[i + 2].strip() + " | " +
-                lines[i + 3].strip()
+                lines[i + 2].strip()
             )
             formatted_lines.append(combined)
-            i += 4
+            i += 3
             continue
 
+        # Normal asset formatting logic
         if ':' in lines[i]:
             key, value = lines[i].split(':', 1)
             full_key = f"{key.strip()}:"
