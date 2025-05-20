@@ -7,7 +7,7 @@ from Engine.Files.read_supabase_file import read_supabase_file
 from logger import logger
 
 def strip_excluded_blocks(text):
-    # Preserve labels but remove in-between visual content
+    # Preserve labels but remove visual filler blocks
     text = re.sub(r"(Report Table:\n)(.*?)(?=\nSection #:)", r"\1", text, flags=re.DOTALL)
     text = re.sub(r"(Section Tables:\n)(.*?)(?=\nSub-Section #:)", r"\1", text, flags=re.DOTALL)
     return text
@@ -16,17 +16,16 @@ def parse_sections_and_subsections(text: str):
     text = strip_excluded_blocks(text)
     rows = []
 
-    # Split entire text into Section blocks
+    # Split into sections
     section_blocks = re.split(r"\n(?=Section #: \d+)", text)
 
     for block in section_blocks:
-        # Parse Section number
         section_no_match = re.search(r"Section #: (\d+)", block)
         if not section_no_match:
             continue
         section_no = section_no_match.group(1)
 
-        # Extract Section-level fields
+        # Section-level fields (regex match objects)
         section_data = {
             "section_no": section_no,
             "section_title": re.search(r"Section Title:\n(.*?)\n", block),
@@ -46,9 +45,14 @@ def parse_sections_and_subsections(text: str):
             "section_related_article_relevance": re.search(r"Section Related Article Relevance:\n(.*?)\n", block),
             "section_related_article_source": re.search(r"Section Related Article Source:\n(.*?)\n", block),
         }
-        section_data = {k: (v.group(1).strip() if v else "") for k, v in section_data.items()}
 
-        # Split block into Sub-Section chunks
+        # Safe type-aware .group(1)
+        section_data = {
+            k: (v.strip() if isinstance(v, str) else v.group(1).strip()) if v else ""
+            for k, v in section_data.items()
+        }
+
+        # Now get each Sub-Section inside this block
         sub_blocks = re.split(r"\n(?=Sub-Section #: \d+\.\d+)", block)
 
         for sub in sub_blocks:
@@ -72,12 +76,12 @@ def parse_sections_and_subsections(text: str):
                 "sub_section_related_article_relevance": re.search(r"Sub-Section Related Article Relevance:\n(.*?)\n", sub),
                 "sub_section_related_article_source": re.search(r"Sub-Section Related Article Source:\n(.*?)\n", sub),
             }
-            section_data = {
+
+            sub_data = {
                 k: (v.strip() if isinstance(v, str) else v.group(1).strip()) if v else ""
-                for k, v in section_data.items()
+                for k, v in sub_data.items()
             }
 
-            # Combine and append
             row = {**section_data, **sub_data}
             rows.append(row)
 
