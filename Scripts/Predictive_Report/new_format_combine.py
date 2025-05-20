@@ -234,25 +234,6 @@ def reformat_assets(text):
 
     return '\n'.join(formatted_lines)
 
-        # Default formatting
-        if ':' in lines[i]:
-            key, value = lines[i].split(':', 1)
-            full_key = f"{key.strip()}:"
-            value = value.strip()
-            if full_key in inline_keys:
-                formatted_lines.append(lines[i])
-            else:
-                formatted_lines.append(f"\n{full_key}")
-                if value:
-                    formatter = asset_formatters.get(key.strip(), lambda x: x)
-                    formatted_lines.append(formatter(value))
-        else:
-            formatted_lines.append(lines[i])
-
-        i += 1
-
-    return '\n'.join(formatted_lines)
-
 # Format full report
 def run_prompt(data):
     try:
