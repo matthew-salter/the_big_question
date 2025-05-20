@@ -7,81 +7,76 @@ from Engine.Files.read_supabase_file import read_supabase_file
 from logger import logger
 
 def strip_excluded_blocks(text):
-    # Keep labels, only remove content in between Report Table and Section #, and Section Tables and Sub-Section #
+    # Preserve labels but remove in-between visual content
     text = re.sub(r"(Report Table:\n)(.*?)(?=\nSection #:)", r"\1", text, flags=re.DOTALL)
     text = re.sub(r"(Section Tables:\n)(.*?)(?=\nSub-Section #:)", r"\1", text, flags=re.DOTALL)
     return text
 
-def parse_all_sections_and_subsections(text: str):
+def parse_sections_and_subsections(text: str):
     text = strip_excluded_blocks(text)
     rows = []
 
-    # Split by sections
-    section_blocks = re.split(r"(Section #: \d+)", text)
-    section_pairs = [(section_blocks[i], section_blocks[i+1]) for i in range(1, len(section_blocks), 2)]
+    # Split entire text into Section blocks
+    section_blocks = re.split(r"\n(?=Section #: \d+)", text)
 
-    for label, content in section_pairs:
-        section_no_match = re.search(r"\d+", label)
-        section_no = section_no_match.group(0) if section_no_match else ""
+    for block in section_blocks:
+        # Parse Section number
+        section_no_match = re.search(r"Section #: (\d+)", block)
+        if not section_no_match:
+            continue
+        section_no = section_no_match.group(1)
 
-        section_raw = {
-            "section_title": re.search(r"Section Title:\n(.*?)\n", content),
-            "section_header": re.search(r"Section Header:\n(.*?)\n", content),
-            "section_subheader": re.search(r"Section Sub-Header:\n(.*?)\n", content),
-            "section_theme": re.search(r"Section Theme:\n(.*?)\n", content),
-            "section_summary": re.search(r"Section Summary:\n(.*?)\nSection Makeup:", content, re.DOTALL),
-            "section_makeup": re.search(r"Section Makeup: (.*?) \|", content),
-            "section_change": re.search(r"Section Change: ([\+\-]?\d+\.\d+%)", content),
-            "section_effect": re.search(r"Section Effect: ([\+\-]?\d+\.\d+%)", content),
-            "section_insight": re.search(r"Section Insight:\n(.*?)\n", content),
-            "section_statistic": re.search(r"Section Statistic:\n(.*?)\n", content),
-            "section_recommendation": re.search(r"Section Recommendation:\n(.*?)\n", content),
-            "section_related_article_title": re.search(r"Section Related Article Title:\n(.*?)\n", content),
-            "section_related_article_date": re.search(r"Section Related Article Date:\n(.*?)\n", content),
-            "section_related_article_summary": re.search(r"Section Related Article Summary:\n(.*?)\n", content),
-            "section_related_article_relevance": re.search(r"Section Related Article Relevance:\n(.*?)\n", content),
-            "section_related_article_source": re.search(r"Section Related Article Source:\n(.*?)\n", content)
+        # Extract Section-level fields
+        section_data = {
+            "section_no": section_no,
+            "section_title": re.search(r"Section Title:\n(.*?)\n", block),
+            "section_header": re.search(r"Section Header:\n(.*?)\n", block),
+            "section_subheader": re.search(r"Section Sub-Header:\n(.*?)\n", block),
+            "section_theme": re.search(r"Section Theme:\n(.*?)\n", block),
+            "section_summary": re.search(r"Section Summary:\n(.*?)\nSection Makeup:", block, re.DOTALL),
+            "section_makeup": re.search(r"Section Makeup: (.*?) \|", block),
+            "section_change": re.search(r"Section Change: ([\+\-]?\d+\.\d+%)", block),
+            "section_effect": re.search(r"Section Effect: ([\+\-]?\d+\.\d+%)", block),
+            "section_insight": re.search(r"Section Insight:\n(.*?)\n", block),
+            "section_statistic": re.search(r"Section Statistic:\n(.*?)\n", block),
+            "section_recommendation": re.search(r"Section Recommendation:\n(.*?)\n", block),
+            "section_related_article_title": re.search(r"Section Related Article Title:\n(.*?)\n", block),
+            "section_related_article_date": re.search(r"Section Related Article Date:\n(.*?)\n", block),
+            "section_related_article_summary": re.search(r"Section Related Article Summary:\n(.*?)\n", block),
+            "section_related_article_relevance": re.search(r"Section Related Article Relevance:\n(.*?)\n", block),
+            "section_related_article_source": re.search(r"Section Related Article Source:\n(.*?)\n", block),
         }
-        section_data = {"section_no": section_no}
-        section_data.update({k: (v.group(1).strip() if v else "") for k, v in section_raw.items()})
+        section_data = {k: (v.group(1).strip() if v else "") for k, v in section_data.items()}
 
-        # Match all sub-sections inside this section
-        sub_matches = re.findall(
-            r"Sub-Section #: (\d+\.\d+).*?"
-            r"Sub-Section Title:\n(.*?)\n.*?"
-            r"Sub-Section Header:\n(.*?)\n.*?"
-            r"Sub-Section Sub-Header:\n(.*?)\n.*?"
-            r"Sub-Section Summary:\n(.*?)\nSub-Section Makeup: (.*?) \| "
-            r"Sub-Section Change: ([\+\-]?\d+\.\d+%) \| Sub-Section Effect: ([\+\-]?\d+\.\d+%)\n.*?"
-            r"Sub-Section Statistic:\n(.*?)\n.*?"
-            r"Sub-Section Related Article Title:\n(.*?)\n.*?"
-            r"Sub-Section Related Article Date:\n(.*?)\n.*?"
-            r"Sub-Section Related Article Summary:\n(.*?)\n.*?"
-            r"Sub-Section Related Article Relevance:\n(.*?)\n.*?"
-            r"Sub-Section Related Article Source:\n(.*?)\n",
-            content,
-            flags=re.DOTALL
-        )
+        # Split block into Sub-Section chunks
+        sub_blocks = re.split(r"\n(?=Sub-Section #: \d+\.\d+)", block)
 
-        for match in sub_matches:
+        for sub in sub_blocks:
+            sub_match = re.search(r"Sub-Section #: (\d+\.\d+)", sub)
+            if not sub_match:
+                continue
+
             sub_data = {
-                "sub_section_no": match[0],
-                "sub_section_title": match[1],
-                "sub_section_header": match[2],
-                "sub_section_subheader": match[3],
-                "sub_section_summary": match[4],
-                "sub_section_makeup": match[5],
-                "sub_section_change": match[6],
-                "sub_section_effect": match[7],
-                "sub_section_statistic": match[8],
-                "sub_section_related_article_title": match[9],
-                "sub_section_related_article_date": match[10],
-                "sub_section_related_article_summary": match[11],
-                "sub_section_related_article_relevance": match[12],
-                "sub_section_related_article_source": match[13]
+                "sub_section_no": sub_match.group(1),
+                "sub_section_title": re.search(r"Sub-Section Title:\n(.*?)\n", sub),
+                "sub_section_header": re.search(r"Sub-Section Header:\n(.*?)\n", sub),
+                "sub_section_subheader": re.search(r"Sub-Section Sub-Header:\n(.*?)\n", sub),
+                "sub_section_summary": re.search(r"Sub-Section Summary:\n(.*?)\nSub-Section Makeup:", sub, re.DOTALL),
+                "sub_section_makeup": re.search(r"Sub-Section Makeup: (.*?) \|", sub),
+                "sub_section_change": re.search(r"Sub-Section Change: ([\+\-]?\d+\.\d+%)", sub),
+                "sub_section_effect": re.search(r"Sub-Section Effect: ([\+\-]?\d+\.\d+%)", sub),
+                "sub_section_statistic": re.search(r"Sub-Section Statistic:\n(.*?)\n", sub),
+                "sub_section_related_article_title": re.search(r"Sub-Section Related Article Title:\n(.*?)\n", sub),
+                "sub_section_related_article_date": re.search(r"Sub-Section Related Article Date:\n(.*?)\n", sub),
+                "sub_section_related_article_summary": re.search(r"Sub-Section Related Article Summary:\n(.*?)\n", sub),
+                "sub_section_related_article_relevance": re.search(r"Sub-Section Related Article Relevance:\n(.*?)\n", sub),
+                "sub_section_related_article_source": re.search(r"Sub-Section Related Article Source:\n(.*?)\n", sub),
             }
-            combined = {**section_data, **sub_data}
-            rows.append(combined)
+            sub_data = {k: (v.group(1).strip() if v else "") for k, v in sub_data.items()}
+
+            # Combine and append
+            row = {**section_data, **sub_data}
+            rows.append(row)
 
     return rows
 
@@ -95,7 +90,7 @@ def run_prompt(payload):
     logger.debug(f"🗂️ Target Supabase path: {file_path}")
 
     raw_text = payload.get("format_combine", "")
-    rows = parse_all_sections_and_subsections(raw_text)
+    rows = parse_sections_and_subsections(raw_text)
 
     header_order = [
         "section_no", "section_title", "section_header", "section_subheader", "section_theme",
