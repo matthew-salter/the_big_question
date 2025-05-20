@@ -6,12 +6,17 @@ from Engine.Files.write_supabase_file import write_supabase_file
 from Engine.Files.read_supabase_file import read_supabase_file
 from logger import logger
 
+def strip_excluded_blocks(text):
+    # Remove content between 'Report Table:' and next 'Section #:'
+    text = re.sub(r"Report Table:(.*?)Section #:", "", text, flags=re.DOTALL)
+    # Remove content between 'Section Tables:' and next 'Sub-Section #:'
+    text = re.sub(r"Section Tables:(.*?)Sub-Section #:", "", text, flags=re.DOTALL)
+    return text
+
 def parse_section_1_and_subsections(text: str):
+    text = strip_excluded_blocks(text)
     rows = []
 
-    # -----------------------------
-    # Parse SECTION 1
-    # -----------------------------
     section_row = {
         "section_no": "1",
         "section_title": re.search(r"Section Title:\n(.*?)\n", text).group(1).strip(),
@@ -33,9 +38,6 @@ def parse_section_1_and_subsections(text: str):
     }
     rows.append(section_row)
 
-    # -----------------------------
-    # Parse SUB-SECTIONS 1.1–1.5
-    # -----------------------------
     sub_sections = re.findall(
         r"Sub-Section #: 1\.(\d+).*?Sub-Section Title:\n(.*?)\n.*?"
         r"Sub-Section Header:\n(.*?)\n.*?Sub-Section Sub-Header:\n(.*?)\n.*?"
@@ -70,7 +72,6 @@ def parse_section_1_and_subsections(text: str):
 
     return rows
 
-
 def run_prompt(payload):
     logger.info("📦 Running csv_content.py")
 
@@ -83,7 +84,6 @@ def run_prompt(payload):
     raw_text = payload.get("format_combine", "")
     rows = parse_section_1_and_subsections(raw_text)
 
-    # --- Final header structure (confirmed from user CSV example) ---
     header_order = [
         "section_no", "section_title", "section_header", "section_subheader", "section_theme",
         "section_summary", "section_makeup", "section_change", "section_effect",
@@ -113,7 +113,6 @@ def run_prompt(payload):
         writer.writerow([section_data.get(col, "") for col in header_order])
 
     csv_bytes = output.getvalue().encode("utf-8")
-
     write_supabase_file(path=file_path, content=csv_bytes, content_type="text/csv")
     csv_text = read_supabase_file(path=file_path, binary=False)
 
