@@ -14,7 +14,6 @@ def strip_excluded_blocks(text):
 def extract_sections(text):
     sections = {}
     section_blocks = re.findall(r"Section #: (\d+)(.*?)(?=(Section #: \d+|\Z))", text, re.DOTALL)
-
     for match in section_blocks:
         sec_num = match[0].strip()
         block = match[1]
@@ -45,40 +44,39 @@ def extract_sections(text):
 
 def extract_subsections(text):
     subsections = []
-    pattern = re.compile(
-        r"Sub-Section #: (\d+)\.(\d+)\n.*?"
-        r"Sub-Section Title:\n(.*?)\n.*?"
-        r"Sub-Section Header:\n(.*?)\n.*?"
-        r"Sub-Section Sub-Header:\n(.*?)\n.*?"
-        r"Sub-Section Summary:\n(.*?)\nSub-Section Makeup: (.*?) \| "
-        r"Sub-Section Change: ([\+\-]?\d+\.\d+%) \| Sub-Section Effect: ([\+\-]?\d+\.\d+%)\n.*?"
-        r"Sub-Section Statistic:\n(.*?)\n.*?"
-        r"Sub-Section Related Article Title:\n(.*?)\n.*?"
-        r"Sub-Section Related Article Date:\n(.*?)\n.*?"
-        r"Sub-Section Related Article Summary:\n(.*?)\n.*?"
-        r"Sub-Section Related Article Relevance:\n(.*?)\n.*?"
-        r"Sub-Section Related Article Source:\n(.*?)\n",
-        re.DOTALL
-    )
-    matches = pattern.findall(text)
-    for match in matches:
-        subsections.append({
-            "section_no": match[0].strip(),
-            "sub_section_no": f"{match[0].strip()}.{match[1].strip()}",
-            "sub_section_title": match[2].strip(),
-            "sub_section_header": match[3].strip(),
-            "sub_section_subheader": match[4].strip(),
-            "sub_section_summary": match[5].strip(),
-            "sub_section_makeup": match[6].strip(),
-            "sub_section_change": match[7].strip(),
-            "sub_section_effect": match[8].strip(),
-            "sub_section_statistic": match[9].strip(),
-            "sub_section_related_article_title": match[10].strip(),
-            "sub_section_related_article_date": match[11].strip(),
-            "sub_section_related_article_summary": match[12].strip(),
-            "sub_section_related_article_relevance": match[13].strip(),
-            "sub_section_related_article_source": match[14].strip()
-        })
+    blocks = re.split(r"(?=Sub-Section #: \d+\.\d+)\n", text)
+    for block in blocks:
+        match = re.search(r"Sub-Section #: (\d+)\.(\d+).*?"
+                          r"Sub-Section Title:\n(.*?)\n.*?"
+                          r"Sub-Section Header:\n(.*?)\n.*?"
+                          r"Sub-Section Sub-Header:\n(.*?)\n.*?"
+                          r"Sub-Section Summary:\n(.*?)\nSub-Section Makeup: (.*?) \| "
+                          r"Sub-Section Change: ([\+\-]?\d+\.\d+%) \| Sub-Section Effect: ([\+\-]?\d+\.\d+%)\n.*?"
+                          r"Sub-Section Statistic:\n(.*?)\n.*?"
+                          r"Sub-Section Related Article Title:\n(.*?)\n.*?"
+                          r"Sub-Section Related Article Date:\n(.*?)\n.*?"
+                          r"Sub-Section Related Article Summary:\n(.*?)\n.*?"
+                          r"Sub-Section Related Article Relevance:\n(.*?)\n.*?"
+                          r"Sub-Section Related Article Source:\n(.*?)\n",
+                          block, re.DOTALL)
+        if match:
+            subsections.append({
+                "section_no": match.group(1).strip(),
+                "sub_section_no": f"{match.group(1).strip()}.{match.group(2).strip()}",
+                "sub_section_title": match.group(3).strip(),
+                "sub_section_header": match.group(4).strip(),
+                "sub_section_subheader": match.group(5).strip(),
+                "sub_section_summary": match.group(6).strip(),
+                "sub_section_makeup": match.group(7).strip(),
+                "sub_section_change": match.group(8).strip(),
+                "sub_section_effect": match.group(9).strip(),
+                "sub_section_statistic": match.group(10).strip(),
+                "sub_section_related_article_title": match.group(11).strip(),
+                "sub_section_related_article_date": match.group(12).strip(),
+                "sub_section_related_article_summary": match.group(13).strip(),
+                "sub_section_related_article_relevance": match.group(14).strip(),
+                "sub_section_related_article_source": match.group(15).strip()
+            })
     return subsections
 
 def run_prompt(payload):
