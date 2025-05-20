@@ -11,21 +11,16 @@ def strip_excluded_blocks(text):
     text = re.sub(r"Section Tables:(.*?)Sub-Section #:", "", text, flags=re.DOTALL)
     return text
 
-def parse_all_sections_and_subsections(text: str):
-    text = strip_excluded_blocks(text)
-    rows = []
+def extract_sections(text):
+    sections = {}
+    section_blocks = re.findall(r"Section #: (\d+)(.*?)(?=(Section #: \d+|\Z))", text, re.DOTALL)
 
-    # Find all Section blocks
-    section_pattern = r"Section #: (\d+)(.*?)(?=Section #: \d+|\Z)"
-    section_matches = list(re.finditer(section_pattern, text, re.DOTALL))
-
-    for section_match in section_matches:
-        section_no = section_match.group(1).strip()
-        block = section_match.group(2)
-
+    for match in section_blocks:
+        sec_num = match[0].strip()
+        block = match[1]
         try:
-            section_row = {
-                "section_no": section_no,
+            sections[sec_num] = {
+                "section_no": sec_num,
                 "section_title": re.search(r"Section Title:\n(.*?)\n", block).group(1).strip(),
                 "section_header": re.search(r"Section Header:\n(.*?)\n", block).group(1).strip(),
                 "section_subheader": re.search(r"Section Sub-Header:\n(.*?)\n", block).group(1).strip(),
@@ -44,44 +39,47 @@ def parse_all_sections_and_subsections(text: str):
                 "section_related_article_source": re.search(r"Section Related Article Source:\n(.*?)\n", block).group(1).strip()
             }
         except Exception as e:
-            logger.warning(f"⚠️ Skipping section {section_no} due to missing field: {e}")
+            logger.warning(f"⚠️ Skipping section {sec_num}: {e}")
             continue
+    return sections
 
-        # Find sub-sections for this section
-        subsection_pattern = rf"Sub-Section #: {section_no}\.\d+.*?Sub-Section Title:\n(.*?)\n.*?"
-        subsection_pattern += rf"Sub-Section Header:\n(.*?)\n.*?Sub-Section Sub-Header:\n(.*?)\n.*?"
-        subsection_pattern += rf"Sub-Section Summary:\n(.*?)\nSub-Section Makeup: (.*?) \| "
-        subsection_pattern += rf"Sub-Section Change: ([\+\-]?\d+\.\d+%) \| Sub-Section Effect: ([\+\-]?\d+\.\d+%)\n.*?"
-        subsection_pattern += rf"Sub-Section Statistic:\n(.*?)\n.*?"
-        subsection_pattern += rf"Sub-Section Related Article Title:\n(.*?)\n.*?"
-        subsection_pattern += rf"Sub-Section Related Article Date:\n(.*?)\n.*?"
-        subsection_pattern += rf"Sub-Section Related Article Summary:\n(.*?)\n.*?"
-        subsection_pattern += rf"Sub-Section Related Article Relevance:\n(.*?)\n.*?"
-        subsection_pattern += rf"Sub-Section Related Article Source:\n(.*?)\n"
-
-        subsection_matches = re.findall(subsection_pattern, block, re.DOTALL)
-
-        for idx, s in enumerate(subsection_matches, start=1):
-            row = section_row.copy()
-            row.update({
-                "sub_section_no": f"{section_no}.{idx}",
-                "sub_section_title": s[0].strip(),
-                "sub_section_header": s[1].strip(),
-                "sub_section_subheader": s[2].strip(),
-                "sub_section_summary": s[3].strip(),
-                "sub_section_makeup": s[4].strip(),
-                "sub_section_change": s[5].strip(),
-                "sub_section_effect": s[6].strip(),
-                "sub_section_statistic": s[7].strip(),
-                "sub_section_related_article_title": s[8].strip(),
-                "sub_section_related_article_date": s[9].strip(),
-                "sub_section_related_article_summary": s[10].strip(),
-                "sub_section_related_article_relevance": s[11].strip(),
-                "sub_section_related_article_source": s[12].strip()
-            })
-            rows.append(row)
-
-    return rows
+def extract_subsections(text):
+    subsections = []
+    pattern = re.compile(
+        r"Sub-Section #: (\d+)\.(\d).*?"
+        r"Sub-Section Title:\n(.*?)\n.*?"
+        r"Sub-Section Header:\n(.*?)\n.*?"
+        r"Sub-Section Sub-Header:\n(.*?)\n.*?"
+        r"Sub-Section Summary:\n(.*?)\nSub-Section Makeup: (.*?) \| "
+        r"Sub-Section Change: ([\+\-]?\d+\.\d+%) \| Sub-Section Effect: ([\+\-]?\d+\.\d+%)\n.*?"
+        r"Sub-Section Statistic:\n(.*?)\n.*?"
+        r"Sub-Section Related Article Title:\n(.*?)\n.*?"
+        r"Sub-Section Related Article Date:\n(.*?)\n.*?"
+        r"Sub-Section Related Article Summary:\n(.*?)\n.*?"
+        r"Sub-Section Related Article Relevance:\n(.*?)\n.*?"
+        r"Sub-Section Related Article Source:\n(.*?)\n",
+        re.DOTALL
+    )
+    matches = pattern.findall(text)
+    for match in matches:
+        subsections.append({
+            "section_no": match[0],
+            "sub_section_no": f"{match[0]}.{match[1]}",
+            "sub_section_title": match[2].strip(),
+            "sub_section_header": match[3].strip(),
+            "sub_section_subheader": match[4].strip(),
+            "sub_section_summary": match[5].strip(),
+            "sub_section_makeup": match[6].strip(),
+            "sub_section_change": match[7].strip(),
+            "sub_section_effect": match[8].strip(),
+            "sub_section_statistic": match[9].strip(),
+            "sub_section_related_article_title": match[10].strip(),
+            "sub_section_related_article_date": match[11].strip(),
+            "sub_section_related_article_summary": match[12].strip(),
+            "sub_section_related_article_relevance": match[13].strip(),
+            "sub_section_related_article_source": match[14].strip()
+        })
+    return subsections
 
 def run_prompt(payload):
     logger.info("📦 Running csv_content.py")
@@ -93,7 +91,16 @@ def run_prompt(payload):
     logger.debug(f"🗂️ Target Supabase path: {file_path}")
 
     raw_text = payload.get("format_combine", "")
-    rows = parse_all_sections_and_subsections(raw_text)
+    raw_text = strip_excluded_blocks(raw_text)
+
+    sections = extract_sections(raw_text)
+    subsections = extract_subsections(raw_text)
+
+    rows = []
+    for sub in subsections:
+        sec = sections.get(sub["section_no"], {})
+        row = {**sec, **sub}
+        rows.append(row)
 
     header_order = [
         "section_no", "section_title", "section_header", "section_subheader", "section_theme",
