@@ -18,7 +18,6 @@ BLOCKING_PROMPTS = {
     "read_prompt_4_tables",
     "combine",
     "format_combine",
-    "new_format_combine",
     "read_section_image_prompts",
     "read_report_image_prompts",
     "format_image_prompts"
@@ -41,7 +40,6 @@ PROMPT_MODULES = {
     "read_prompt_4_tables": "Scripts.Predictive_Report.read_prompt_4_tables",
     "combine": "Scripts.Predictive_Report.combine",
     "format_combine": "Scripts.Predictive_Report.format_combine",
-    "new_format_combine": "Scripts.Predictive_Report.new_format_combine",
     "write_section_image_prompts": "Scripts.Image_Prompts.write_section_image_prompts",
     "read_section_image_prompts": "Scripts.Image_Prompts.read_section_image_prompts",
     "write_report_image_prompts": "Scripts.Image_Prompts.write_report_image_prompts",
