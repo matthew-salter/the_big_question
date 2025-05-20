@@ -19,20 +19,26 @@ def read_supabase_file(path: str, binary: bool = False):
         response = requests.get(url, headers=headers)
 
         logger.info(f"🛰️ Supabase response status: {response.status_code}")
-        logger.debug(f"📄 Content-Type: {response.headers.get('Content-Type')}")
+        logger.debug(f"📄 Supabase Content-Type header: {response.headers.get('Content-Type')}")
         response.raise_for_status()
 
         if binary:
             logger.debug(f"✅ Binary file read successful, content size: {len(response.content)} bytes")
             return response.content
-        else:
-            try:
-                text = response.content.decode("utf-8", errors="strict")
-                logger.debug(f"✅ Text file read successful (UTF-8), size: {len(text)} characters")
-                return text
-            except UnicodeDecodeError as e:
-                logger.error(f"❌ UTF-8 decode failed: {e}")
-                raise
+
+        # --- Decode text content ---
+        try:
+            text = response.content.decode("utf-8", errors="strict")
+            if path.endswith(".csv"):
+                logger.debug(f"🧾 CSV file detected. Text content decoded successfully, size: {len(text)} characters")
+            elif path.endswith(".txt"):
+                logger.debug(f"📄 TXT file detected. Text content decoded successfully, size: {len(text)} characters")
+            else:
+                logger.debug(f"📦 Unknown extension. Text content decoded, size: {len(text)} characters")
+            return text
+        except UnicodeDecodeError as e:
+            logger.error(f"❌ UTF-8 decode failed: {e}")
+            raise
 
     except requests.exceptions.RequestException as e:
         logger.error(f"❌ Supabase file read failed: {e}")
