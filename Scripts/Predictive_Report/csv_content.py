@@ -25,18 +25,27 @@ def strip_excluded_blocks(text):
 # --- Extract intro/outro assets ---
 def extract_intro_outro_assets(text):
     asset_map = {}
-    for i, key in enumerate(intro_outro_keys):
+    positions = {}
+
+    # Pre-compute the positions of all keys in the text
+    for key in intro_outro_keys:
         try:
-            start = text.index(key) + len(key)
-            next_start = min(
-                [text.index(k) for k in intro_outro_keys[i + 1:] if k in text[start:]],
-                default=len(text)
-            )
-            block = text[start:start + next_start].strip()
+            positions[key] = text.index(key)
         except ValueError:
-            block = ""
-        asset_key = key.rstrip(":").lower().replace(" ", "_")
-        asset_map[asset_key] = block.replace("\n", "\\n").strip()
+            positions[key] = -1  # Mark as missing
+
+    sorted_keys = [k for k in intro_outro_keys if positions[k] != -1]
+    sorted_keys.sort(key=lambda k: positions[k])
+
+    for i, key in enumerate(sorted_keys):
+        start = positions[key] + len(key)
+        end = positions[sorted_keys[i + 1]] if i + 1 < len(sorted_keys) else len(text)
+        content = text[start:end].strip()
+        content = content.replace("\n", "\\n")
+
+        csv_key = key.rstrip(":").lower().replace(" ", "_")
+        asset_map[csv_key] = content
+
     return asset_map
 
 # --- Section/Sub-Section Parser ---
