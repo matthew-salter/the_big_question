@@ -6,26 +6,51 @@ from Engine.Files.write_supabase_file import write_supabase_file
 from Engine.Files.read_supabase_file import read_supabase_file
 from logger import logger
 
+# --- Intro/Outro Key Definitions ---
+intro_keys = [
+    "Client:", "Website:", "About Client:", "Main Question:", "Report:", "Year:",
+    "Report Title:", "Report Sub-Title:", "Executive Summary:", "Key Findings:",
+    "Call to Action:", "Report Change Title:", "Report Change:"
+]
+
+outro_keys = ["Conclusion:", "Recommendations:"]
+intro_outro_keys = intro_keys + outro_keys
+
+# --- Utility to strip out excluded report tables ---
 def strip_excluded_blocks(text):
-    # Preserve labels but remove visual filler blocks
     text = re.sub(r"(Report Table:\n)(.*?)(?=\nSection #:)", r"\1", text, flags=re.DOTALL)
     text = re.sub(r"(Section Tables:\n)(.*?)(?=\nSub-Section #:)", r"\1", text, flags=re.DOTALL)
     return text
 
+# --- Extract intro/outro assets ---
+def extract_intro_outro_assets(text):
+    asset_map = {}
+    for i, key in enumerate(intro_outro_keys):
+        try:
+            start = text.index(key) + len(key)
+            next_start = min(
+                [text.index(k) for k in intro_outro_keys[i + 1:] if k in text[start:]],
+                default=len(text)
+            )
+            block = text[start:start + next_start].strip()
+        except ValueError:
+            block = ""
+        asset_key = key.rstrip(":").lower().replace(" ", "_")
+        asset_map[asset_key] = block.replace("\n", "\\n").strip()
+    return asset_map
+
+# --- Section/Sub-Section Parser ---
 def parse_sections_and_subsections(text: str):
     text = strip_excluded_blocks(text)
     rows = []
 
-    # Split into sections
     section_blocks = re.split(r"\n(?=Section #: \d+)", text)
-
     for block in section_blocks:
         section_no_match = re.search(r"Section #: (\d+)", block)
         if not section_no_match:
             continue
         section_no = section_no_match.group(1)
 
-        # Section-level fields (regex match objects)
         section_data = {
             "section_no": section_no,
             "section_title": re.search(r"Section Title:\n(.*?)\n", block),
@@ -46,15 +71,12 @@ def parse_sections_and_subsections(text: str):
             "section_related_article_source": re.search(r"Section Related Article Source:\n(.*?)\n", block),
         }
 
-        # Safe type-aware .group(1)
         section_data = {
             k: (v.strip() if isinstance(v, str) else v.group(1).strip()) if v else ""
             for k, v in section_data.items()
         }
 
-        # Now get each Sub-Section inside this block
         sub_blocks = re.split(r"\n(?=Sub-Section #: \d+\.\d+)", block)
-
         for sub in sub_blocks:
             sub_match = re.search(r"Sub-Section #: (\d+\.\d+)", sub)
             if not sub_match:
@@ -82,24 +104,26 @@ def parse_sections_and_subsections(text: str):
                 for k, v in sub_data.items()
             }
 
-            row = {**section_data, **sub_data}
-            rows.append(row)
+            rows.append({**section_data, **sub_data})
 
     return rows
 
+# --- Main Entry ---
 def run_prompt(payload):
     logger.info("📦 Running csv_content.py")
 
     run_id = payload.get("run_id") or str(uuid.uuid4())
-    logger.debug(f"🆔 Using run_id: {run_id}")
-
     file_path = f"The_Big_Question/Predictive_Report/Ai_Responses/csv_Content/{run_id}.csv"
-    logger.debug(f"🗂️ Target Supabase path: {file_path}")
 
     raw_text = payload.get("format_combine", "")
-    rows = parse_sections_and_subsections(raw_text)
+    intro_outro = extract_intro_outro_assets(raw_text)
+    data_rows = parse_sections_and_subsections(raw_text)
 
-    header_order = [
+    # Merge intro/outro fields into every row
+    full_rows = [{**intro_outro, **row} for row in data_rows]
+
+    # Define CSV column order
+    header_order = list(intro_outro.keys()) + [
         "section_no", "section_title", "section_header", "section_subheader", "section_theme",
         "section_summary", "section_makeup", "section_change", "section_effect",
         "section_insight", "section_statistic", "section_recommendation",
@@ -116,7 +140,7 @@ def run_prompt(payload):
     output = io.StringIO()
     writer = csv.DictWriter(output, fieldnames=header_order)
     writer.writeheader()
-    writer.writerows(rows)
+    writer.writerows(full_rows)
 
     csv_bytes = output.getvalue().encode("utf-8")
     write_supabase_file(path=file_path, content=csv_bytes, content_type="text/csv")
