@@ -17,16 +17,20 @@ ALL_KEYS = INTRO_KEYS + OUTRO_KEYS
 
 def extract_intro_outro_assets(text: str) -> dict:
     asset_map = {}
-    positions = {k: text.find(k) for k in ALL_KEYS if k in text}
-    sorted_keys = sorted(positions.keys(), key=lambda k: positions[k])
+    pattern = re.compile(rf"({'|'.join([re.escape(k) for k in ALL_KEYS])})\n(.*?)(?=\n(?:{'|'.join([re.escape(k) for k in ALL_KEYS])})\n|\Z)", re.DOTALL)
 
-    for i, key in enumerate(sorted_keys):
-        start = positions[key] + len(key)
-        end = positions[sorted_keys[i + 1]] if i + 1 < len(sorted_keys) else len(text)
-        raw_block = text[start:end]
-        content = raw_block.replace("\r\n", "\n").replace("\n", "\\n").strip()
-        csv_key = key.rstrip(":").lower().replace(" ", "_")
-        asset_map[csv_key] = content
+    for match in pattern.finditer(text):
+        key_raw, block = match.groups()
+        key = key_raw.rstrip(":").lower().replace(" ", "_")
+        clean_value = block.strip().replace("\r\n", "\n").replace("\n", "\\n")
+        asset_map[key] = clean_value
+
+    # Ensure all fields are present
+    for key in ALL_KEYS:
+        k = key.rstrip(":").lower().replace(" ", "_")
+        asset_map.setdefault(k, "")
+
+    return asset_map
 
     # Ensure all fields are present
     for key in ALL_KEYS:
