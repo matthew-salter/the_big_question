@@ -22,23 +22,37 @@ def strip_excluded_blocks(text):
     return text
 
 def extract_intro_outro_assets(text: str) -> dict:
-    # Remove large blocks before parsing
-    text = strip_excluded_blocks(text)
-
-    # Extract using clean asset structure
-    pattern = re.compile(
-        rf"({'|'.join([re.escape(k) for k in ALL_KEYS])})\n(.*?)(?=\n(?:{'|'.join([re.escape(k) for k in ALL_KEYS])})\n|\Z)",
-        re.DOTALL
-    )
-
     asset_map = {}
-    for match in pattern.finditer(text):
-        key_raw, block = match.groups()
-        key = key_raw.rstrip(":").lower().replace(" ", "_")
-        cleaned = block.strip().replace("\r\n", "\n").replace("\n", "\\n")
-        asset_map[key] = cleaned
+    lines = text.splitlines()
+    current_key = None
+    buffer = []
 
-    # Ensure every key is present
+    def commit_buffer(key, buf):
+        cleaned = "\n".join(buf).strip().replace("\r\n", "\n").replace("\n", "\\n")
+        csv_key = key.rstrip(":").lower().replace(" ", "_")
+        asset_map[csv_key] = cleaned
+
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped in ALL_KEYS:
+            if current_key and buffer:
+                commit_buffer(current_key, buffer)
+            current_key = stripped
+            buffer = []
+        elif current_key:
+            if stripped == "" and i + 1 < len(lines) and lines[i + 1].strip().endswith(":"):
+                # End of block, commit
+                commit_buffer(current_key, buffer)
+                current_key = None
+                buffer = []
+            else:
+                buffer.append(line)
+
+    # Final commit
+    if current_key and buffer:
+        commit_buffer(current_key, buffer)
+
+    # Ensure all expected columns exist
     for key in ALL_KEYS:
         k = key.rstrip(":").lower().replace(" ", "_")
         asset_map.setdefault(k, "")
@@ -54,7 +68,7 @@ def run_prompt(payload):
 
     run_id = payload.get("run_id") or str(uuid.uuid4())
     file_path = f"The_Big_Question/Predictive_Report/Ai_Responses/csv_Content/{run_id}.csv"
-    raw_text = payload.get("format_combine", "")
+    raw_text = strip_excluded_blocks(payload.get("format_combine", ""))
 
     # Process only intro/outro for now
     intro_outro_row = extract_intro_outro_assets(raw_text)
