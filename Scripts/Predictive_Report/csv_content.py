@@ -21,27 +21,25 @@ def strip_excluded_blocks(text: str) -> str:
     return text
 
 
-def extract_intro_outro_assets(text: str) -> dict:
-    """Return {csv_header: value} for every intro/outro asset, preserving order."""
-    # Locate every key once
-    positions = {k: text.find(k) for k in ALL_IO_KEYS}
-    # Keep only keys that exist and sort by appearance in the file
-    sorted_keys = sorted((k for k, pos in positions.items() if pos != -1),
-                         key=lambda k: positions[k])
-
+def extract_intro_outro_assets(text):
     asset_map = {}
-    for idx, key in enumerate(sorted_keys):
-        start = positions[key] + len(key)
-        end = positions[sorted_keys[idx + 1]] if idx + 1 < len(sorted_keys) else len(text)
-        value = text[start:end].strip().replace("\r\n", "\n").replace("\n", "\\n")
-        csv_header = key[:-1].lower().replace(" ", "_")      # "Client:" → "client"
-        asset_map[csv_header] = value
-    # Ensure every required column exists, even if blank
-    for key in ALL_IO_KEYS:
-        csv_header = key[:-1].lower().replace(" ", "_")
-        asset_map.setdefault(csv_header, "")
-    return asset_map
+    positions = {k: text.find(k) for k in intro_outro_keys + outro_keys}
+    sorted_keys = sorted((k for k, v in positions.items() if v != -1), key=lambda k: positions[k])
 
+    for i, key in enumerate(sorted_keys):
+        start = positions[key] + len(key)
+        end = positions[sorted_keys[i + 1]] if i + 1 < len(sorted_keys) else len(text)
+        raw_block = text[start:end]
+        content = raw_block.replace("\r\n", "\n").replace("\n", "\\n").strip()
+        csv_key = key.rstrip(":").lower().replace(" ", "_")
+        asset_map[csv_key] = content
+
+    # Ensure all expected columns exist
+    for key in intro_outro_keys + outro_keys:
+        k = key.rstrip(":").lower().replace(" ", "_")
+        asset_map.setdefault(k, "")
+
+    return asset_map
 
 # ───────────── Section / Sub-section parser (unchanged) ──────────────
 def parse_sections_and_subsections(text: str):
