@@ -32,8 +32,8 @@ You must:
 
 - For each sub-section:  
   - Estimate the expected percentage **change** over the defined time range.  
-  - If pressure is **negative** (e.g. rising cost, falling supply), the **change** must be expressed as a **positive percentage range** (e.g. `+4.25%`).  
-  - If pressure is **positive** (e.g. falling cost, rising supply), the **change** must be expressed as a **negative percentage range** (e.g. `-2.00%`).  
+  - If pressure is **negative** on {target_variable}, the **change** must be expressed as a **neagtive percentage range** (e.g. `-4.25%`).  
+  - If pressure is **positive** on {target_variable}, the **change** must be expressed as a **positive percentage range** (e.g. `+2.00%`).  
   - **Do not flip or interpret the sign based on language or assumptions — follow the defined logic exactly.**
   - Calculate the corresponding **effect range** using this formula: `Effect = Makeup × Change`
   - Round all sub-section values to **2 decimal places**.
