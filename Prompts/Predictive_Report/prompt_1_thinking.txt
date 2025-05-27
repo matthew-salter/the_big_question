@@ -51,7 +51,7 @@ You must:
 
 ### RULES: 
 - All reference sourcing related articles:
-  - Be published within the last {reference_age_range}
+  - Be strictly published within the last {reference_age_range} (no later)
   - Be credible and relevant
   - Support reasoning (not dictate percentages)
   - Include:
