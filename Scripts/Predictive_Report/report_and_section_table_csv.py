@@ -32,12 +32,10 @@ def write_section_table_formatted(path: str, section_no: str, section_title: str
 def write_report_table_formatted(path: str, report_change_title: str, report_change: str, rows: list[dict]):
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["report_change_title", report_change_title])
-    writer.writerow(["Report Change Title:"])
-    writer.writerow(["report_change", report_change])
-    writer.writerow(["Report Change:"])
-    writer.writerow([])
-    writer.writerow(["section_title", "section_makeup", "section_change", "section_effect"])
+    writer.writerow(["report_change_title", report_change_title])  # A1
+    writer.writerow(["report_change", report_change])              # B1
+    writer.writerow([])                                            # Blank row
+    writer.writerow(["section_title", "section_makeup", "section_change", "section_effect"])  # Header row
     for row in rows:
         writer.writerow([
             row["section_title"],
