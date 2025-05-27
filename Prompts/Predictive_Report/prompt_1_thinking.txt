@@ -22,13 +22,13 @@ Use your understanding of the client context, the main question, and the main qu
 You must:  
 - Identify exactly {number_sections} **sections** (no fewer) influencing {target_variable} of {commodity} in the {region} over the next {time_range}.  
   - Assign each section a percentage **makeup** toward the overall **change** (total = 100%).  
-  - Use multiple sources (where available) stiictly published within the last {reference_age_range} (no later) to determine the makeup. Do not rely on a single article.  
-  - Choose the most relevant or representative article to include as the illustrative source.
+  - Use multiple sources (where available) strictly published within the last {reference_age_range} (absolutely no later) to determine the makeup. Do not rely on a single article.  
+  - Choose the most relevant or representative article, strictly published within the last {reference_age_range} (absolutely no later), to include as the illustrative source.
 
 - For each section, identify exactly {number_sub_sections} **sub-sections** (no fewer) that influence it:  
   - Assign each a percentage **makeup** contribution within its parent section (sum = 100% within section).  
-  - Base all predictions and percentages on aggregated reasoning from multiple sources (where available) published within the last {reference_age_range} (no later).  
-  - Then select one supporting reference article per sub-section.
+  - Base all predictions and percentages on aggregated reasoning from multiple sources (where available) strictly published within the last {reference_age_range} (absolutely no later).  
+  - Then select one supporting reference article per sub-section, strictly published within the last {reference_age_range} (absolutely no later).
 
 - For each sub-section:  
   - Estimate the expected percentage **change** over the defined time range.  
@@ -36,15 +36,15 @@ You must:
   - If pressure is **positive** on {target_variable}, the **change** must be expressed as a **positive percentage range** (e.g. `+2.00%`).  
   - **Do not flip or interpret the sign based on language or assumptions — follow the defined logic exactly.**
   - Calculate the corresponding **effect range** using this formula: `Effect = Makeup × Change`
-  - Round all Makeup values to **0 decimal places**  
-  - Round all section Change & Effect values to **1 decimal place**  
+  - Strictly round all Makeup values to **0 decimal places**  
+  - Strictly round all section Change & Effect values to **1 decimal place**  
 
 - For each section:  
   - Sum all sub-section effects to calculate `Section Change`. 
   - Multiply each by `Section Makeup` to calculate `Section Effect`.  
   - **Do not reinterpret the direction, magnitude, or sign of these values. Always follow the exact calculations defined above.**
-  - Round all Makeup values to **0 decimal places**  
-  - Round all section Change & Effect values to **2 decimal places**  
+  - Strictly round all Makeup values to **0 decimal places**  
+  - Strictly round all section Change & Effect values to **2 decimal places**  
 
 - Finally, calculate the report-wide projection range: `Report Change` = Sum of all Section Effect 
   - **Do not round individual components before summing. Use post-sum rounding only.**
@@ -53,7 +53,7 @@ You must:
 
 ### RULES: 
 - All reference sourcing related articles:
-  - Be strictly published within the last {reference_age_range} (no later)
+  - Be strictly published within the last {reference_age_range} (absolutely no later)
   - Be credible and relevant
   - Support reasoning (not dictate percentages)
   - Include:
@@ -71,12 +71,12 @@ You must:
 #### SECTION STRUCTURE
 - `Section Title`: A headline-style label. (Max 40 characters)
 - `Section Summary`: A narrative summary of the sections key findings. (Min 500 - Max 750 characters)
-- `Section MakeUp`: % format (0 decimal places)  
-- `Section Change`: +/- % format (1 decimal place)  
-- `Section Effect`: +/- % format (1 decimal place)  
+- `Section MakeUp`: % format (Strictly round all Section Makeup values to **0 decimal places**)  
+- `Section Change`: +/- % format (Strictly round all Section Change values to **1 decimal place**)    
+- `Section Effect`: +/- % format (Strictly round all Section Effect values to **1 decimal place**)     
 - `Section Related Article`:
   - `Section Related Article Title`: The title of the source article. (Max 40 characters)  
-  - `Section Related Article Date`: (DD/MM/YYYY)  
+  - `Section Related Article Date`: DD/MM/YYYY (Strictly published within the last {reference_age_range} (absolutely no later)).
   - `Section Related Article Summary`: A narrative summary of the articles key findings. (Max 300 characters)  
   - `Section Related Article Relevance`: A narrative summary of the articles relevance to the section. (Max 300 characters)
   - `Section Related Article Source`: The organisation/person of the source article. (no URLs)
@@ -84,12 +84,12 @@ You must:
 #### SUB-SECTION STRUCTURE
 - `Sub-Section Title`: A headline-style label. (Max 40 characters)
 - `Sub-Section Summary`: A narrative summary of the sections key findings. (Min 300 - Max 500 characters)
-- `Sub-Section MakeUp`: % format (0 decimal places)  
-- `Sub-Section Change`: +/- % format (2 decimal places) 
-- `Sub-Section Effect`: +/- % format (2 decimal places)  
+- `Sub-Section MakeUp`: % format (Strictly round all Sub-Section Makeup values to **0 decimal places**)  
+- `Sub-Section Change`: +/- % format (Strictly round all Sub-Section Change values to **2 decimal places**)  
+- `Sub-Section Effect`: +/- % format (Strictly round all Sub-Section Effect values to **2 decimal places**)  
 - `Sub-Section Related Article`:
   - `Sub-Section Related Article Title`: The title of the source article. (Max 40 characters)  
-  - `Sub-Section Related Article Date`: (DD/MM/YYYY)  
+  - `Sub-Section Related Article Date`: DD/MM/YYYY (Strictly published within the last {reference_age_range} (absolutely no later)). 
   - `Sub-Section Related Article Summary`: A narrative summary of the articles key findings. (Max 300 characters)  
   - `Sub-Section Related Article Relevance`: A narrative summary of the articles relevance to the sub-section. (Max 300 characters)
   - `Sub-Section Related Article Source`: The organisation/person of the source article. (no URLs)
