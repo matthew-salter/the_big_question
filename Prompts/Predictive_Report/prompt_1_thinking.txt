@@ -21,12 +21,12 @@ Use your understanding of the client context, the main question, and the main qu
 ### OBJECTIVE  
 You must:  
 - Identify exactly {number_sections} **sections** (no fewer) influencing {target_variable} of {commodity} in the {region} over the next {time_range}.  
-  - Assign each section a percentage **makeup** toward the overall **change** (total = 100%).  
+  - Assign each section a percentage **makeup** toward the overall **change** (strictly sum total = 100%).  
   - Use multiple related article sources (where available) strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date} to determine the makeup. Do not rely on a single related article.  
   - Choose the most relevant or representative related article, strictly published within the last {reference_age_range} (absolutely no later), to include as the illustrative source.
 
 - For each section, identify exactly {number_sub_sections} **sub-sections** (no fewer) that influence it:  
-  - Assign each a percentage **makeup** contribution within its parent section (sum = 100% within section).  
+  - Assign each a percentage **makeup** contribution within its parent section (strictly sum total = 100% within section).  
   - Base all predictions and percentages on aggregated reasoning from multiple sources (where available) strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date} .  
   - Choose the most relevant or representative related article, strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date}, to include as the illustrative source.
 
