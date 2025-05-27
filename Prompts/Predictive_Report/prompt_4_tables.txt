@@ -65,15 +65,15 @@ You must:
 
 #### REPORT TABLE
 - `Section Title`
-- `Section Makeup`: % format (1 decimal place)  
-- `Section Change`: +/- % format (1 decimal place) 
-- `Section Effect`: +/- % format (1 decimal place) 
+- `Section Makeup`: % format (Strictly round all Section Makeup values to **0 decimal places**)
+- `Section Change`: +/- % format (Strictly round all Section Change values to **1 decimal place**)
+- `Section Effect`: +/- % format (Strictly round all Section Effect values to **1 decimal place**)
 
 #### SECTION TABLES
 - `Sub-Section Title`
-- `Sub-Section Makeup`: % format (2 decimal places)  
-- `Sub-Section Change`: +/- % format (2 decimal places) 
-- `Sub-Section Effect`: +/- % format (2 decimal places) 
+- `Sub-Section Makeup`: % format (Strictly round all Sub-Section Makeup values to **0 decimal places**)
+- `Sub-Section Change`: +/- % format (Strictly round all Sub-Section Change values to **2 decimal places**)
+- `Sub-Section Effect`: +/- % format (Strictly round all Sub-Section Change values to **2 decimal places**)
 
 ---
 
@@ -94,19 +94,19 @@ Return a single JSON object follow this structure exactly:
   "Report Table": [
     {{
       "Section Title": "...",
-      "Section Makeup": "X.X%",
+      "Section Makeup": "X%",
       "Section Change": "+X.X%",
       "Section Effect": "+X.X%"
     }},
     {{
       "Section Title": "...",
-      "Section Makeup": "X.X%",
+      "Section Makeup": "X%",
       "Section Change": "+X.X%",
       "Section Effect": "+X.X%"
     }},
     {{
       "Section Title": "...",
-      "Section Makeup": "X.X%",
+      "Section Makeup": "X%",
       "Section Change": "+X.X%",
       "Section Effect": "+X.X%"
     }},
@@ -117,13 +117,13 @@ Return a single JSON object follow this structure exactly:
     "Section Title 1": [
       {{
         "Sub-Section Title": "...",
-        "Sub-Section Makeup": "X.XX%",
+        "Sub-Section Makeup": "X%",
         "Sub-Section Change": "+X.XX%",
         "Sub-Section Effect": "+X.XX%"
       }}],
       {{
         "Sub-Section Title": "...",
-        "Sub-Section Makeup": "X.XX%",
+        "Sub-Section Makeup": "X%",
         "Sub-Section Change": "+X.XX%",
         "Sub-Section Effect": "+X.XX%"
       }},
@@ -132,13 +132,13 @@ Return a single JSON object follow this structure exactly:
     "Section Title 2": [
       {{
         "Sub-Section Title": "...",
-        "Sub-Section Makeup": "X.XX%",
+        "Sub-Section Makeup": "X%",
         "Sub-Section Change": "+X.XX%",
         "Sub-Section Effect": "+X.XX%"
       }},
       {{
         "Sub-Section Title": "...",
-        "Sub-Section Makeup": "X.XX%",
+        "Sub-Section Makeup": "X%",
         "Sub-Section Change": "+X.XX%",
         "Sub-Section Effect": "+X.XX%"
       }},
