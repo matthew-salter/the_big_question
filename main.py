@@ -48,7 +48,7 @@ PROMPT_MODULES = {
     "read_report_image_prompts": "Scripts.Image_Prompts.read_report_image_prompts",
     "format_image_prompts": "Scripts.Image_Prompts.format_image_prompts",
     "csv_content": "Scripts.Predictive_Report.csv_content",
-    "report_and_section_table_csv": "report_and_section_table_csv"
+    "report_and_section_table_csv": "Scripts.Predictive_Report.report_and_section_table_csv"
 }
 
 @app.route("/ingest-typeform", methods=["POST"])
