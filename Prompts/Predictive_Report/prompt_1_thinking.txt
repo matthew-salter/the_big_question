@@ -22,13 +22,13 @@ Use your understanding of the client context, the main question, and the main qu
 You must:  
 - Identify exactly {number_sections} **sections** (no fewer) influencing {target_variable} of {commodity} in the {region} over the next {time_range}.  
   - Assign each section a percentage **makeup** toward the overall **change** (total = 100%).  
-  - Use multiple sources (where available) strictly published within the last {reference_age_range} (absolutely no later) to determine the makeup. Do not rely on a single article.  
-  - Choose the most relevant or representative article, strictly published within the last {reference_age_range} (absolutely no later), to include as the illustrative source.
+  - Use multiple related article sources (where available) strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date} to determine the makeup. Do not rely on a single related article.  
+  - Choose the most relevant or representative related article, strictly published within the last {reference_age_range} (absolutely no later), to include as the illustrative source.
 
 - For each section, identify exactly {number_sub_sections} **sub-sections** (no fewer) that influence it:  
   - Assign each a percentage **makeup** contribution within its parent section (sum = 100% within section).  
-  - Base all predictions and percentages on aggregated reasoning from multiple sources (where available) strictly published within the last {reference_age_range} (absolutely no later).  
-  - Then select one supporting reference article per sub-section, strictly published within the last {reference_age_range} (absolutely no later).
+  - Base all predictions and percentages on aggregated reasoning from multiple sources (where available) strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date} .  
+  - Choose the most relevant or representative related article, strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date}, to include as the illustrative source.
 
 - For each sub-section:  
   - Estimate the expected percentage **change** over the defined time range.  
@@ -52,8 +52,9 @@ You must:
 ---
 
 ### RULES: 
+- Today's date is {today_date}.
 - All reference sourcing related articles:
-  - Be strictly published within the last {reference_age_range} (absolutely no later)
+  - Be strictly published within the last {reference_age_range} (absolutely no later) of {today_date}.
   - Be credible and relevant
   - Support reasoning (not dictate percentages)
   - Include:
@@ -76,7 +77,7 @@ You must:
 - `Section Effect`: +/- % format (Strictly round all Section Effect values to **1 decimal place**)     
 - `Section Related Article`:
   - `Section Related Article Title`: The title of the source article. (Max 40 characters)  
-  - `Section Related Article Date`: DD/MM/YYYY (Strictly published within the last {reference_age_range} (absolutely no later)).
+  - `Section Related Article Date`: DD/MM/YYYY (Strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date}).
   - `Section Related Article Summary`: A narrative summary of the articles key findings. (Max 300 characters)  
   - `Section Related Article Relevance`: A narrative summary of the articles relevance to the section. (Max 300 characters)
   - `Section Related Article Source`: The organisation/person of the source article. (no URLs)
@@ -89,7 +90,7 @@ You must:
 - `Sub-Section Effect`: +/- % format (Strictly round all Sub-Section Effect values to **2 decimal places**)  
 - `Sub-Section Related Article`:
   - `Sub-Section Related Article Title`: The title of the source article. (Max 40 characters)  
-  - `Sub-Section Related Article Date`: DD/MM/YYYY (Strictly published within the last {reference_age_range} (absolutely no later)). 
+  - `Sub-Section Related Article Date`: DD/MM/YYYY (Strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date}). 
   - `Sub-Section Related Article Summary`: A narrative summary of the articles key findings. (Max 300 characters)  
   - `Sub-Section Related Article Relevance`: A narrative summary of the articles relevance to the sub-section. (Max 300 characters)
   - `Sub-Section Related Article Source`: The organisation/person of the source article. (no URLs)
