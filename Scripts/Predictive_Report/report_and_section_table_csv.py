@@ -7,6 +7,41 @@ from Engine.Files.write_supabase_file import write_supabase_file
 
 SAVE_DIR = "The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables"
 
+def write_section_table_formatted(path: str, section_no: str, section_title: str, rows: list[dict]):
+    """
+    Writes section table with layout:
+    1. section_no, section_title
+    2. blank line
+    3. sub_section headers
+    4. sub_section rows
+    """
+    output = io.StringIO()
+    writer = csv.writer(output)
+
+    # Write header block
+    writer.writerow(["section_no", "section_title"])
+    writer.writerow([section_no, section_title])
+    writer.writerow([])
+
+    # Write sub-section table
+    writer.writerow([
+        "sub_section_title",
+        "sub_section_makeup",
+        "sub_section_change",
+        "sub_section_effect"
+    ])
+    for row in rows:
+        writer.writerow([
+            row["sub_section_title"],
+            row["sub_section_makeup"],
+            row["sub_section_change"],
+            row["sub_section_effect"]
+        ])
+
+    # Upload to Supabase
+    write_supabase_file(path, content=output.getvalue().encode("utf-8"), content_type="text/csv")
+
+
 def run_prompt(payload):
     logger.info("📦 Running report_and_section_table_csv.py")
     run_id = payload.get("run_id") or str(uuid.uuid4())
@@ -14,44 +49,13 @@ def run_prompt(payload):
 
     results = {"run_id": run_id, "report_table": None, "section_tables": []}
 
-    # ─── Extract Report Change Info ───
+    # ───── Extract Report Change Info ─────
     change_title = re.search(r"Report Change Title:\n(.+?)\n", raw_text)
     change_value = re.search(r"Report Change:\n(.+?)\n", raw_text)
     report_change_title = change_title.group(1).strip() if change_title else "Unknown"
     report_change = change_value.group(1).strip() if change_value else ""
 
-    # ─── Extract Report Table Block ───
-    report_table_match = re.search(r"Report Table:\n(.*?)(?=\n\S|$)", raw_text, re.DOTALL)
-    report_table = report_table_match.group(1).strip() if report_table_match else ""
-
-    report_rows = []
-    for match in re.finditer(
-        r"Section Title: (.+?)\nSection Makeup: ([\d.]+)% \| "
-        r"Section Change: ([+\-]?\d+\.\d+%) \| Section Effect: ([+\-]?\d+\.\d+%)",
-        report_table
-    ):
-        title, makeup, change, effect = match.groups()
-        report_rows.append({
-            "report_change_title": report_change_title,
-            "report_change": report_change,
-            "section_title": title.strip(),
-            "section_makeup": makeup.strip(),
-            "section_change": change.strip(),
-            "section_effect": effect.strip()
-        })
-
-    if report_rows:
-        filename = f"Report_Table_{report_change_title.replace(' ', '_')}_{run_id}.csv"
-        path = f"{SAVE_DIR}/{filename}"
-        results["report_table"] = path
-
-        output = io.StringIO()
-        writer = csv.DictWriter(output, fieldnames=report_rows[0].keys())
-        writer.writeheader()
-        writer.writerows(report_rows)
-        write_supabase_file(path=path, content=output.getvalue().encode("utf-8"), content_type="text/csv")
-
-    # ─── Extract Section Table Blocks ───
+    # ───── Extract Section Table Blocks ─────
     lines = raw_text.splitlines()
     i = 0
     current_section_no = None
@@ -88,8 +92,6 @@ def run_prompt(payload):
             ):
                 sub_title, makeup, change, effect = row.groups()
                 section_rows.append({
-                    "section_no": current_section_no,
-                    "section_title": current_section_title,
                     "sub_section_title": sub_title.strip(),
                     "sub_section_makeup": makeup.strip(),
                     "sub_section_change": change.strip(),
@@ -101,11 +103,12 @@ def run_prompt(payload):
                 path = f"{SAVE_DIR}/{filename}"
                 results["section_tables"].append(path)
 
-                output = io.StringIO()
-                writer = csv.DictWriter(output, fieldnames=section_rows[0].keys())
-                writer.writeheader()
-                writer.writerows(section_rows)
-                write_supabase_file(path=path, content=output.getvalue().encode("utf-8"), content_type="text/csv")
+                write_section_table_formatted(
+                    path=path,
+                    section_no=current_section_no,
+                    section_title=current_section_title,
+                    rows=section_rows
+                )
 
         i += 1
 
