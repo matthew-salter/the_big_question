@@ -2,26 +2,24 @@ import csv
 import io
 import uuid
 import re
-from pathlib import Path
+from Engine.Files.write_supabase_file import write_supabase_file
+from logger import logger
 
 # ──────────────────────────────
 # CONFIGURATION
 # ──────────────────────────────
 SAVE_DIR = "The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables"
 
-def write_local_file(path: str, content: bytes):
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "wb") as f:
-        f.write(content)
+# ──────────────────────────────
+# MAIN FUNCTION
+# ──────────────────────────────
+def run_prompt(payload: dict) -> dict:
+    logger.info("📦 Running report_and_section_table_csv.py")
 
-# ──────────────────────────────
-# MAIN PARSING FUNCTION
-# ──────────────────────────────
-def run_report_and_section_csv(payload: dict) -> dict:
     run_id = payload.get("run_id") or str(uuid.uuid4())
     text = payload.get("format_combine", "")
 
-    results = {}
+    results = {"run_id": run_id}
 
     # ───── Extract Report Change Details ─────
     report_change_title = re.search(r"Report Change Title:\n(.+?)\n", text)
@@ -51,13 +49,14 @@ def run_report_and_section_csv(payload: dict) -> dict:
     if report_rows:
         report_filename = f"Report_Table_{report_change_title.replace(' ', '_')}_{run_id}.csv"
         report_path = f"{SAVE_DIR}/{report_filename}"
-        results['report_table_path'] = report_path
 
         output = io.StringIO()
         writer = csv.DictWriter(output, fieldnames=report_rows[0].keys())
         writer.writeheader()
         writer.writerows(report_rows)
-        write_local_file(report_path, output.getvalue().encode("utf-8"))
+
+        write_supabase_file(report_path, output.getvalue().encode("utf-8"), content_type="text/csv")
+        results["report_table"] = report_path
 
     # ───── Extract Section Table Blocks ─────
     section_blocks = re.finditer(
@@ -97,8 +96,8 @@ def run_report_and_section_csv(payload: dict) -> dict:
             writer = csv.DictWriter(output, fieldnames=section_rows[0].keys())
             writer.writeheader()
             writer.writerows(section_rows)
-            write_local_file(section_path, output.getvalue().encode("utf-8"))
 
-    results['section_table_paths'] = section_outputs
-    results['run_id'] = run_id
+            write_supabase_file(section_path, output.getvalue().encode("utf-8"), content_type="text/csv")
+
+    results["section_tables"] = section_outputs
     return results
