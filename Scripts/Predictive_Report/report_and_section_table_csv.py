@@ -3,6 +3,7 @@ import io
 import uuid
 import re
 from Engine.Files.write_supabase_file import write_supabase_file
+from Engine.Files.read_supabase_file import read_supabase_file
 from logger import logger
 
 # ──────────────────────────────
