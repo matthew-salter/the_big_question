@@ -7,41 +7,42 @@ from Engine.Files.write_supabase_file import write_supabase_file
 
 SAVE_DIR = "The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables"
 
+# ─────────────────────────────────────────────
+# Write a section table in the correct format
+# ─────────────────────────────────────────────
 def write_section_table_formatted(path: str, section_no: str, section_title: str, rows: list[dict]):
-    """
-    Writes section table with layout:
-    1. section_no, section_title
-    2. blank line
-    3. sub_section headers
-    4. sub_section rows
-    """
     output = io.StringIO()
     writer = csv.writer(output)
 
-    # Write header block
-    writer.writerow(["section_no", "section_title"])
-    writer.writerow([section_no, section_title])
-    writer.writerow([])
-
-    # Write sub-section table
+    # Top metadata block
+    writer.writerow(["section_no", section_no])
+    writer.writerow(["section_title", section_title])
+    writer.writerow([])  # blank row
     writer.writerow([
         "sub_section_title",
         "sub_section_makeup",
         "sub_section_change",
         "sub_section_effect"
     ])
+
+    # Data block with percent formatting enforced
     for row in rows:
         writer.writerow([
             row["sub_section_title"],
-            row["sub_section_makeup"],
-            row["sub_section_change"],
-            row["sub_section_effect"]
+            f'{row["sub_section_makeup"]}%' if not row["sub_section_makeup"].endswith('%') else row["sub_section_makeup"],
+            f'{row["sub_section_change"]}%' if not row["sub_section_change"].endswith('%') else row["sub_section_change"],
+            f'{row["sub_section_effect"]}%' if not row["sub_section_effect"].endswith('%') else row["sub_section_effect"],
         ])
 
-    # Upload to Supabase
-    write_supabase_file(path, content=output.getvalue().encode("utf-8"), content_type="text/csv")
+    write_supabase_file(
+        path=path,
+        content=output.getvalue().encode("utf-8"),
+        content_type="text/csv"
+    )
 
-
+# ─────────────────────────────────────────────
+# Main entrypoint for Zapier webhook
+# ─────────────────────────────────────────────
 def run_prompt(payload):
     logger.info("📦 Running report_and_section_table_csv.py")
     run_id = payload.get("run_id") or str(uuid.uuid4())
@@ -49,13 +50,13 @@ def run_prompt(payload):
 
     results = {"run_id": run_id, "report_table": None, "section_tables": []}
 
-    # ───── Extract Report Change Info ─────
+    # ───── Extract Report Change Info (for later) ─────
     change_title = re.search(r"Report Change Title:\n(.+?)\n", raw_text)
     change_value = re.search(r"Report Change:\n(.+?)\n", raw_text)
     report_change_title = change_title.group(1).strip() if change_title else "Unknown"
     report_change = change_value.group(1).strip() if change_value else ""
 
-    # ───── Extract Section Table Blocks ─────
+    # ───── Parse Section Table Blocks ─────
     lines = raw_text.splitlines()
     i = 0
     current_section_no = None
@@ -69,7 +70,7 @@ def run_prompt(payload):
 
         elif line == "Section Title:" and i + 1 < len(lines):
             current_section_title = lines[i + 1].strip()
-            i += 1
+            i += 1  # Skip title value line
 
         elif line == "Section Tables:":
             buffer = []
@@ -85,7 +86,7 @@ def run_prompt(payload):
             table_text = "\n".join(buffer)
             for row in re.finditer(
                 r"Sub-Section Title: (.+?)\n"
-                r"Sub-Section Makeup: ([\d.]+)% \| "
+                r"Sub-Section Makeup: ([\d.]+)%? \| "
                 r"Sub-Section Change: ([+\-]?\d+\.\d+%) \| "
                 r"Sub-Section Effect: ([+\-]?\d+\.\d+%)",
                 table_text
