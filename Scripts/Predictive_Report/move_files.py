@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime
 import requests
 from Engine.Files.auth import get_supabase_headers
@@ -15,18 +16,19 @@ def uppercase_path_segment(segment):
 
 def create_folder(path):
     """
-    Supabase uses object keys to simulate folders.
-    To create a folder, upload a zero-byte file ending in '/'.
+    Create a folder-like object in Supabase Storage by uploading a .keep file inside the folder path.
+    Example: path = "folder/subfolder" → uploads "folder/subfolder/.keep"
     """
     if not SUPABASE_URL:
         raise EnvironmentError("SUPABASE_URL is not configured.")
 
-    url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}.keep"
+    keep_file_path = f"{path}/.keep"
+    url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{keep_file_path}"
     headers = get_supabase_headers()
     headers["Content-Type"] = "text/plain"
 
-    # Check if folder already exists by attempting HEAD request
-    check_url = f"{SUPABASE_URL}/storage/v1/object/info/{SUPABASE_BUCKET}/{path}.keep"
+    # Check if it exists already
+    check_url = f"{SUPABASE_URL}/storage/v1/object/info/{SUPABASE_BUCKET}/{keep_file_path}"
     check_resp = requests.get(check_url, headers=headers)
     if check_resp.status_code == 200:
         logger.info(f"📂 Folder already exists: {path}")
@@ -36,6 +38,7 @@ def create_folder(path):
     if response.status_code not in (200, 201):
         raise Exception(f"Failed to create folder: {path} | {response.status_code} - {response.text}")
     logger.info(f"✅ Created folder: {path}")
+    time.sleep(0.25)  # Add small delay to avoid overwhelming the server
 
 def run_prompt(data: dict) -> dict:
     client_raw = data["client"]
