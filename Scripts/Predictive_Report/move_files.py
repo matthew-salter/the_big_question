@@ -89,6 +89,7 @@ def run_prompt(data: dict) -> dict:
     target_map = {p.split("/")[-1]: p for p in folder_paths}
     skipped_files = []
 
+    # Rename and move specific individual files
     file_jobs = [
         ("Client_Context", run_ids["client_context"], "Outputs", "client_context", "txt"),
         ("Combine", run_ids["combine"], "Outputs", "combine", "txt"),
@@ -110,11 +111,27 @@ def run_prompt(data: dict) -> dict:
             to_path = f"{to_folder}/{prefix}_{run_id}_.{ext}"
             move_supabase_file(from_path, to_path, skipped_files)
 
-    move_folder_contents("The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables", target_map.get("Report_Tables", ""), skipped_files)
-    move_folder_contents("The_Big_Question/Predictive_Report/Question_Context", target_map.get("Question_Context", ""), skipped_files)
-    move_folder_contents("The_Big_Question/Predictive_Report/Logos", target_map.get("Logos", ""), skipped_files)
+    # Move all files from fixed folders without renaming
+    bulk_moves = [
+        ("The_Big_Question/Predictive_Report/Logos", "Logos"),
+        ("The_Big_Question/Predictive_Report/Question_Context", "Question_Context"),
+        ("The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables", "Report_Tables")
+    ]
 
-    copy_supabase_file("The_Big_Question/General_Files/Panelitix_Logo.png", f"{target_map.get('Logos', '')}/Panelitix_Logo.png", skipped_files)
+    for src_folder, dest_key in bulk_moves:
+        dst_folder = target_map.get(dest_key)
+        if not dst_folder:
+            logger.warning(f"⚠️ No target folder found for {dest_key}")
+            continue
+        move_folder_contents(src_folder, dst_folder, skipped_files)
+
+    # Copy logo
+    copy_supabase_file(
+        "The_Big_Question/General_Files/Panelitix_Logo.png",
+        f"{target_map.get('Logos', '')}/Panelitix_Logo.png",
+        skipped_files
+    )
+
     delete_keep_files(folder_paths)
 
     return {
