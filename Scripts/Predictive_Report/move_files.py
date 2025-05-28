@@ -27,6 +27,8 @@ def move_supabase_file(from_path, to_path, skipped_files):
     requests.delete(delete_url, headers=headers)
 
 def move_folder_contents(src_prefix, dst_prefix, skipped_files):
+    if not dst_prefix:
+        return
     headers = get_supabase_headers()
     list_url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}?prefix={src_prefix}/"
     resp = requests.get(list_url, headers=headers)
@@ -108,31 +110,11 @@ def run_prompt(data: dict) -> dict:
             to_path = f"{to_folder}/{prefix}_{run_id}_.{ext}"
             move_supabase_file(from_path, to_path, skipped_files)
 
-    # Bulk folder moves
-    move_folder_contents(
-        "The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables",
-        target_map.get("Report_Tables", ""),
-        skipped_files
-    )
-    move_folder_contents(
-        "The_Big_Question/Predictive_Report/Question_Context",
-        target_map.get("Question_Context", ""),
-        skipped_files
-    )
-    move_folder_contents(
-        "The_Big_Question/Predictive_Report/Logos",
-        target_map.get("Logos", ""),
-        skipped_files
-    )
+    move_folder_contents("The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables", target_map.get("Report_Tables", ""), skipped_files)
+    move_folder_contents("The_Big_Question/Predictive_Report/Question_Context", target_map.get("Question_Context", ""), skipped_files)
+    move_folder_contents("The_Big_Question/Predictive_Report/Logos", target_map.get("Logos", ""), skipped_files)
 
-    # Copy logo
-    copy_supabase_file(
-        "The_Big_Question/General_Files/Panelitix_Logo.png",
-        f"{target_map.get('Logos', '')}/Panelitix_Logo.png",
-        skipped_files
-    )
-
-    # Cleanup
+    copy_supabase_file("The_Big_Question/General_Files/Panelitix_Logo.png", f"{target_map.get('Logos', '')}/Panelitix_Logo.png", skipped_files)
     delete_keep_files(folder_paths)
 
     return {
