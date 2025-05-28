@@ -23,8 +23,8 @@ BLOCKING_PROMPTS = {
     "format_image_prompts",
     "csv_content",
     "report_and_section_table_csv",
-    "write_create_folders"
-    "read_create_folders"
+    "write_create_folders",
+    "read_create_folders",
     "move_files"
 }
 
