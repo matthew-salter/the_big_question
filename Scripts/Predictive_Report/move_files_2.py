@@ -1,10 +1,7 @@
-# move_files_2.py
-
-import os
-from flask import Flask, request, jsonify
-from supabase import create_client
 from dotenv import load_dotenv
-from logger import logger
+from flask import Flask, request, jsonify
+from supabase import create_client, Client
+import os
 
 load_dotenv()
 
@@ -12,62 +9,53 @@ app = Flask(__name__)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+SUPABASE_BUCKET = "storage"  # Update if your bucket name is different
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
-supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-
-READ_FOLDERS = {
+# Define paths
+READ_DIRECTORIES = {
     "Logos": "The_Big_Question/Predictive_Report/Logos",
     "Question_Context": "The_Big_Question/Predictive_Report/Question_Context",
     "Report_and_Section_Tables": "The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables"
 }
 
-WRITE_FOLDERS = {
-    "Logos": "The_Big_Question/Structured_Report_Files/{run_id}/Logos",
-    "Question_Context": "The_Big_Question/Structured_Report_Files/{run_id}/Question_Context",
-    "Report_and_Section_Tables": "The_Big_Question/Structured_Report_Files/{run_id}/Report_and_Section_Tables"
+WRITE_DIRECTORIES = {
+    "Logos": "The_Big_Question/Write/Assets/Logos",
+    "Question_Context": "The_Big_Question/Write/Assets/Question_Context",
+    "Report_and_Section_Tables": "The_Big_Question/Write/Ai_Responses/Report_and_Section_Tables"
 }
 
 
-def list_files(bucket, prefix):
-    try:
-        response = supabase.storage.from_(bucket).list(path=prefix)
-        if isinstance(response, list):
-            file_names = [f['name'] for f in response if not f['name'].startswith('.')]
-            return file_names
-        else:
-            logger.warning(f"❌ Unexpected response type for listing: {prefix}")
-            return []
-    except Exception as e:
-        logger.warning(f"❌ Failed to list files in: {prefix}")
-        return []
-
-
 @app.route("/", methods=["POST"])
-def handle_request():
-    payload = request.json or {}
-    run_id = payload.get("run_id")
+def handle_directories():
+    read_results = {}
+    write_results = {}
 
-    output = {
-        "message": "File listing complete.",
+    for label, path in READ_DIRECTORIES.items():
+        try:
+            files = supabase.storage.from_(SUPABASE_BUCKET).list(path)
+            file_names = [file["name"] for file in files if file["name"] != ".keep"]
+            read_results[f"{label}_files_found"] = file_names
+        except Exception as e:
+            read_results[f"{label}_error"] = f"❌ Failed to list files in: {path} – {str(e)}"
+            read_results[f"{label}_files_found"] = []
+
+    for label, path in WRITE_DIRECTORIES.items():
+        try:
+            files = supabase.storage.from_(SUPABASE_BUCKET).list(path)
+            folder_present = any(file["name"] == ".keep" for file in files)
+            write_results[f"{label}_folder_exists"] = folder_present
+        except Exception as e:
+            write_results[f"{label}_folder_error"] = f"❌ Failed to verify folder: {path} – {str(e)}"
+            write_results[f"{label}_folder_exists"] = False
+
+    return jsonify({
         "status": "completed",
-        "read_folders": {},
-        "write_folders": {},
-    }
-
-    # Read folders — always check
-    for label, folder in READ_FOLDERS.items():
-        files = list_files("storage", folder)
-        output["read_folders"][label] = files or []
-
-    # Write folders — only check if run_id is supplied
-    if run_id:
-        for label, template in WRITE_FOLDERS.items():
-            path = template.format(run_id=run_id)
-            files = list_files("storage", path)
-            output["write_folders"][label] = files or []
-
-    return jsonify(output)
+        "message": "Read and write directory scan complete.",
+        "read_directories": read_results,
+        "write_directories": write_results
+    })
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
