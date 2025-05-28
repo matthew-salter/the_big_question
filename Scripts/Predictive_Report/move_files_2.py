@@ -1,4 +1,4 @@
-# move_files_2.py — Stage 1: List files in static source folders
+# Scripts/Predictive_Report/move_files_2.py
 
 import os
 import requests
@@ -37,19 +37,13 @@ def list_files_in_folder(folder_path: str):
         logger.error(f"❌ Failed to list files in {folder_path}: {e}")
         return []
 
-def main():
+def run_prompt(_: dict) -> dict:
+    logger.info("🚀 Starting Stage 1: Source folder file lookup")
     results = {}
+
     for folder in SOURCE_FOLDERS:
-        file_names = list_files_in_folder(folder)
-        results[folder] = file_names
+        files = list_files_in_folder(folder)
+        results[folder] = files
 
-    for folder, files in results.items():
-        logger.info(f"📁 {folder} contains: {files}")
-
-if __name__ == "__main__":
-    main()
-
-
-
-if __name__ == "__main__":
-    app.run(debug=True)
+    logger.info("✅ File lookup complete")
+    return results
