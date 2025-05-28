@@ -45,6 +45,19 @@ def copy_supabase_file(from_path, to_path):
 
     logger.info(f"✅ Copied file: {from_path} → {to_path}")
 
+def delete_keep_files(folder_paths):
+    headers = get_supabase_headers()
+    for folder in folder_paths:
+        keep_file = f"{folder}/.keep"
+        url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{keep_file}"
+        delete_resp = requests.delete(url, headers=headers)
+        if delete_resp.status_code in (200, 204):
+            logger.info(f"🧹 Deleted .keep file: {keep_file}")
+        elif delete_resp.status_code == 404:
+            logger.debug(f"📭 No .keep file to delete in: {keep_file}")
+        else:
+            logger.warning(f"⚠️ Failed to delete .keep file: {keep_file} | Status: {delete_resp.status_code}")
+
 def run_prompt(data: dict) -> dict:
     run_ids = {
         "client_context": data["client_context_run_id"],
@@ -61,7 +74,6 @@ def run_prompt(data: dict) -> dict:
     }
 
     folder_paths = [f.strip() for f in data["expected_folders"].split(",")]
-    target_root = next((f for f in folder_paths if f.endswith("/Outputs")), None)
     target_map = {p.split("/")[-1]: p for p in folder_paths}
 
     # Standard .txt/.csv renames
@@ -82,12 +94,12 @@ def run_prompt(data: dict) -> dict:
     for folder, run_id, dest_key, prefix, ext in file_jobs:
         from_path = f"The_Big_Question/Predictive_Report/Ai_Responses/{folder}/{run_id}.txt"
         if ext == "csv":
-            from_path = from_path.replace(".txt", ".txt")  # still txt content
+            from_path = from_path.replace(".txt", ".txt")  # still source is .txt
         to_folder = target_map[dest_key]
         to_path = f"{to_folder}/{prefix}_{run_id}_.{ext}"
         move_supabase_file(from_path, to_path)
 
-    # Report_Tables — all files, no rename
+    # Report_Tables — move all files
     report_tables_src = "The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables"
     report_tables_dst = target_map.get("Report_Tables")
     if report_tables_dst:
@@ -101,7 +113,7 @@ def run_prompt(data: dict) -> dict:
                 dst_path = f"{report_tables_dst}/{filename}"
                 move_supabase_file(src_path, dst_path)
 
-    # Question_Context — all files
+    # Question_Context — move all files
     question_src = "The_Big_Question/Predictive_Report/Question_Context"
     question_dst = target_map.get("Question_Context")
     if question_dst:
@@ -114,7 +126,7 @@ def run_prompt(data: dict) -> dict:
                 dst_path = f"{question_dst}/{filename}"
                 move_supabase_file(src_path, dst_path)
 
-    # Logos — all files + copy logo
+    # Logos — move all + copy logo
     logo_src = "The_Big_Question/Predictive_Report/Logos"
     logo_dst = target_map.get("Logos")
     if logo_dst:
@@ -127,7 +139,10 @@ def run_prompt(data: dict) -> dict:
                 dst_path = f"{logo_dst}/{filename}"
                 move_supabase_file(src_path, dst_path)
 
-        # COPY Panelitix logo
+        # COPY the Panelitix logo
         copy_supabase_file("The_Big_Question/General_Files/Panelitix_Logo.png", f"{logo_dst}/Panelitix_Logo.png")
 
-    return {"status": "complete", "message": "Files moved and renamed successfully."}
+    # Clean up .keep files
+    delete_keep_files(folder_paths)
+
+    return {"status": "complete", "message": "Files moved, renamed, and folders cleaned."}
