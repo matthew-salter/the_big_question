@@ -92,9 +92,11 @@ def run_prompt(data: dict) -> dict:
     ]
 
     for folder, run_id, dest_key, prefix, ext in file_jobs:
-        from_path = f"The_Big_Question/Predictive_Report/Ai_Responses/{folder}/{run_id}.txt"
         if ext == "csv":
-            from_path = from_path.replace(".txt", ".txt")  # still source is .txt
+            from_path = f"The_Big_Question/Predictive_Report/Ai_Responses/{folder}/{run_id}.csv"
+        else:
+            from_path = f"The_Big_Question/Predictive_Report/Ai_Responses/{folder}/{run_id}.txt"
+
         to_folder = target_map[dest_key]
         to_path = f"{to_folder}/{prefix}_{run_id}_.{ext}"
         move_supabase_file(from_path, to_path)
@@ -103,7 +105,7 @@ def run_prompt(data: dict) -> dict:
     report_tables_src = "The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables"
     report_tables_dst = target_map.get("Report_Tables")
     if report_tables_dst:
-        list_url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}?prefix={report_tables_src}"
+        list_url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}?prefix={report_tables_src}/"
         headers = get_supabase_headers()
         list_resp = requests.get(list_url, headers=headers)
         if list_resp.status_code == 200:
@@ -117,7 +119,7 @@ def run_prompt(data: dict) -> dict:
     question_src = "The_Big_Question/Predictive_Report/Question_Context"
     question_dst = target_map.get("Question_Context")
     if question_dst:
-        list_url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}?prefix={question_src}"
+        list_url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}?prefix={question_src}/"
         list_resp = requests.get(list_url, headers=get_supabase_headers())
         if list_resp.status_code == 200:
             for item in list_resp.json():
@@ -130,7 +132,7 @@ def run_prompt(data: dict) -> dict:
     logo_src = "The_Big_Question/Predictive_Report/Logos"
     logo_dst = target_map.get("Logos")
     if logo_dst:
-        list_url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}?prefix={logo_src}"
+        list_url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}?prefix={logo_src}/"
         list_resp = requests.get(list_url, headers=get_supabase_headers())
         if list_resp.status_code == 200:
             for item in list_resp.json():
