@@ -4,4 +4,3 @@ python-dotenv
 gunicorn
 requests
 supabase
-supabase-py
