@@ -6,28 +6,37 @@ from logger import logger
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_BUCKET = "panelitix"
 
-FOLDER_PATHS = [
-    "The_Big_Question/Predictive_Report/Logos",
-    "The_Big_Question/Predictive_Report/Question_Context",
-    "The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables"
-]
-
-def list_supabase_files(prefix):
+def list_files_in_folder(folder: str) -> list:
     headers = get_supabase_headers()
-    list_url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}?prefix={prefix}/"
-    resp = requests.get(list_url, headers=headers)
+    headers["Content-Type"] = "application/json"
+    url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}"
+    resp = requests.post(url, headers=headers, json={"prefix": f"{folder}/"})
+
     if resp.status_code != 200:
-        logger.warning(f"❌ Failed to list files in: {prefix}")
+        logger.warning(f"❌ Failed to list files in: {folder}")
         return []
-    return [item["name"].split("/")[-1] for item in resp.json() if not item["name"].endswith(".keep")]
+
+    return [
+        os.path.basename(item["name"])
+        for item in resp.json()
+        if not item["name"].endswith(".keep")
+    ]
 
 def run_prompt(_: dict) -> dict:
-    result = {}
-    for folder in FOLDER_PATHS:
-        result[folder] = list_supabase_files(folder)
+    folders_to_check = [
+        "The_Big_Question/Predictive_Report/Logos",
+        "The_Big_Question/Predictive_Report/Question_Context",
+        "The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables",
+    ]
+
+    results = {}
+    for folder in folders_to_check:
+        files = list_files_in_folder(folder)
+        key = folder.replace("/", " ")
+        results[key] = files or [f"No files found in {folder}"]
+
     return {
         "status": "completed",
         "message": "File listing complete.",
-        "files_found": result
+        "files_found": results
     }
-
