@@ -87,7 +87,6 @@ def run_prompt(data: dict) -> dict:
     target_map = {p.split("/")[-1]: p for p in folder_paths}
     skipped_files = []
 
-    # Individual file moves with rename
     file_jobs = [
         ("Client_Context", run_ids["client_context"], "Outputs", "client_context", "txt"),
         ("Combine", run_ids["combine"], "Outputs", "combine", "txt"),
@@ -112,7 +111,7 @@ def run_prompt(data: dict) -> dict:
     # Bulk folder moves
     move_folder_contents(
         "The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables",
-        target_map.get("Report_and_Section_Tables", ""),
+        target_map.get("Report_Tables", ""),
         skipped_files
     )
     move_folder_contents(
@@ -133,6 +132,7 @@ def run_prompt(data: dict) -> dict:
         skipped_files
     )
 
+    # Cleanup
     delete_keep_files(folder_paths)
 
     return {
