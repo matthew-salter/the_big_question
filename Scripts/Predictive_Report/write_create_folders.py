@@ -62,7 +62,8 @@ def build_expected_paths(data):
         "Logos",
         "Outputs",
         "Question_Context",
-        "Report_Content_txt"
+        "Report_Content_txt",
+        "Report_and_Section_Tables"
     ]
 
     expected_paths = [base_path, dated_path, context_path]
