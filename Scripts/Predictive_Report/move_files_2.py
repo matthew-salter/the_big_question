@@ -1,48 +1,73 @@
+# move_files_2.py
+
 import os
-import requests
-from Engine.Files.auth import get_supabase_headers
+from flask import Flask, request, jsonify
+from supabase import create_client
+from dotenv import load_dotenv
 from logger import logger
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_BUCKET = "panelitix"
+load_dotenv()
 
-# Folder paths to check
-SOURCE_FOLDERS = {
+app = Flask(__name__)
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+READ_FOLDERS = {
     "Logos": "The_Big_Question/Predictive_Report/Logos",
     "Question_Context": "The_Big_Question/Predictive_Report/Question_Context",
     "Report_and_Section_Tables": "The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables"
 }
 
-def list_files_in_folder(folder_path):
-    headers = get_supabase_headers()
-    list_url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}?prefix={folder_path}/"
-    resp = requests.get(list_url, headers=headers)
-    if resp.status_code != 200:
-        logger.warning(f"❌ Failed to list files in: {folder_path}")
+WRITE_FOLDERS = {
+    "Logos": "The_Big_Question/Structured_Report_Files/{run_id}/Logos",
+    "Question_Context": "The_Big_Question/Structured_Report_Files/{run_id}/Question_Context",
+    "Report_and_Section_Tables": "The_Big_Question/Structured_Report_Files/{run_id}/Report_and_Section_Tables"
+}
+
+
+def list_files(bucket, prefix):
+    try:
+        response = supabase.storage.from_(bucket).list(path=prefix)
+        if isinstance(response, list):
+            file_names = [f['name'] for f in response if not f['name'].startswith('.')]
+            return file_names
+        else:
+            logger.warning(f"❌ Unexpected response type for listing: {prefix}")
+            return []
+    except Exception as e:
+        logger.warning(f"❌ Failed to list files in: {prefix}")
         return []
-    files = [item["name"].split("/")[-1] for item in resp.json() if not item["name"].endswith(".keep")]
-    return files
 
-def run_prompt(data: dict) -> dict:
-    headers = get_supabase_headers()
-    expected_folders = [f.strip() for f in data.get("expected_folders", "").split(",") if f.strip()]
-    write_folder_map = {folder.split("/")[-1]: folder for folder in expected_folders}
 
-    result = {
-        "status": "completed",
+@app.route("/", methods=["POST"])
+def handle_request():
+    payload = request.json or {}
+    run_id = payload.get("run_id")
+
+    output = {
         "message": "File listing complete.",
-        "files_found": {},
-        "write_folders_found": []
+        "status": "completed",
+        "read_folders": {},
+        "write_folders": {},
     }
 
-    # List files in source folders
-    for key, path in SOURCE_FOLDERS.items():
-        files = list_files_in_folder(path)
-        result["files_found"][key] = files if files else []
+    # Read folders — always check
+    for label, folder in READ_FOLDERS.items():
+        files = list_files("storage", folder)
+        output["read_folders"][label] = files or []
 
-    # Confirm which expected write folders exist
-    for expected in ["Logos", "Question_Context", "Report_and_Section_Tables"]:
-        if expected in write_folder_map:
-            result["write_folders_found"].append(expected)
+    # Write folders — only check if run_id is supplied
+    if run_id:
+        for label, template in WRITE_FOLDERS.items():
+            path = template.format(run_id=run_id)
+            files = list_files("storage", path)
+            output["write_folders"][label] = files or []
 
-    return result
+    return jsonify(output)
+
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
