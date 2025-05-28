@@ -19,6 +19,10 @@ def list_files_in_folder(folder_path: str):
         logger.error("❌ SUPABASE_URL is not set in environment variables.")
         raise ValueError("SUPABASE_URL not configured")
 
+    # Ensure trailing slash
+    if not folder_path.endswith("/"):
+        folder_path += "/"
+
     url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}"
     headers = get_supabase_headers()
     params = {"prefix": folder_path, "limit": 1000}
