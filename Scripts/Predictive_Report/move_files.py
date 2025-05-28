@@ -6,28 +6,24 @@ from logger import logger
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_BUCKET = "panelitix"
 
+skipped = []
+
 def move_supabase_file(from_path, to_path):
     headers = get_supabase_headers()
-
-    # Read original file
     get_url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{from_path}"
     get_resp = requests.get(get_url, headers=headers)
     if get_resp.status_code != 200:
         logger.warning(f"❌ Failed to fetch {from_path}")
+        skipped.append(from_path)
         return
-
-    # Upload to destination
     put_url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{to_path}"
     put_resp = requests.put(put_url, headers=headers, data=get_resp.content)
     if put_resp.status_code not in (200, 201):
         logger.warning(f"❌ Failed to write {to_path}")
+        skipped.append(to_path)
         return
-
     logger.info(f"✅ Moved file: {from_path} → {to_path}")
-
-    # Delete original
-    delete_url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{from_path}"
-    requests.delete(delete_url, headers=headers)
+    requests.delete(get_url, headers=headers)
 
 def copy_supabase_file(from_path, to_path):
     headers = get_supabase_headers()
@@ -35,14 +31,14 @@ def copy_supabase_file(from_path, to_path):
     get_resp = requests.get(get_url, headers=headers)
     if get_resp.status_code != 200:
         logger.warning(f"❌ Failed to copy from {from_path}")
+        skipped.append(from_path)
         return
-
     put_url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{to_path}"
     put_resp = requests.put(put_url, headers=headers, data=get_resp.content)
     if put_resp.status_code not in (200, 201):
         logger.warning(f"❌ Failed to copy to {to_path}")
+        skipped.append(to_path)
         return
-
     logger.info(f"✅ Copied file: {from_path} → {to_path}")
 
 def delete_keep_files(folder_paths):
@@ -76,7 +72,6 @@ def run_prompt(data: dict) -> dict:
     folder_paths = [f.strip() for f in data["expected_folders"].split(",")]
     target_map = {p.split("/")[-1]: p for p in folder_paths}
 
-    # Standard .txt/.csv renames
     file_jobs = [
         ("Client_Context", run_ids["client_context"], "Outputs", "client_context", "txt"),
         ("Combine", run_ids["combine"], "Outputs", "combine", "txt"),
@@ -96,12 +91,10 @@ def run_prompt(data: dict) -> dict:
             from_path = f"The_Big_Question/Predictive_Report/Ai_Responses/{folder}/{run_id}.csv"
         else:
             from_path = f"The_Big_Question/Predictive_Report/Ai_Responses/{folder}/{run_id}.txt"
-
         to_folder = target_map[dest_key]
         to_path = f"{to_folder}/{prefix}_{run_id}_.{ext}"
         move_supabase_file(from_path, to_path)
 
-    # Report_Tables — move all files
     report_tables_src = "The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables"
     report_tables_dst = target_map.get("Report_Tables")
     if report_tables_dst:
@@ -111,11 +104,8 @@ def run_prompt(data: dict) -> dict:
         if list_resp.status_code == 200:
             for item in list_resp.json():
                 filename = item["name"].split("/")[-1]
-                src_path = item["name"]
-                dst_path = f"{report_tables_dst}/{filename}"
-                move_supabase_file(src_path, dst_path)
+                move_supabase_file(item["name"], f"{report_tables_dst}/{filename}")
 
-    # Question_Context — move all files
     question_src = "The_Big_Question/Predictive_Report/Question_Context"
     question_dst = target_map.get("Question_Context")
     if question_dst:
@@ -124,11 +114,8 @@ def run_prompt(data: dict) -> dict:
         if list_resp.status_code == 200:
             for item in list_resp.json():
                 filename = item["name"].split("/")[-1]
-                src_path = item["name"]
-                dst_path = f"{question_dst}/{filename}"
-                move_supabase_file(src_path, dst_path)
+                move_supabase_file(item["name"], f"{question_dst}/{filename}")
 
-    # Logos — move all + copy logo
     logo_src = "The_Big_Question/Predictive_Report/Logos"
     logo_dst = target_map.get("Logos")
     if logo_dst:
@@ -137,14 +124,14 @@ def run_prompt(data: dict) -> dict:
         if list_resp.status_code == 200:
             for item in list_resp.json():
                 filename = item["name"].split("/")[-1]
-                src_path = item["name"]
-                dst_path = f"{logo_dst}/{filename}"
-                move_supabase_file(src_path, dst_path)
-
-        # COPY the Panelitix logo
+                move_supabase_file(item["name"], f"{logo_dst}/{filename}")
         copy_supabase_file("The_Big_Question/General_Files/Panelitix_Logo.png", f"{logo_dst}/Panelitix_Logo.png")
 
-    # Clean up .keep files
     delete_keep_files(folder_paths)
 
-    return {"status": "complete", "message": "Files moved, renamed, and folders cleaned."}
+    return {
+        "status": "started",
+        "message": "File move operations triggered. You can verify moved files via 2nd webhook.",
+        "expected_folders": folder_paths,
+        "skipped_files": skipped
+    }
