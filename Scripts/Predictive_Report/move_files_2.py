@@ -2,8 +2,8 @@ import os
 import requests
 from logger import logger
 from Engine.Files.auth import get_supabase_headers
-from Engine.Files.read_supabase_file import read_supabase_file
-from Engine.Files.write_supabase_file import write_supabase_file
+from Engine.Files.read_copy_supabase_file import read_copy_supabase_file
+from Engine.Files.write_copy_supabase_file import write_copy_supabase_file
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_BUCKET = "panelitix"
