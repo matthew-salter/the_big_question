@@ -108,6 +108,68 @@ def run_prompt(payload: dict) -> dict:
         "target_folder_lookup": target_folder_lookup
     }
 
+def copy_and_delete_files(stage_1_results: dict, expected_folders_str: str):
+    logger.info("🚀 Starting Stage 3: File copy and cleanup")
+
+    headers = get_supabase_headers()
+
+    # Step 1: Create mapping of suffix ➝ target folder
+    expected_folders = expected_folders_str.split(",")
+    suffix_map = {}
+    for suffix in TARGET_SUFFIXES:
+        for folder in expected_folders:
+            if folder.endswith(suffix):
+                suffix_map[suffix] = folder
+                break  # first match wins
+
+    # Step 2: Process files from source folders
+    for source_folder, files in stage_1_results.items():
+        for file_name in files:
+            if file_name == ".emptyFolderPlaceholder":
+                continue  # skip placeholder
+
+            suffix = "/" + source_folder.split("/")[-1] + "/"
+            target_folder = suffix_map.get(suffix)
+
+            if not target_folder:
+                logger.warning(f"⚠️ No target folder found for source {source_folder}")
+                continue
+
+            source_path = f"{source_folder}/{file_name}"
+            target_path = f"{target_folder}/{file_name}"
+
+            # Step 3: Download file
+            download_url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{source_path}"
+            try:
+                logger.info(f"⬇️ Downloading: {source_path}")
+                file_response = requests.get(download_url, headers=headers)
+                file_response.raise_for_status()
+                file_bytes = file_response.content
+            except requests.RequestException as e:
+                logger.error(f"❌ Failed to download {source_path}: {e}")
+                continue
+
+            # Step 4: Upload to target
+            upload_url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{target_path}"
+            try:
+                logger.info(f"⬆️ Uploading: {target_path}")
+                upload_headers = headers.copy()
+                upload_headers["Content-Type"] = "application/octet-stream"
+                upload_response = requests.post(upload_url, headers=upload_headers, data=file_bytes)
+                upload_response.raise_for_status()
+            except requests.RequestException as e:
+                logger.error(f"❌ Failed to upload to {target_path}: {e}")
+                continue
+
+            # Step 5: Delete original
+            delete_url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{source_path}"
+            try:
+                logger.info(f"🗑️ Deleting: {source_path}")
+                delete_response = requests.delete(delete_url, headers=headers)
+                delete_response.raise_for_status()
+            except requests.RequestException as e:
+                logger.error(f"❌ Failed to delete {source_path}: {e}")
+
 def run_prompt(payload: dict) -> dict:
     logger.info("🚀 Starting Stage 1: Source folder file lookup")
     stage_1_results = {}
@@ -120,6 +182,10 @@ def run_prompt(payload: dict) -> dict:
     expected_folders_str = payload.get("expected_folders", "")
     stage_2_results = find_target_folders(expected_folders_str)
     logger.info("📦 Completed Stage 2")
+
+    logger.info("🚀 Starting Stage 3")
+    copy_and_delete_files(stage_1_results, expected_folders_str)
+    logger.info("📦 Completed Stage 3")
 
     # --- Stage 1 Output (unchanged)
     source_folder_files = {}
