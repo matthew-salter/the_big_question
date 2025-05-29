@@ -85,8 +85,8 @@ def run_prompt(payload):
             dest_path = f"{target_folder}/{fname}"
 
             try:
-                content = read_supabase_file(source_path, binary=True)
-                write_supabase_file(dest_path, content)
+                content = read_copy_supabase_file(source_path, binary=True)
+                write_copy_supabase_file(dest_path, content)
                 delete_supabase_file(source_path)
                 logger.info(f"✅ Moved {source_path} → {dest_path}")
             except Exception as e:
