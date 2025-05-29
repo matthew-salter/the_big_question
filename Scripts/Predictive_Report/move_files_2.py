@@ -121,24 +121,20 @@ def run_prompt(payload: dict) -> dict:
     stage_2_results = find_target_folders(expected_folders_str)
     logger.info("📦 Completed Stage 2")
 
-    # Stage 1 output: readable label with clean list of filenames
+    # --- Stage 1 Output (unchanged)
     source_folder_files = {}
     for folder, files in stage_1_results.items():
         readable_label = f"Source Folder {folder.replace('/', ' ')}"
         source_folder_files[readable_label] = [file for file in files]
 
-    # Stage 2 output: flat dict of folder → "found"/"not found"
-    target_folder_lookup = {}
-    for folder, status in stage_2_results.items():
-        readable_label = folder.replace("/", " ")
-        target_folder_lookup[readable_label] = status
-
+    # --- Final Output Dict (flattened)
     output = {
-        "source_folder_files": source_folder_files,
+        "source_folder_files": source_folder_files
     }
 
+    # --- Stage 2 Output: flattened keys like "target_folder__..."
     for folder, status in stage_2_results.items():
-        label = folder.replace("/", "_").replace(" ", "_")
-        output[f"target_folder__{label}"] = status
+        flat_key = f"target_folder__{folder.replace('/', '_')}"
+        output[flat_key] = status  # e.g., "found" or "not found"
 
     return output
