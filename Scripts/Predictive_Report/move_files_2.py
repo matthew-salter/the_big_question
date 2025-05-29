@@ -52,7 +52,7 @@ def run_prompt(payload):
             headers = get_supabase_headers()
             res = requests.get(url, headers=headers)
             res.raise_for_status()
-            found = any(item["name"].endswith(".keep") or item["name"] != "" for item in res.json())
+            found = any(item["name"].endswith(".keep") for item in res.json())
             stage_2_results[folder_path] = "found" if found else "not found"
         except Exception as e:
             logger.error(f"Error reading target folder {folder_path}: {e}")
@@ -85,8 +85,8 @@ def run_prompt(payload):
             dest_path = f"{target_folder}/{fname}"
 
             try:
-                content = read_copy_supabase_file(source_path, binary=True)
-                write_copy_supabase_file(dest_path, content)
+                content = read_supabase_file(source_path, binary=True)
+                write_supabase_file(dest_path, content)
                 delete_supabase_file(source_path)
                 logger.info(f"✅ Moved {source_path} → {dest_path}")
             except Exception as e:
