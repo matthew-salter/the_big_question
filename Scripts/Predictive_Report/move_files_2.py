@@ -2,6 +2,7 @@ import os
 import re
 import requests
 from logger import logger
+from collections import defaultdict
 from Engine.Files.auth import get_supabase_headers
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -108,19 +109,20 @@ def run_prompt(payload: dict) -> dict:
         "target_folder_lookup": target_folder_lookup
     }
 
+
 def copy_and_delete_files(stage_1_results: dict, expected_folders_str: str):
     logger.info("🚀 Starting Stage 3: File copy and cleanup")
-
     headers = get_supabase_headers()
 
-    # Step 1: Create mapping of suffix ➝ target folder
     expected_folders = expected_folders_str.split(",")
-    suffix_map = {}
-    for suffix in TARGET_SUFFIXES:
-        for folder in expected_folders:
+    suffix_map = defaultdict(list)
+
+    for folder in expected_folders:
+        for suffix in TARGET_SUFFIXES:
             if folder.endswith(suffix):
-                suffix_map[suffix] = folder
-                break  # first match wins
+                suffix_map[suffix].append(folder)
+
+    logger.info(f"🔁 Suffix map for Stage 3: {dict(suffix_map)}")  # ← HERE
 
     # Step 2: Process files from source folders
     for source_folder, files in stage_1_results.items():
@@ -129,7 +131,13 @@ def copy_and_delete_files(stage_1_results: dict, expected_folders_str: str):
                 continue  # skip placeholder
 
             suffix = "/" + source_folder.split("/")[-1] + "/"
-            target_folder = suffix_map.get(suffix)
+            target_folders = suffix_map.get(suffix, [])
+            if not target_folders:
+                logger.warning(f"⚠️ No target folder found for source {source_folder}")
+                continue
+
+            # Use the *first* matching folder (or enhance to handle all if needed)
+            target_folder = target_folders[0]
 
             if not target_folder:
                 logger.warning(f"⚠️ No target folder found for source {source_folder}")
