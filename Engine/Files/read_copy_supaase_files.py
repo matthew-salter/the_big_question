@@ -6,7 +6,7 @@ from logger import logger
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_BUCKET = "panelitix"
 
-def read_supabase_file(path: str, binary: bool = False):
+def read_copy_supabase_file(path: str, binary: bool = False):
     if not SUPABASE_URL:
         logger.error("❌ SUPABASE_URL is not set in environment variables.")
         raise ValueError("SUPABASE_URL not configured")
