@@ -121,24 +121,17 @@ def run_prompt(payload: dict) -> dict:
     stage_2_results = find_target_folders(expected_folders_str)
     logger.info("📦 Completed Stage 2")
 
-    # Format Stage 1 results as nested values, not nested keys
-    source_folder_files = []
+    # Stage 1 output: readable label with clean list of filenames
+    source_folder_files = {}
     for folder, files in stage_1_results.items():
         readable_label = f"Source Folder {folder.replace('/', ' ')}"
-        entries = {str(i + 1): file for i, file in enumerate(files)}
-        source_folder_files.append({
-            "folder": readable_label,
-            "files": entries
-        })
+        source_folder_files[readable_label] = [file for file in files]
 
-    # Format Stage 2 results as clean list of results
-    target_folder_lookup = []
+    # Stage 2 output: flat dict of folder → "found"/"not found"
+    target_folder_lookup = {}
     for folder, status in stage_2_results.items():
         readable_label = folder.replace("/", " ")
-        target_folder_lookup.append({
-            "folder": readable_label,
-            "status": status
-        })
+        target_folder_lookup[readable_label] = status
 
     return {
         "source_folder_files": source_folder_files,
