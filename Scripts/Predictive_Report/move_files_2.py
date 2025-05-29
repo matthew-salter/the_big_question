@@ -92,7 +92,13 @@ def run_prompt(payload: dict) -> dict:
 
     logger.info("📦 Completed Stage 2")
 
-    return {
-        "source_folder_files": stage_1_results,
-        "target_folder_lookup": stage_2_results
+    output = {
+        "source_folder_files": stage_1_results
     }
+
+    # Flatten stage 2 output into top-level Zapier-safe keys
+    for folder_path, status in stage_2_results.items():
+        key_name = folder_path.replace("/", "_").replace(" ", "_")
+        output[f"write_folder__{key_name}"] = f"{status} : {folder_path}"
+
+    return output
