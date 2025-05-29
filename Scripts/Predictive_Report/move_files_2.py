@@ -25,11 +25,12 @@ def list_files_in_folder(folder_path: str):
 
     url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}"
     headers = get_supabase_headers()
-    params = {"prefix": folder_path, "limit": 1000}
+    headers["Content-Type"] = "application/json"  # Required for POST
+    payload = {"prefix": folder_path, "limit": 1000}
 
     try:
         logger.info(f"📂 Listing files in folder: {folder_path}")
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()
         files = response.json()
 
