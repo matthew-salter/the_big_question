@@ -43,3 +43,6 @@ def read_supabase_file(path: str, binary: bool = False):
     except requests.exceptions.RequestException as e:
         logger.error(f"❌ Supabase file read failed: {e}")
         raise
+    except requests.exceptions.RequestException as e:
+        logger.error(f"❌ Supabase file read failed: {e}")
+        raise
