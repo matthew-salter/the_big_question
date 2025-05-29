@@ -83,7 +83,6 @@ def run_prompt(payload: dict) -> dict:
     for folder in SOURCE_FOLDERS:
         files = list_files_in_folder(folder)
         stage_1_results[folder] = files
-
     logger.info("📦 Completed Stage 1")
 
     logger.info("🚀 Starting Stage 2: Target folder validation")
@@ -91,24 +90,51 @@ def run_prompt(payload: dict) -> dict:
     stage_2_results = find_target_folders(expected_folders_str)
     logger.info("📦 Completed Stage 2")
 
-    # Build readable string for source folders
-    source_output_lines = []
+    # Format Stage 1 results for Zapier as nested dict
+    source_folder_files = {}
     for folder, files in stage_1_results.items():
-        label = f"Source Folder {folder.replace('/', ' ')}:"
-        file_lines = [f"{i + 1}: {file}" for i, file in enumerate(files)]
-        source_output_lines.append(label + "\n" + "\n".join(file_lines))
+        label = f"Source Folder {folder.replace('/', ' ')}"
+        file_dict = {str(i + 1): file for i, file in enumerate(files)}
+        source_folder_files[label] = file_dict
 
-    source_output_str = "\n\n".join(source_output_lines)
-
-    # Build readable string for write target folders
-    target_output_lines = []
+    # Format Stage 2 results for Zapier as nested dict
+    target_folder_lookup = {}
     for folder, status in stage_2_results.items():
-        label = f"Write Folder {folder.replace('/', ' ')}:"
-        target_output_lines.append(f"{label}\n1: {status}")
-
-    target_output_str = "\n\n".join(target_output_lines)
+        label = folder.replace("/", " ")
+        target_folder_lookup[label] = {"1": status}
 
     return {
-        "source_folder_files": source_output_str,
-        "target_folder_lookup": target_output_str
+        "source_folder_files": source_folder_files,
+        "target_folder_lookup": target_folder_lookup
+    }
+
+def run_prompt(payload: dict) -> dict:
+    logger.info("🚀 Starting Stage 1: Source folder file lookup")
+    stage_1_results = {}
+    for folder in SOURCE_FOLDERS:
+        files = list_files_in_folder(folder)
+        stage_1_results[folder] = files
+    logger.info("📦 Completed Stage 1")
+
+    logger.info("🚀 Starting Stage 2: Target folder validation")
+    expected_folders_str = payload.get("expected_folders", "")
+    stage_2_results = find_target_folders(expected_folders_str)
+    logger.info("📦 Completed Stage 2")
+
+    # Format Stage 1 results for Zapier as nested dict
+    source_folder_files = {}
+    for folder, files in stage_1_results.items():
+        label = f"Source Folder {folder.replace('/', ' ')}"
+        file_dict = {str(i + 1): file for i, file in enumerate(files)}
+        source_folder_files[label] = file_dict
+
+    # Format Stage 2 results for Zapier as nested dict
+    target_folder_lookup = {}
+    for folder, status in stage_2_results.items():
+        label = folder.replace("/", " ")
+        target_folder_lookup[label] = {"1": status}
+
+    return {
+        "source_folder_files": source_folder_files,
+        "target_folder_lookup": target_folder_lookup
     }
