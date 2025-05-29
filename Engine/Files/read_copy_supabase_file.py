@@ -11,7 +11,7 @@ def read_copy_supabase_file(path: str, binary: bool = False):
         logger.error("❌ SUPABASE_URL is not set in environment variables.")
         raise ValueError("SUPABASE_URL not configured")
 
-    url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}"
+    url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}?prefix={path}/"
     headers = get_supabase_headers()
 
     try:
