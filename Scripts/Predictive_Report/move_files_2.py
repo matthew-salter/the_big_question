@@ -1,83 +1,98 @@
-def move_file(source_path: str, target_path: str) -> bool:
-    """Moves a file in Supabase from source_path to target_path."""
+import os
+import requests
+from logger import logger
+from Engine.Files.auth import get_supabase_headers
+from read_supabase_file import read_supabase_file
+from write_supabase_file import write_supabase_file
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_BUCKET = "panelitix"
+
+def delete_supabase_file(path: str):
+    url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}"
     headers = get_supabase_headers()
-    headers["Content-Type"] = "application/json"
-    url = f"{SUPABASE_URL}/storage/v1/object/move"
-    data = {
-        "bucketId": SUPABASE_BUCKET,
-        "sourceKey": source_path,
-        "destinationKey": target_path
-    }
+    response = requests.delete(url, headers=headers)
+    response.raise_for_status()
 
-    try:
-        logger.info(f"🔀 Moving {source_path} → {target_path}")
-        response = requests.post(url, headers=headers, json=data)
-        response.raise_for_status()
-        logger.info("✅ Move successful")
-        return True
-    except requests.exceptions.RequestException as e:
-        logger.error(f"❌ Move failed: {e}")
-        return False
+def run_prompt(payload):
+    # --- Stage 1: Read source folders and list files ---
+    source_folders = [
+        "The_Big_Question/Predictive_Report/Logos",
+        "The_Big_Question/Predictive_Report/Question_Context",
+        "The_Big_Question/Predictive_Report/Ai_Responses/Report_and_Section_Tables"
+    ]
 
-def run_prompt(payload: dict) -> dict:
-    logger.info("🚀 Starting Stage 1: Source folder file lookup")
     stage_1_results = {}
-    for folder in SOURCE_FOLDERS:
-        files = list_files_in_folder(folder)
-        stage_1_results[folder] = files
-    logger.info("📦 Completed Stage 1")
+    for folder in source_folders:
+        try:
+            url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}?prefix={folder}/"
+            headers = get_supabase_headers()
+            res = requests.get(url, headers=headers)
+            res.raise_for_status()
+            files = [item["name"].split("/")[-1] for item in res.json() if item["name"] != f"{folder}/"]
+            stage_1_results[folder] = files
+        except Exception as e:
+            logger.error(f"Error reading folder {folder}: {e}")
+            stage_1_results[folder] = []
 
-    logger.info("🚀 Starting Stage 2: Target folder validation")
-    expected_folders_str = payload.get("expected_folders", "")
-    stage_2_results = find_target_folders(expected_folders_str)
-    logger.info("📦 Completed Stage 2")
+    # --- Stage 2: Validate write target folders ---
+    expected_paths = payload.get("expected_folders", "").split(",")
+    suffixes = ["Logos", "Question_Context", "Report_and_Section_Tables"]
+    stage_2_results = {}
 
-    # --- Stage 1 Output (unchanged)
-    source_folder_files = {}
-    for folder, files in stage_1_results.items():
-        readable_label = f"Source Folder {folder.replace('/', ' ')}"
-        source_folder_files[readable_label] = [file for file in files]
-
-    output = {
-        "source_folder_files": source_folder_files
-    }
-
-    for folder, status in stage_2_results.items():
-        flat_key = f"target_folder__{folder.replace('/', '_')}"
-        output[flat_key] = status
-
-    # --- Stage 3: Move files from source to matched target folder
-    logger.info("🚀 Starting Stage 3: Moving files to target folders")
-    for src_folder, file_list in stage_1_results.items():
-        suffix = None
-        if "Report_and_Section_Tables" in src_folder:
-            suffix = "/Report_and_Section_Tables/"
-        elif "Logos" in src_folder:
-            suffix = "/Logos/"
-        elif "Question_Context" in src_folder:
-            suffix = "/Question_Context/"
-        else:
+    for suffix in suffixes:
+        matching = [p for p in expected_paths if p.endswith(f"/{suffix}") or p.endswith(f"/{suffix}/")]
+        if not matching:
+            stage_2_results[suffix] = "not found"
             continue
 
-        # Find corresponding target folder from stage 2
-        matching_target = None
-        for target in stage_2_results.keys():
-            if target.endswith(suffix):
-                matching_target = target
+        folder_path = matching[0].rstrip("/")
+        try:
+            url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}?prefix={folder_path}/"
+            headers = get_supabase_headers()
+            res = requests.get(url, headers=headers)
+            res.raise_for_status()
+            found = any(item["name"].endswith(".keep") for item in res.json())
+            stage_2_results[folder_path] = "found" if found else "not found"
+        except Exception as e:
+            logger.error(f"Error reading target folder {folder_path}: {e}")
+            stage_2_results[folder_path] = "not found"
+
+    # --- Stage 3: Move files from source to target ---
+    logger.info("🚀 Starting Stage 3: Moving files from source to target")
+
+    for source_folder, files in stage_1_results.items():
+        suffix = source_folder.split("/")[-1]
+        if suffix not in suffixes:
+            logger.warning(f"⚠️ No suffix match for source folder: {source_folder}")
+            continue
+
+        target_folder = None
+        for target_path in stage_2_results:
+            if target_path.endswith(f"/{suffix}") and stage_2_results[target_path] == "found":
+                target_folder = target_path
                 break
 
-        if not matching_target or stage_2_results[matching_target] != "found":
-            logger.warning(f"⚠️ No valid target folder found for {src_folder}")
+        if not target_folder:
+            logger.warning(f"⚠️ No valid target folder for: {source_folder}")
             continue
 
-        for fname in file_list:
+        for fname in files:
             if fname == ".emptyFolderPlaceholder":
                 continue
-            source_path = f"{src_folder}/{fname}"
-            dest_path = f"{matching_target}/{fname}"
-            move_file(source_path, dest_path)
 
-    logger.info("📦 Completed Stage 3")
+            source_path = f"{source_folder}/{fname}"
+            dest_path = f"{target_folder}/{fname}"
 
-    return output
+            try:
+                content = read_supabase_file(source_path, binary=True)
+                write_supabase_file(dest_path, content)
+                delete_supabase_file(source_path)
+                logger.info(f"✅ Moved {source_path} → {dest_path}")
+            except Exception as e:
+                logger.error(f"❌ Failed to move {source_path} → {dest_path}: {e}")
 
+    return {
+        "source_folder_files": stage_1_results,
+        "target_folder_lookup": stage_2_results
+    }
