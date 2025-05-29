@@ -89,18 +89,26 @@ def run_prompt(payload: dict) -> dict:
     logger.info("🚀 Starting Stage 2: Target folder validation")
     expected_folders_str = payload.get("expected_folders", "")
     stage_2_results = find_target_folders(expected_folders_str)
-
     logger.info("📦 Completed Stage 2")
 
-    # Build flat, Zapier-safe key-value output
-    output = {}
+    # Build readable string for source folders
+    source_output_lines = []
+    for folder, files in stage_1_results.items():
+        label = f"Source Folder {folder.replace('/', ' ')}:"
+        file_lines = [f"{i + 1}: {file}" for i, file in enumerate(files)]
+        source_output_lines.append(label + "\n" + "\n".join(file_lines))
 
-    for folder_path, status in stage_1_results.items():
-        safe_key = re.sub(r'[^a-zA-Z0-9_]', '_', folder_path)
-        output[f"source_folder__{safe_key}"] = ", ".join(status)
+    source_output_str = "\n\n".join(source_output_lines)
 
-    for folder_path, status in stage_2_results.items():
-        safe_key = re.sub(r'[^a-zA-Z0-9_]', '_', folder_path)
-        output[f"write_folder__{safe_key}"] = f"{status} : {folder_path}"
+    # Build readable string for write target folders
+    target_output_lines = []
+    for folder, status in stage_2_results.items():
+        label = f"Write Folder {folder.replace('/', ' ')}:"
+        target_output_lines.append(f"{label}\n1: {status}")
 
-    return output
+    target_output_str = "\n\n".join(target_output_lines)
+
+    return {
+        "source_folder_files": source_output_str,
+        "target_folder_lookup": target_output_str
+    }
