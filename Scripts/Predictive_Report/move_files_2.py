@@ -121,18 +121,24 @@ def run_prompt(payload: dict) -> dict:
     stage_2_results = find_target_folders(expected_folders_str)
     logger.info("📦 Completed Stage 2")
 
-    # Format Stage 1 results for Zapier as nested dict
-    source_folder_files = {}
+    # Format Stage 1 results as nested values, not nested keys
+    source_folder_files = []
     for folder, files in stage_1_results.items():
-        label = f"Source Folder {folder.replace('/', ' ')}"
-        file_dict = {str(i + 1): file for i, file in enumerate(files)}
-        source_folder_files[label] = file_dict
+        readable_label = f"Source Folder {folder.replace('/', ' ')}"
+        entries = {str(i + 1): file for i, file in enumerate(files)}
+        source_folder_files.append({
+            "folder": readable_label,
+            "files": entries
+        })
 
-    # Format Stage 2 results for Zapier as nested dict
-    target_folder_lookup = {}
+    # Format Stage 2 results as clean list of results
+    target_folder_lookup = []
     for folder, status in stage_2_results.items():
-        label = folder.replace("/", " ")
-        target_folder_lookup[label] = {"1": status}
+        readable_label = folder.replace("/", " ")
+        target_folder_lookup.append({
+            "folder": readable_label,
+            "status": status
+        })
 
     return {
         "source_folder_files": source_folder_files,
