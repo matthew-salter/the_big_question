@@ -133,7 +133,12 @@ def run_prompt(payload: dict) -> dict:
         readable_label = folder.replace("/", " ")
         target_folder_lookup[readable_label] = status
 
-    return {
+    output = {
         "source_folder_files": source_folder_files,
-        "target_folder_lookup": target_folder_lookup
     }
+
+    for folder, status in stage_2_results.items():
+        label = folder.replace("/", "_").replace(" ", "_")
+        output[f"target_folder__{label}"] = status
+
+    return output
