@@ -25,7 +25,7 @@ BLOCKING_PROMPTS = {
     "report_and_section_table_csv",
     "write_create_folders",
     "read_create_folders",
-    "move_files",
+    "move_files_1",
     "move_files_2"
 }
 
@@ -55,7 +55,7 @@ PROMPT_MODULES = {
     "report_and_section_table_csv": "Scripts.Predictive_Report.report_and_section_table_csv",
     "write_create_folders": "Scripts.Predictive_Report.write_create_folders",
     "read_create_folders": "Scripts.Predictive_Report.read_create_folders",
-    "move_files": "Scripts.Predictive_Report.move_files",
+    "move_files_1": "Scripts.Predictive_Report.move_files_1",
     "move_files_2": "Scripts.Predictive_Report.move_files_2"
 }
 
