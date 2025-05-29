@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 from logger import logger
 from Engine.Files.auth import get_supabase_headers
@@ -54,7 +55,6 @@ def find_target_folders(expected_folders_str: str):
     relevant_targets = [folder for folder in all_expected if any(folder.endswith(suffix) for suffix in TARGET_SUFFIXES)]
 
     for folder in relevant_targets:
-        # List objects in the folder to confirm existence
         url = f"{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}"
         payload = {"prefix": folder, "limit": 1}
 
@@ -92,13 +92,15 @@ def run_prompt(payload: dict) -> dict:
 
     logger.info("📦 Completed Stage 2")
 
-    output = {
-        "source_folder_files": stage_1_results
-    }
+    # Build flat, Zapier-safe key-value output
+    output = {}
 
-    # Flatten stage 2 output into top-level Zapier-safe keys
+    for folder_path, status in stage_1_results.items():
+        safe_key = re.sub(r'[^a-zA-Z0-9_]', '_', folder_path)
+        output[f"source_folder__{safe_key}"] = ", ".join(status)
+
     for folder_path, status in stage_2_results.items():
-        key_name = folder_path.replace("/", "_").replace(" ", "_")
-        output[f"write_folder__{key_name}"] = f"{status} : {folder_path}"
+        safe_key = re.sub(r'[^a-zA-Z0-9_]', '_', folder_path)
+        output[f"write_folder__{safe_key}"] = f"{status} : {folder_path}"
 
     return output
