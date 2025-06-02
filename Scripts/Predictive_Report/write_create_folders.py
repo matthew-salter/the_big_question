@@ -50,11 +50,12 @@ def build_expected_paths(data):
     client = normalise_path_segment(client_raw)
     target_variable = uppercase_path_segment(target_variable_raw)
     date_stamp = today_date_raw.replace("/", "-").replace(" ", "_").replace(":", "")
-    full_context = uppercase_path_segment(f"{target_variable_raw}_of_{commodity_raw}_in_the_{region_raw}_over_the_next_{time_range_raw}")
+    dated_folder = f"{target_variable}_{date_stamp}"
+    context_folder = uppercase_path_segment(f"{commodity_raw}_in_the_{region_raw}_over_the_next_{time_range_raw}")
 
     base_path = f"The_Big_Question/Predictive_Report/Completed_Reports/{client}"
-    dated_path = f"{base_path}/{target_variable}_{date_stamp}"
-    context_path = f"{dated_path}/{full_context}"
+    context_path = f"{base_path}/{context_folder}"
+    dated_path = f"{context_path}/{dated_folder}"
 
     subfolders = [
         "Image_Prompts",
@@ -66,8 +67,8 @@ def build_expected_paths(data):
         "Report_and_Section_Tables"
     ]
 
-    expected_paths = [base_path, dated_path, context_path]
-    expected_paths += [f"{context_path}/{folder}" for folder in subfolders]
+    expected_paths = [base_path, context_path, dated_path]
+    expected_paths += [f"{dated_path}/{folder}" for folder in subfolders]
     return expected_paths
 
 def background_create_folders(paths):
