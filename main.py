@@ -26,6 +26,7 @@ BLOCKING_PROMPTS = {
     "write_create_folders",
     "write_create_folders_2",
     "read_create_folders",
+    "read_create_folders_2",
     "move_files_1",
     "move_files_2",
     "move_files_1.1",
