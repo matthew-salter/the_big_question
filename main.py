@@ -27,7 +27,9 @@ BLOCKING_PROMPTS = {
     "write_create_folders_2",
     "read_create_folders",
     "move_files_1",
-    "move_files_2"
+    "move_files_2",
+    "move_files_1.1",
+    "move_files_2.1"
 }
 
 # Explicit static mapping of prompt names to module paths
@@ -59,7 +61,9 @@ PROMPT_MODULES = {
     "read_create_folders": "Scripts.Predictive_Report.read_create_folders",
     "read_create_folders_2": "Scripts.Predictive_Report.read_create_folders_2",
     "move_files_1": "Scripts.Predictive_Report.move_files_1",
-    "move_files_2": "Scripts.Predictive_Report.move_files_2"
+    "move_files_2": "Scripts.Predictive_Report.move_files_2",
+    "move_files_1.1": "Scripts.Predictive_Report.move_files_1.1",
+    "move_files_2.1": "Scripts.Predictive_Report.move_files_2.1"
 }
 
 @app.route("/ingest-typeform", methods=["POST"])
