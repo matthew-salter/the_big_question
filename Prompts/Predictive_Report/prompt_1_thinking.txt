@@ -31,23 +31,20 @@ You must:
   - Choose the most relevant or representative related article, strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date}, to include as the illustrative source.
 
 - For each sub-section:  
-  - Estimate the expected percentage **change** over the defined time range.  
-  - If pressure is **negative** on {target_variable}, the **change** must be expressed as a **neagtive percentage range** (e.g. `-4.25%`).  
-  - If pressure is **positive** on {target_variable}, the **change** must be expressed as a **positive percentage range** (e.g. `+2.00%`).  
+  - Estimate the expected percentage **Sub-Section Change** over the defined time range.  
+  - If pressure is **negative** on {target_variable}, the **Sub-Section Change** must be expressed as a **negative percentage range** (e.g. `-4.2%`).  
+  - If pressure is **positive** on {target_variable}, the **Sub-Section Change** must be expressed as a **positive percentage range** (e.g. `+2.0%`).  
   - **Do not flip or interpret the sign based on language or assumptions — follow the defined logic exactly.**
-  - Calculate the corresponding **effect range** using this formula: `Effect = Makeup × Change`
-  - Strictly round all Makeup values to **0 decimal places**  
-  - Strictly round all section Change & Effect values to **1 decimal place**  
+  - Calculate the corresponding **Sub-Section Effect** using this formula: `Sub-Section Effect = Sub-Section Change × Sub-Section Makeup`
+  - All **Sub-Section Makeup** values must strictly be to **0 decimal places**  
+  - All **Sub-Section Change** & **Sub-Section Effect** values must strictly be to **1 decimal place** 
 
 - For each section:  
-  - Sum all sub-section effects to calculate `Section Change`. 
-  - Multiply each by `Section Makeup` to calculate `Section Effect`.  
+  - Sum total all the child **Sub-Section Effects** values to calculate the **Section Change**.
+  - Calculate the corresponding **Section Effect** using this formula: `Section Effect = Section Change × Section Makeup`
   - **Do not reinterpret the direction, magnitude, or sign of these values. Always follow the exact calculations defined above.**
-  - Strictly round all Makeup values to **0 decimal places**  
-  - Strictly round all section Change & Effect values to **2 decimal places**  
-
-- Finally, calculate the report-wide projection range: `Report Change` = Sum of all Section Effect 
-  - **Do not round individual components before summing. Use post-sum rounding only.**
+  - All **Section Makeup** values must strictly be to **0 decimal places**  
+  - All **Section Change** & **Section Effect** values must strictly be to **1 decimal place** 
 
 ---
 
@@ -72,9 +69,9 @@ You must:
 #### SECTION STRUCTURE
 - `Section Title`: A headline-style label. (Max 40 characters)
 - `Section Summary`: A narrative summary of the sections key findings. (Min 500 - Max 750 characters)
-- `Section MakeUp`: % format (Strictly round all Section Makeup values to **0 decimal places**)  
-- `Section Change`: +/- % format (Strictly round all Section Change values to **1 decimal place**)    
-- `Section Effect`: +/- % format (Strictly round all Section Effect values to **1 decimal place**)     
+- `Section MakeUp`: % format (All Section Makeup values strictly be to **0 decimal places**)  
+- `Section Change`: +/- % format (All Section Change values strictly be to **1 decimal place**)    
+- `Section Effect`: +/- % format (All Section Effect values strictly be to **1 decimal place**)   
 - `Section Related Article`:
   - `Section Related Article Title`: The title of the source article. (Max 40 characters)  
   - `Section Related Article Date`: DD/MM/YYYY (Strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date}).
@@ -85,9 +82,9 @@ You must:
 #### SUB-SECTION STRUCTURE
 - `Sub-Section Title`: A headline-style label. (Max 40 characters)
 - `Sub-Section Summary`: A narrative summary of the sections key findings. (Min 300 - Max 500 characters)
-- `Sub-Section MakeUp`: % format (Strictly round all Sub-Section Makeup values to **0 decimal places**)  
-- `Sub-Section Change`: +/- % format (Strictly round all Sub-Section Change values to **2 decimal places**)  
-- `Sub-Section Effect`: +/- % format (Strictly round all Sub-Section Effect values to **2 decimal places**)  
+- `Sub-Section MakeUp`: % format (All Sub-Section Makeup values strictly be to **0 decimal places**) 
+- `Sub-Section Change`: +/- % format (All Sub-Section Change values strictly be to **1 decimal place**)  
+- `Sub-Section Effect`: +/- % format (All Sub-Section Effect values strictly be to **1 decimal place**)  
 - `Sub-Section Related Article`:
   - `Sub-Section Related Article Title`: The title of the source article. (Max 40 characters)  
   - `Sub-Section Related Article Date`: DD/MM/YYYY (Strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date}). 
@@ -128,8 +125,8 @@ Follow this structure exactly:
       "Sub-Section Title": "...",
       "Sub-Section Summary": "...",
       "Sub-Section MakeUp": "X%",
-      "Sub-Section Change": "+/-X.XX%",
-      "Sub-Section Effect": "+/-X.XX%",
+      "Sub-Section Change": "+/-X.X%",
+      "Sub-Section Effect": "+/-X.X%",
       "Sub-Section Related Article": {{
         "Sub-Section Related Article Title": "...",
         "Sub-Section Related Article Date": "DD/MM/YYYY",
