@@ -24,30 +24,32 @@ The following JSON structure contains all the sections and sub-sections structur
 
 ### OBJECTIVE
 You must:
-- Use the provided *section structure* to generate structured table data sets.
+- Follow the below structure to generate structured Report Table & Section Table data sets.
 
-- For the overall report *change*, extract the **report change** values.
-- List in table format; 
-  - The title in the first column. (e.g. {target_variable} of {commodity} in the {region} over the next {time_range}.) - (Please ensure to change to Title-case however, also ensure 'small words'; "in", "on", "the", "if", etc. remain lower case.) 
-  - The **report change low** in the second column (e.g. +8.0)
+- For the Report Change:
+  - Sum total all the **Section Effect** values to calculate the **Report Change**.
+  - **Do not reinterpret the direction, magnitude, or sign of these values. Always follow the exact calculations defined above.**
+  - The **Report Change** valuev must strictly be to **1 decimal place**  
+  
+- For the Report table:
+  - Create the **Report Change Title** as "{target_variable} of {commodity} in the {region} over the next {time_range}."
+  - List the **Report Change** value (as calculated above, e.g. +8.0)
+  - List in table format; 
+    - Each of the **Section Title**, **Section Makeup**, **Section Change** and **Section Effect** values.
+    - Each of the **Section Title** in the first column.
+    - Each of the corresponding **Section Makeup** values in the second column. (e.g. 40%)
+    - Each of the corresponding **Section Change** values in the third column. (e.g. +2.5%)
+    - Each of the corresponding **Section Effect** values in the fourth column. (e.g. +1.0%)
+    - Sort order the table with the highest **Section Makeup** fists, followed by the highest **Section Change** value second, followed by the highest **Section Effect** value third.
 
-- For the overall report table extract the **section title**, **makeup**, **change** and **effect** values for each of the sections.
-- List in table format; 
-  - Each of the **section title** in the first column.
-  - Each of the corresponding **makeup** values in the second column. (e.g. 40%)
-  - Each of the corresponding **change** value in the third column. (e.g. +2.5%)
-  - Each of the corresponding **effect high** value in the fourth column. (e.g. +1.0%)
-- Sort order the table;
-  - The **section title** with the highest **makeup** fists, followed by the highest **change** value value second, followed by the highest **effect** value third.
-
-- For each section table extract the **sub-section title**, **makeup**, **change** and **effect** values for each of the sub-sections.
-- List in table format; 
-  - Each of the **sub-section title** in the first column.
-  - Each of the corresponding **makeup** values in the second column. (e.g. 60%)
-  - Each of the corresponding **change value** in the third column. (e.g. +3.55%)
-  - Each of the corresponding **effect** value in the fourth column. (e.g. +2.13%)
-- Sort order the table;
-  - The **sub-section title** with the highest **makeup** fists, followed by the highest **change** value value second, followed by the highest **effect** value third.
+- For each of the Section Tables:
+  - List in table format; 
+    - Each of the **Sub-Section Title**, **Sub-Section Makeup**, **Sub-Section Change** and **Sub-Section Effect** values.
+    - Each of the **Sub-Section Title** in the first column.
+    - Each of the corresponding **Sub-Section Makeup** values in the second column. (e.g. 60%)
+    - Each of the corresponding **Sub-Section Change** values in the third column. (e.g. +3.5%)
+    - Each of the corresponding **Sub-Section Effect** values in the fourth column. (e.g. +2.1%)
+    - Sort order the table with the highest **Sub-Section Makeup** fists, followed by the highest **Sub-Section Change** value second, followed by the highest **Sub-Section Effect** value third.
 
 ---
 
@@ -60,11 +62,11 @@ You must:
 ### OUTPUT REQUIREMENTS
 
 #### REPORT CHANGE
-- `Report Change Title: {target_variable} of {commodity} in the {region} over the next {time_range} (Please ensure to change to Title-case however, also ensure 'small words'; "in", "on", "the", "if", etc. remain lower case.)
+- `Report Change Title: {target_variable} of {commodity} in the {region} over the next {time_range}
 - `Report Change`: +/- % format (1 decimal place) 
 
 #### REPORT TABLE
-- `Section Title`
+- `Section Title`: "..."
 - `Section Makeup`: % format (Strictly round all Section Makeup values to **0 decimal places**)
 - `Section Change`: +/- % format (Strictly round all Section Change values to **1 decimal place**)
 - `Section Effect`: +/- % format (Strictly round all Section Effect values to **1 decimal place**)
