@@ -67,15 +67,15 @@ You must:
 
 #### REPORT TABLE
 - `Section Title`: "..."
-- `Section Makeup`: % format (Strictly round all Section Makeup values to **0 decimal places**)
-- `Section Change`: +/- % format (Strictly round all Section Change values to **1 decimal place**)
-- `Section Effect`: +/- % format (Strictly round all Section Effect values to **1 decimal place**)
+- `Section Makeup`: % format (All Section Makeup values strictly be to **0 decimal places**)
+- `Section Change`: +/- % format (All Section Change values strictly be to **1 decimal place**)
+- `Section Effect`: +/- % format (All Section Effect values strictly be to **1 decimal place**)
 
 #### SECTION TABLES
 - `Sub-Section Title`
-- `Sub-Section Makeup`: % format (Strictly round all Sub-Section Makeup values to **0 decimal places**)
-- `Sub-Section Change`: +/- % format (Strictly round all Sub-Section Change values to **2 decimal places**)
-- `Sub-Section Effect`: +/- % format (Strictly round all Sub-Section Change values to **2 decimal places**)
+- `Sub-Section Makeup`: % format (All Sub-Section Makeup values strictly be to **0 decimal places**)
+- `Sub-Section Change`: +/- % format (All Sub-Section Change values strictly be to **1 decimal place**)
+- `Sub-Section Effect`: +/- % format (All Sub-Section Effect values strictly be to **1 decimal place**)
 
 ---
 
@@ -120,14 +120,14 @@ Return a single JSON object follow this structure exactly:
       {{
         "Sub-Section Title": "...",
         "Sub-Section Makeup": "X%",
-        "Sub-Section Change": "+X.XX%",
-        "Sub-Section Effect": "+X.XX%"
+        "Sub-Section Change": "+X.X%",
+        "Sub-Section Effect": "+X.X%"
       }}],
       {{
         "Sub-Section Title": "...",
         "Sub-Section Makeup": "X%",
-        "Sub-Section Change": "+X.XX%",
-        "Sub-Section Effect": "+X.XX%"
+        "Sub-Section Change": "+X.X%",
+        "Sub-Section Effect": "+X.X%"
       }},
       {{ ... }}
     ],
@@ -135,14 +135,14 @@ Return a single JSON object follow this structure exactly:
       {{
         "Sub-Section Title": "...",
         "Sub-Section Makeup": "X%",
-        "Sub-Section Change": "+X.XX%",
-        "Sub-Section Effect": "+X.XX%"
+        "Sub-Section Change": "+X.X%",
+        "Sub-Section Effect": "+X.X%"
       }},
       {{
         "Sub-Section Title": "...",
         "Sub-Section Makeup": "X%",
-        "Sub-Section Change": "+X.XX%",
-        "Sub-Section Effect": "+X.XX%"
+        "Sub-Section Change": "+X.X%",
+        "Sub-Section Effect": "+X.X%"
       }},
       {{ ... }}
     ],
