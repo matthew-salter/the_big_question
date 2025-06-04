@@ -58,7 +58,17 @@ You must:
 - If `Section Change ≠ exact sum of Sub-Section Effects`, your output is invalid.
 - If `Section Effect ≠ Section Change × Section Makeup`, your output is invalid.
 
-**[4] Sources**:
+**[4] MATHS VALIDATION OVERRIDE (NON-NEGOTIABLE)**:
+- The model must verify all mathematical relationships prior to output.
+- Section Change must be calculated as: **Section Change = Sub-Section Effect 1 + Sub-Section Effect 2 + Sub-Section Effect 3**
+- Section Effect must be calculated as: **Section Effect = Section Change × Section Makeup**
+- If Section Change ≠ exact sum of Sub-Section Effects, the entire JSON is invalid and must not be output.
+- If Section Effect ≠ Section Change × Section Makeup, the output is invalid and must not be output.
+- You must perform this check before outputting the final JSON.
+- You must use the actual values already generated above — do not estimate, interpret, or re-enter these values manually.
+- If a mistake is detected, you must halt, recalculate, and regenerate the correct values before output.
+
+**[5] Sources**:
 - For each Section and each Sub-Section, use multiple supporting articles where available.
 - Select and name one most relevant or representative article per Section and per Sub-Section, strictly published within the last {reference_age_range}, and no later than {today_date}.
 - Articles older than the allowed range must not be used.
