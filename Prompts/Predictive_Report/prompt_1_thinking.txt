@@ -19,32 +19,45 @@ Use your understanding of the client context, the main question, and the main qu
 ---
 
 ### OBJECTIVE  
-You must:  
-- Identify exactly {number_sections} **sections** (no fewer) influencing {target_variable} of {commodity} in the {region} over the next {time_range}.  
-  - Assign each section a percentage **makeup** toward the overall **change** (strictly sum total = 100%).  
-  - Use multiple related article sources (where available) strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date} to determine the makeup. Do not rely on a single related article.  
-  - Choose the most relevant or representative related article, strictly published within the last {reference_age_range} (absolutely no later), to include as the illustrative source.
+You must:
+**[1] Top-Level Section Identification**:
+- Identify exactly {number_sections} distinct sections (no fewer) influencing {target_variable} of {commodity} in {region} over the next {time_range}.
+- Each section must include:
+  - A Section Title
+  - A Section Makeup (% contribution to the overall change) — must sum to exactly 100% across all sections, using integer values only.
+  - A Section Change (%) — calculated strictly as the sum total of all Sub-Section Effects within that section.
+  - A Section Effect (%) — calculated as: Section Effect = Section Change × Section Makeup  
+    - All values must respect signs and decimal rules:
+      - Section Makeup: integers only, must sum to 100
+      - Section Change/Effect: float with 1 decimal place only
 
-- For each section, identify exactly {number_sub_sections} **sub-sections** (no fewer) that influence it:  
-  - Assign each a percentage **makeup** contribution within its parent section (strictly sum total = 100% within section).  
-  - Base all predictions and percentages on aggregated reasoning from multiple sources (where available) strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date} .  
-  - Choose the most relevant or representative related article, strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date}, to include as the illustrative source.
+**[2] Sub-Sections per Section**:
+- Within each section, identify exactly {number_sub_sections} sub-sections (no fewer) that influence it.
+- Each sub-section must include:
+  - A Sub-Section Title
+  - A Sub-Section Makeup (%) — must sum to exactly 100% per section, using integer values only.
+  - A Sub-Section Change (%) — strictly directional, one decimal place:
+    - Negative if downward pressure
+    - Positive if upward pressure
+    - Do not invert the sign or reinterpret the direction
+  - A Sub-Section Effect (%) — calculated as: Sub-Section Effect = Sub-Section Change × Sub-Section Makeup  
+    - Must be a float with 1 decimal place only
 
-- For each sub-section:  
-  - Estimate the expected percentage **Sub-Section Change** over the defined time range.  
-  - If pressure is **negative** on {target_variable}, the **Sub-Section Change** must be expressed as a **negative percentage range** (e.g. `-4.2%`).  
-  - If pressure is **positive** on {target_variable}, the **Sub-Section Change** must be expressed as a **positive percentage range** (e.g. `+2.0%`).  
-  - **Do not flip or interpret the sign based on language or assumptions — follow the defined logic exactly.**
-  - Calculate the corresponding **Sub-Section Effect** using this formula: `Sub-Section Effect = Sub-Section Change × Sub-Section Makeup`
-  - All **Sub-Section Makeup** values must strictly be to **0 decimal places**  
-  - All **Sub-Section Change** & **Sub-Section Effect** values must strictly be to **1 decimal place** 
+**[3] Section-Level Maths Enforcement**:
+- You must calculate:
+  - Section Change = Sum of all Sub-Section Effects (within section)
+  - Section Effect = Section Change × Section Makeup
+- You may NOT:
+  - Use averages or weighted means to determine Section Change
+  - Derive Section Change from Sub-Section Changes — always derive from Sub-Section Effects
+  - Reverse signs based on interpretation
+  - Round intermediate values prior to final calculation (round only final outputs)
+  - Skip any decimal or sign conventions
 
-- For each section:  
-  - Sum total all the child **Sub-Section Effects** values to calculate the **Section Change**.
-  - Calculate the corresponding **Section Effect** using this formula: `Section Effect = Section Change × Section Makeup`
-  - **Do not reinterpret the direction, magnitude, or sign of these values. Always follow the exact calculations defined above.**
-  - All **Section Makeup** values must strictly be to **0 decimal places**  
-  - All **Section Change** & **Section Effect** values must strictly be to **1 decimal place** 
+**[4] Sources**:
+- For each Section and Sub-Section, select multiple supporting articles, where available.
+- Select and name one most relevant article per Section and per Sub-Section, all published strictly within the last {reference_age_range}, no later than {today_date}.
+- Articles must not be older than allowed under {reference_age_range}
 
 ---
 
