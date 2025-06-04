@@ -21,7 +21,7 @@ Use your understanding of the client context, the main question, and the main qu
 ### OBJECTIVE
 You must:
 **[1] Top-Level Section Identification**:
-- Identify exactly {number\_sections} distinct sections (no fewer) influencing {target\_variable} of {commodity} in {region} over the next {time\_range}.
+- Identify exactly {number_sections} distinct sections (no fewer) influencing {target_variable} of {commodity} in {region} over the next {time_range}.
 - Each section must include:
   - A Section Title
   - A Section Makeup (% contribution to the overall change) — must sum to exactly 100% across all sections, using integer values only.
@@ -33,13 +33,13 @@ You must:
       - Section Effect: float with 1 decimal place only, derived from formula above
 
 **[2] Sub-Sections per Section**:
-- Within each section, identify exactly {number\_sub\_sections} sub-sections (no fewer) that influence it.
+- Within each section, identify exactly {number_sub_sections} sub-sections (no fewer) that influence it.
 - Each sub-section must include:
   - A Sub-Section Title
   - A Sub-Section Makeup (%) — must sum to exactly 100% per section, using integer values only.
   - A Sub-Section Change (%) — strictly directional, to 1 decimal place:
-    - Use a negative value if pressure is downward on {target\_variable}
-    - Use a positive value if pressure is upward on {target\_variable}
+    - Use a negative value if pressure is downward on {target_variable}
+    - Use a positive value if pressure is upward on {target_variable}
     - Do not invert or reinterpret direction
   - A Sub-Section Effect (%) — calculated as: **Sub-Section Effect = Sub-Section Change × Sub-Section Makeup**
     - Must be a float with 1 decimal place only
@@ -60,7 +60,7 @@ You must:
 
 **[4] Sources**:
 - For each Section and each Sub-Section, use multiple supporting articles where available.
-- Select and name one most relevant or representative article per Section and per Sub-Section, strictly published within the last {reference\_age\_range}, and no later than {today\_date}.
+- Select and name one most relevant or representative article per Section and per Sub-Section, strictly published within the last {reference_age_range}, and no later than {today_date}.
 - Articles older than the allowed range must not be used.
 
 ---
