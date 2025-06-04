@@ -18,46 +18,50 @@ Use your understanding of the client context, the main question, and the main qu
 
 ---
 
-### OBJECTIVE  
+### OBJECTIVE
 You must:
 **[1] Top-Level Section Identification**:
-- Identify exactly {number_sections} distinct sections (no fewer) influencing {target_variable} of {commodity} in {region} over the next {time_range}.
+- Identify exactly {number\_sections} distinct sections (no fewer) influencing {target\_variable} of {commodity} in {region} over the next {time\_range}.
 - Each section must include:
   - A Section Title
   - A Section Makeup (% contribution to the overall change) — must sum to exactly 100% across all sections, using integer values only.
-  - A Section Change (%) — calculated strictly as the sum total of all Sub-Section Effects within that section.
-  - A Section Effect (%) — calculated as: Section Effect = Section Change × Section Makeup  
+  - A Section Change (%) — calculated **strictly and only** as the **sum total of all Sub-Section Effects** within that section.
+  - A Section Effect (%) — calculated as: **Section Effect = Section Change × Section Makeup**
     - All values must respect signs and decimal rules:
       - Section Makeup: integers only, must sum to 100
-      - Section Change/Effect: float with 1 decimal place only
+      - Section Change: float with 1 decimal place only, derived strictly by summing Sub-Section Effects
+      - Section Effect: float with 1 decimal place only, derived from formula above
 
 **[2] Sub-Sections per Section**:
-- Within each section, identify exactly {number_sub_sections} sub-sections (no fewer) that influence it.
+- Within each section, identify exactly {number\_sub\_sections} sub-sections (no fewer) that influence it.
 - Each sub-section must include:
   - A Sub-Section Title
   - A Sub-Section Makeup (%) — must sum to exactly 100% per section, using integer values only.
-  - A Sub-Section Change (%) — strictly directional, one decimal place:
-    - Negative if downward pressure
-    - Positive if upward pressure
-    - Do not invert the sign or reinterpret the direction
-  - A Sub-Section Effect (%) — calculated as: Sub-Section Effect = Sub-Section Change × Sub-Section Makeup  
+  - A Sub-Section Change (%) — strictly directional, to 1 decimal place:
+    - Use a negative value if pressure is downward on {target\_variable}
+    - Use a positive value if pressure is upward on {target\_variable}
+    - Do not invert or reinterpret direction
+  - A Sub-Section Effect (%) — calculated as: **Sub-Section Effect = Sub-Section Change × Sub-Section Makeup**
     - Must be a float with 1 decimal place only
 
-**[3] Section-Level Maths Enforcement**:
-- You must calculate:
-  - Section Change = Sum of all Sub-Section Effects (within section)
-  - Section Effect = Section Change × Section Makeup
-- You may NOT:
-  - Use averages or weighted means to determine Section Change
-  - Derive Section Change from Sub-Section Changes — always derive from Sub-Section Effects
-  - Reverse signs based on interpretation
-  - Round intermediate values prior to final calculation (round only final outputs)
-  - Skip any decimal or sign conventions
+**[3] Section-Level Maths Enforcement (Strict)**:
+- You must calculate values using this exact dependency chain:
+  1. Sub-Section Effect = Sub-Section Change × Sub-Section Makeup
+  2. Section Change = **Sum of all Sub-Section Effects in this section**
+  3. Section Effect = Section Change × Section Makeup
+- You may **not**:
+  - Use averages, weights, or reasoning to derive Section Change
+  - Derive Section Change from Sub-Section Changes
+  - Override or adjust signs, magnitudes, or values based on interpretation
+  - Round intermediate calculations (only round final values to 1 decimal place)
+  - Skip any decimal, sign, or format conventions
+- If `Section Change ≠ exact sum of Sub-Section Effects`, your output is invalid.
+- If `Section Effect ≠ Section Change × Section Makeup`, your output is invalid.
 
 **[4] Sources**:
-- For each Section and Sub-Section, select multiple supporting articles, where available.
-- Select and name one most relevant article per Section and per Sub-Section, all published strictly within the last {reference_age_range}, no later than {today_date}.
-- Articles must not be older than allowed under {reference_age_range}
+- For each Section and each Sub-Section, use multiple supporting articles where available.
+- Select and name one most relevant or representative article per Section and per Sub-Section, strictly published within the last {reference\_age\_range}, and no later than {today\_date}.
+- Articles older than the allowed range must not be used.
 
 ---
 
