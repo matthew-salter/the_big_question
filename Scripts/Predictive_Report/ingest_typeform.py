@@ -6,8 +6,17 @@ from Engine.Files.write_supabase_file import write_supabase_file
 
 
 def download_file(url: str) -> bytes:
-    """Downloads a file from a given URL and returns its binary content."""
-    res = requests.get(url)
+    """Downloads a file from a given URL and returns its binary content, with Typeform auth if needed."""
+    headers = {}
+
+    # Apply Bearer token auth for Typeform-hosted files
+    if "api.typeform.com/responses/files" in url:
+        typeform_token = os.getenv("TYPEFORM_TOKEN")
+        if not typeform_token:
+            raise EnvironmentError("TYPEFORM_TOKEN not set in environment variables")
+        headers["Authorization"] = f"Bearer {typeform_token}"
+
+    res = requests.get(url, headers=headers)
     res.raise_for_status()
     return res.content
 
