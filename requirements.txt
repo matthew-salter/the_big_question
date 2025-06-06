@@ -1,6 +1,0 @@
-Flask
-openai
-python-dotenv
-gunicorn
-requests
-supabase
