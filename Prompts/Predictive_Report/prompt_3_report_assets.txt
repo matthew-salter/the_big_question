@@ -1,0 +1,102 @@
+You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
+
+### INSTRUCTION & CONTEXT
+You are helping to generate report-wide assets based on structured data previously identified.
+Use your understanding of the client context, the main question, and the main question content to help generate the report assets.
+
+**CLIENT NAME**  
+{client}
+
+**CLIENT CONTEXT**  
+{client_context}
+
+**MAIN QUESTION**  
+{main_question}
+
+**QUESTION CONTEXT**  
+{question_context}
+
+**TONE OF VOICE**:
+Your response should be in a {tone_of_voice} tone.
+
+**SPECIAL INSTRUCTIONS**:
+Your response should consider {special_instructions}.
+
+**SECTION STRUCTURE**  
+The following JSON structure contains all the sections and sub-sections structure:  
+{prompt_1_thinking}
+
+**SECTION ASSETS**  
+The following JSON structure contains all the sections and sub-sections assets:  
+{prompt_2_section_assets}
+
+---
+
+### OBJECTIVE
+You must:
+Generate full-report-wide **report assets**.
+- Use the provided **section structure** and **section assets** as source material.
+- Do not rephrase summaries; generate original, stylised content.
+
+---
+
+### RULES
+- Do not invent new sections, sub-sections, data points, or metrics.
+- Only use supplied data and context.
+- Avoid placeholder content and duplication.
+
+---
+
+### OUTPUT REQUIREMENTS
+
+#### REPORT ASSETS
+- `Report Title`: A concise, punchy report label. (Max 40 characters)
+- `Report Sub-Title`: A one-line framing label. (Max 80 characters)
+- `Executive Summary`: A narrative introductory summary of the report's key findings. (2 paragraphs: Paragraph 1 Min 500 - Max 750 characters / Paragraph 2 Min 500 - Max 750 characters / Total Overall Length Min 750 - Max 1000 characters)
+- `Key Findings`: 5 bullet points of the report's key findings. (Max 200 characters per bullet point)
+- `Call to Action`: A statement giving a directional steer or decision-making nudge. (Max 1–2 sentences: Max 300 characters)
+- `Conclusion`: A narrative closing summary of the report's key findings. (2 paragraphs: Paragraph 1 Min 500 - Max 750 characters / Paragraph 2 Min 500 - Max 750 characters / Total Overall Length Min 750 - Max 1000 characters)
+- `Recommendations`: 10 bullet points providing clear and actionable directional steer or decision-making nudges. (Max 200 characters per bullet point)
+
+---
+
+### ADDITIONAL NOTES
+- Prioritise insight, clarity, and creative labelling.  
+- This data will feed a visualised report; clarity and consistency are critical.
+- Match tone of a professional analytical report.
+- Write all content with publication-level quality.
+- Ensure narrative flow and consistency.
+- Output must be valid, parsable JSON.   
+
+---
+
+### OUTPUT FORMAT
+Return a single JSON object follow this structure exactly:
+```json
+{{
+  "Report Title": "...",
+  "Report Sub-Title": "...",
+  "Executive Summary": "...",
+  "Key Findings": [
+    "...",
+    "...",
+    "...",
+    "...",
+    "..."
+  ],
+  "Call to Action": "...",
+  "Conclusion": "...",
+  "Recommendations": [
+    "...",
+    "...",
+    "...",
+    "...",
+    "...",
+    "...",
+    "...",
+    "...",
+    "...",
+    "..."
+  ]
+}}
+```

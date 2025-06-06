@@ -1,0 +1,34 @@
+You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
+
+**CLIENT**:
+{client}
+
+**CLIENT CONTEXT**:
+{client_context}
+
+**SECTION ASSETS**   
+{prompt_2_section_assets}
+
+*OBJECTIVE*:
+Please review the section assets and the client context above.
+I want the images to include references to the clients business sector.
+I want the prompts to have a high focus on the clients core business activities.
+Please write me a prompt for each section to generate a relevant image based on the clients business sector, business activities but to encapsulate the general theme of each of the section assets.
+Each prompt should start with: "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image."
+
+### **IMPORTANT - STRICT JSON-ONLY FORMAT**
+**DO NOT** mention the customer’s name in the image prompt.
+**DO NOT** add any explanations, summaries, visualisations, or tables. 
+**DO NOT** return any text before or after the JSON output. 
+**ONLY** return JSON in the exact format below.
+
+json
+{{
+  "Section 1 Prompt": "...",
+}},
+{{
+  "Section 2 Prompt": "...",
+}},
+{{ ... }},
+{{ ... }},
+{{ ... }}

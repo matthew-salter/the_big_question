@@ -1,0 +1,48 @@
+### 📄 Project Explanation
+
+#### Overview
+This project powers the automation behind structured, AI-generated commodity reports for clients via a streamlined system architecture built on Python, Supabase, and Typeform. The system is designed for reliability, traceability, and modular extensibility across multiple report types.
+
+#### Components
+
+**1. Typeform (User Input Layer)**  
+Users initiate a report request through a custom Typeform, providing all required variables (e.g., client name, question, forecast range, target metric, context file). The Typeform includes a file upload field for deeper context.
+
+**2. Render (Hosting + Webhook Gateway)**  
+A Flask app deployed to Render listens for POST requests from Typeform via `/ingest-typeform`. All logs are output via `gunicorn` to Render's console for debugging. This replaces any previous reliance on Zapier or external middleware.
+
+**3. Supabase (Storage Layer)**  
+Supabase is used to store the uploaded context files in a structured folder path:
+```
+panelitix/public/The Big Question/Predictive Report/Question Context/{client_name}_Question_Context{DDMMYYYY_HHmm}.txt
+```
+A service role key (`SUPABASE_SERVICE_ROLE_KEY`) is used for secure upload via the Supabase Storage API. Centralised auth headers are handled in `Engine.Files.auth.py`.
+
+**4. Flask Application Structure**
+- `main.py`: Entry point for all routes, including:
+  - `/ingest-typeform`: Processes Typeform webhooks.
+  - `/`: Dispatches prompt logic based on payload key `prompt`.
+- Dynamic script loading allows each prompt file to be independently tested or extended.
+
+**5. Prompt Execution Scripts**
+Each prompt script (e.g., `prompt_1_thinking.py`, `client_context.py`):
+- Accepts a structured dictionary of input variables.
+- Loads and fills a template from the `/Prompts/...` directory.
+- Sends the final prompt to OpenAI’s API (chat or assistant).
+- Parses the response and returns structured output (often JSON).
+
+**6. Centralised Logging**
+All scripts now use a central logger via:
+```python
+from Engine.logger import logger
+```
+The logger is configured in `Engine/logger.py` and outputs both INFO and DEBUG-level logs to Render’s console. This gives full visibility into file uploads, prompt generation, API responses, and failure points.
+
+#### Summary Workflow (Example: Predictive Report)
+1. User submits a Typeform with question context and report variables.
+2. The webhook hits `/ingest-typeform`:
+   - Downloads the uploaded file.
+   - Saves it to Supabase with a timestamped filename.
+   - Returns a payload to trigger the next stage (`client_context`).
+3. The system proceeds through multiple prompt steps (e.g., `client_context`, `prompt_1_thinking`, etc.), each generating structured AI output.
+4. All logs appear in the Render dashboard.

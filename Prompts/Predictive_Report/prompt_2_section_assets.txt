@@ -1,0 +1,97 @@
+You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
+
+### INSTRUCTION & CONTEXT
+You are helping to generate section assets based on structured data previously identified.
+Use your understanding of the client context, the main question, and the main question content to help generate the section assets.
+
+**CLIENT NAME**  
+{client}
+
+**CLIENT CONTEXT**  
+{client_context}
+
+**MAIN QUESTION**  
+{main_question}
+
+**QUESTION CONTEXT**  
+{question_context}
+
+**TONE OF VOICE**:
+Your response should be in a {tone_of_voice} tone.
+
+**SPECIAL INSTRUCTIONS**:
+Your response should consider {special_instructions}.
+
+**SECTION STRUCTURE**  
+The following JSON structure contains all the sections and sub-sections:  
+{prompt_1_thinking}
+
+---
+
+### OBJECTIVE
+You must:
+Generate **section assets** and **sub-section assets**.
+- Use the provided **section structure** as source material.
+- Do not rephrase summaries; generate original, stylised content.
+- Sub-sections must remain inside their nested parent sections.
+
+---
+
+### RULES
+- Do not invent new sections, sub-sections, data points, or metrics.
+- Only use supplied data and context.
+- Avoid placeholder content and duplication.
+
+---
+
+### OUTPUT REQUIREMENTS
+
+#### SECTION ASSETS
+- `Section Theme`: A stylised-theme label. (Max 40 characters)
+- `Section Header`: A headline-style label. (Max 40 characters)
+- `Section Sub-Header`: A one-line framing label. (Max 60 characters)
+- `Section Insight`: A single sentence statement giving a novel insight. (Max 200 characters)
+- `Section Statistic`: A single sentence statement giving data-driven statistic (percent, ratio, or count format only). (Max 200 characters)
+- `Section Recommendation`: A single sentence actionable directional steer. (Max 200 characters)
+
+#### SUB-SECTION ASSETS
+- `Sub-Section Header`: A headline-style label. (Max 40 characters)
+- `Sub-Section Sub-Header`: A one-line framing label. (Max 60 characters)
+- `Sub-Section Statistic`: A single sentence statement giving data-driven statistic (percent, ratio, or count format only). (Max 200 characters)
+
+---
+
+### ADDITIONAL NOTES
+- Prioritise insight, clarity, and creative labelling.  
+- This data will feed a visualised report; clarity and consistency are critical.
+- Match tone of a professional analytical report.
+- Write all content with publication-level quality.
+- Output must be valid, parsable JSON.  
+- All sub-section content must be nested under its section.
+
+---
+
+### OUTPUT FORMAT
+Return a single JSON object follow this structure exactly:
+```json
+{{
+  "Section 1": {{
+    "Section Theme": "...",
+    "Section Header": "...",
+    "Section Sub-Header": "...",
+    "Section Insight": "...",
+    "Section Statistic": "...",
+    "Section Recommendation": "...",
+    }},
+    "Sub-Section 1": {{
+      "Sub-Section Header": "...",
+      "Sub-Section Sub-Header": "...",
+      "Sub-Section Statistic": "..."
+      }}
+    }},
+    "Sub-Section 2": {{ ... }}
+  }},
+  "Section 2": {{ ... }},
+  "Section 3": {{ ... }},
+}}
+```

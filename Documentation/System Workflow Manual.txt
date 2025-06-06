@@ -1,0 +1,144 @@
+### 🛠️ System Workflow Manual
+
+#### Purpose
+This document outlines the operational logic, processing flow, and modular rules that govern how incoming client requests are handled, transformed, and converted into structured AI-generated reports.
+
+---
+
+#### 1. System Entry Point
+
+All workflows begin with a **Typeform submission**, which sends a webhook payload to:
+
+```
+POST /ingest-typeform
+```
+
+##### Webhook Payload:
+Includes form answers and a file upload (`file_url`). These map to:
+- `client`
+- `client_website_url`
+- `main_question`
+- `target_variable`
+- `forecast_time_range`
+- `reference_time_range`
+- `tone_of_voice`
+- `special_instructions`
+- `question_context.txt` (uploaded)
+
+##### Endpoint Behaviour:
+- Extracts answers using stable `field.ref` values.
+- Downloads the uploaded file.
+- Writes it to Supabase using the following path format:
+  ```
+  panelitix/public/The Big Question/Predictive Report/Question Context/{client_name}_Question_Context{DDMMYYYY_HHmm}.txt
+  ```
+- Returns a JSON payload that kicks off the `client_context` stage.
+
+---
+
+#### 2. Prompt Dispatching
+
+The root route:
+```
+POST /
+```
+Accepts a payload including a `prompt` key (e.g. `"prompt_1_thinking"`, `"client_context"`). Based on this, it dynamically loads and executes a corresponding script file from:
+
+```
+Scripts/<Report Type>/<prompt>.py
+```
+
+Each prompt script must contain:
+- A `run_prompt(data: dict)` function.
+- Logging via `from Engine.logger import logger`.
+
+---
+
+#### 3. Prompt Files
+
+Each `prompt_*.py` script:
+1. Extracts and sanitises variables.
+2. Loads a `.txt` prompt template from the `/Prompts/` directory.
+3. Injects variables using `.format(...)`.
+4. Sends the final prompt to OpenAI (chat or assistant).
+5. Parses output as structured JSON or returns raw fallback text.
+6. Returns response via Flask route.
+
+All prompt logic is **stateless** and self-contained.
+
+---
+
+#### 4. File Structure Standards
+
+Prompts, scripts, and logic must respect the following layout:
+
+```
+/Prompts/Client Context/client_context.txt
+/Prompts/Predictive Report/prompt_1_thinking.txt
+
+/Scripts/Client Context/client_context.py
+/Scripts/Predictive Report/prompt_1_thinking.py
+
+/Engine/logger.py
+/Engine/Files/write_supabase_file.py
+/Engine/Files/read_supabase_file.py
+/Engine/Files/auth.py
+```
+
+> All Supabase file uploads use authenticated PUT requests via `SUPABASE_SERVICE_ROLE_KEY` and are handled via a single function in `write_supabase_file.py`.
+
+---
+
+#### 5. Centralised Logging Rules
+
+All logging routes through `Engine/logger.py`:
+```python
+from Engine.logger import logger
+```
+
+This logger outputs to console only (via Render), with the following settings:
+- Level: `DEBUG`
+- Format: `timestamp [level] message`
+- Redundancy-guard: no duplicate handlers
+
+Every route, prompt, or file interaction logs:
+- Start of action
+- Input payload (as DEBUG)
+- File or prompt paths
+- Errors or exceptions (via `logger.exception`)
+- Completion success (`✅` indicators)
+
+---
+
+#### 6. Naming, Structure & Tokens
+
+**Variable naming conventions**:
+- `client`, `main_question`, `client_context`, `question_context`, `number_sections`, `number_sub_sections`, `target_variable`, `commodity`, `region`, `time_range`, `reference_time_range`, `tone_of_voice`, `special_instructions`
+
+**Prompt structure**:
+Prompt templates should avoid direct `{}` interpolation. Use safe-escaping in the runner:
+```python
+def safe_escape(value):
+    return str(value).replace("{", "{{").replace("}", "}}")
+```
+
+**Token control**:
+All AI prompts use `temperature = 0.2`. Responses are parsed as:
+- `json_object` (preferred)
+- `text` (fallback with `json.loads` attempt)
+- Final fallback: raw `.text.value` as error output
+
+---
+
+#### 7. Extending the System
+
+To add a new prompt stage:
+1. Create a new `.txt` prompt in `/Prompts/...`
+2. Create a matching `.py` script in `/Scripts/...`
+3. Add the logic to `main.py` route dispatcher.
+4. Log everything from entry to return.
+
+To add new report types:
+- Create a new directory under `/Scripts/` and `/Prompts/`
+- Follow the same logic modularity rules
+- Use folder structure and filenames to infer routing paths

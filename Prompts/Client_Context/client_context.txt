@@ -1,0 +1,28 @@
+You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
+
+### INSTRUCTION & CONTEXT
+I want to understand more about a client and their business activities.
+
+**CLIENT**: {client}
+**WEBSITE**: {client_website_url}
+
+*OBJECTIVE*:
+Please visit the clients website.
+I would like you to review the entire website, including any sub-domains and pages. You are to act as a professional business analyst. Your objective is to analyse the website and write a narrative summary of the business in a paragraph format.
+Concentrate on identifying the core business activities.
+Write the summary from a first-person perspective as if you are the owner of the business, using pronouns such as "I" and "we."
+Minimum 400 characters, Maximum 500 characters.
+Your response should be in British English (not American English).
+
+### **IMPORTANT - STRICT JSON-ONLY FORMAT**
+**DO NOT** add any explanations, summaries, visualisations, or tables.
+**DO NOT** return any text before or after the JSON output. 
+**ONLY** return JSON in the exact format below.
+
+### OUTPUT FORMAT
+Return a single JSON object follow this structure exactly:
+```json
+{{
+  **CLIENT CONTEXT**: "Summary of business here."
+}}
+```

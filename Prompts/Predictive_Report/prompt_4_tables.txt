@@ -1,0 +1,155 @@
+You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
+
+### INSTRUCTION & CONTEXT
+You are helping to generate structured table data based on structured data previously identified.
+Use your understanding of the client context, the main question, and the main question content to help generate the table data.
+
+**CLIENT NAME**  
+{client}
+
+**CLIENT CONTEXT**  
+{client_context}
+
+**MAIN QUESTION**  
+{main_question}
+
+**QUESTION CONTEXT**  
+{question_context}
+
+**SECTION STRUCTURE**  
+The following JSON structure contains all the sections and sub-sections structure:    
+{prompt_1_thinking}
+
+---
+
+### OBJECTIVE
+You must:
+- Follow the below structure to generate structured Report Table & Section Table data sets.
+
+- For the Report Change:
+  - Sum total all the **Section Effect** values to calculate the **Report Change**.
+  - **Do not reinterpret the direction, magnitude, or sign of these values. Always follow the exact calculations defined above.**
+  - The **Report Change** valuev must strictly be to **1 decimal place**  
+  
+- For the Report table:
+  - Create the **Report Change Title** as "{target_variable} of {commodity} in the {region} over the next {time_range}."
+  - List the **Report Change** value (as calculated above, e.g. +8.0)
+  - List in table format; 
+    - Each of the **Section Title**, **Section Makeup**, **Section Change** and **Section Effect** values.
+    - Each of the **Section Title** in the first column.
+    - Each of the corresponding **Section Makeup** values in the second column. (e.g. 40%)
+    - Each of the corresponding **Section Change** values in the third column. (e.g. +2.5%)
+    - Each of the corresponding **Section Effect** values in the fourth column. (e.g. +1.0%)
+    - Sort order the table with the highest **Section Makeup** fists, followed by the highest **Section Change** value second, followed by the highest **Section Effect** value third.
+
+- For each of the Section Tables:
+  - List in table format; 
+    - Each of the **Sub-Section Title**, **Sub-Section Makeup**, **Sub-Section Change** and **Sub-Section Effect** values.
+    - Each of the **Sub-Section Title** in the first column.
+    - Each of the corresponding **Sub-Section Makeup** values in the second column. (e.g. 60%)
+    - Each of the corresponding **Sub-Section Change** values in the third column. (e.g. +3.5%)
+    - Each of the corresponding **Sub-Section Effect** values in the fourth column. (e.g. +2.1%)
+    - Sort order the table with the highest **Sub-Section Makeup** fists, followed by the highest **Sub-Section Change** value second, followed by the highest **Sub-Section Effect** value third.
+
+---
+
+### RULES
+- Do not invent new sections, sub-sections, data points, or metrics.
+- Do not generate new calculations. Use exact values already provided.
+
+---
+
+### OUTPUT REQUIREMENTS
+
+#### REPORT CHANGE
+- `Report Change Title: {target_variable} of {commodity} in the {region} over the next {time_range}
+- `Report Change`: +/- % format (1 decimal place) 
+
+#### REPORT TABLE
+- `Section Title`: "..."
+- `Section Makeup`: % format (All Section Makeup values strictly be to **0 decimal places**)
+- `Section Change`: +/- % format (All Section Change values strictly be to **1 decimal place**)
+- `Section Effect`: +/- % format (All Section Effect values strictly be to **1 decimal place**)
+
+#### SECTION TABLES
+- `Sub-Section Title`
+- `Sub-Section Makeup`: % format (All Sub-Section Makeup values strictly be to **0 decimal places**)
+- `Sub-Section Change`: +/- % format (All Sub-Section Change values strictly be to **1 decimal place**)
+- `Sub-Section Effect`: +/- % format (All Sub-Section Effect values strictly be to **1 decimal place**)
+
+---
+
+### ADDITIONAL NOTES
+- Do not include text commentary, formatting notes, or statistical interpretation
+- Output must be valid, parsable JSON.   
+
+---
+
+### OUTPUT FORMAT
+Return a single JSON object follow this structure exactly:
+```json
+{{
+  "Report Change": {{
+    "Report Change Title": "...",
+    "Report Change": "+X.X%"
+  }},
+  "Report Table": [
+    {{
+      "Section Title": "...",
+      "Section Makeup": "X%",
+      "Section Change": "+X.X%",
+      "Section Effect": "+X.X%"
+    }},
+    {{
+      "Section Title": "...",
+      "Section Makeup": "X%",
+      "Section Change": "+X.X%",
+      "Section Effect": "+X.X%"
+    }},
+    {{
+      "Section Title": "...",
+      "Section Makeup": "X%",
+      "Section Change": "+X.X%",
+      "Section Effect": "+X.X%"
+    }},
+    {{ ... }},
+    {{ ... }}
+  ],
+  "Section Tables": {{
+    "Section Title 1": [
+      {{
+        "Sub-Section Title": "...",
+        "Sub-Section Makeup": "X%",
+        "Sub-Section Change": "+X.X%",
+        "Sub-Section Effect": "+X.X%"
+      }}],
+      {{
+        "Sub-Section Title": "...",
+        "Sub-Section Makeup": "X%",
+        "Sub-Section Change": "+X.X%",
+        "Sub-Section Effect": "+X.X%"
+      }},
+      {{ ... }}
+    ],
+    "Section Title 2": [
+      {{
+        "Sub-Section Title": "...",
+        "Sub-Section Makeup": "X%",
+        "Sub-Section Change": "+X.X%",
+        "Sub-Section Effect": "+X.X%"
+      }},
+      {{
+        "Sub-Section Title": "...",
+        "Sub-Section Makeup": "X%",
+        "Sub-Section Change": "+X.X%",
+        "Sub-Section Effect": "+X.X%"
+      }},
+      {{ ... }}
+    ],
+    "Section Title 3": [
+      {{ ... }}
+    ],
+    {{ ... }}
+  }}
+}}
+```

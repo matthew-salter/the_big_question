@@ -1,0 +1,190 @@
+## 📐 Master Architecture Document
+
+### Purpose
+
+This document defines the **core architecture**, design principles, and modular conventions for generating structured AI reports through a Python-based backend integrating **Typeform**, **Supabase**, **OpenAI**, and **Render**. It is the system-of-record for all folder conventions, runtime orchestration, and prompt execution flow.
+
+---
+
+### 🔁 System Overview
+
+The platform transforms client-submitted survey data into **multi-step, AI-generated structured reports**. Each report passes through a dynamic pipeline of prompt executions, template filling, and file management, with full traceability via logging.
+
+```
+Typeform ➝ Flask Webhook (/ingest-typeform) ➝ Supabase Upload ➝ AI Prompt Stages ➝ JSON Output
+```
+
+---
+
+### 🧱 Core Infrastructure Components
+
+#### 1. **Typeform (Frontend Input Layer)**
+
+* Collects all user input: `client`, `main_question`, `commodity`, `region`, and an uploaded `.txt` context file.
+* Webhook sends structured payload to `/ingest-typeform`.
+
+#### 2. **Render (Hosting + Logging Layer)**
+
+* Hosts the Python Flask application (`main.py`).
+* Uses `gunicorn` for logging to the **Render console** (stdout).
+* No `.env` file required—environment variables are set via Render’s dashboard.
+
+#### 3. **Supabase (Storage Layer)**
+
+* Used to **store uploaded files** (e.g. `question_context.txt`) in a consistent, timestamped format:
+
+```
+panelitix/public/The Big Question/Predictive Report/Question Context/{client_name}_Question_Context{DDMMYYYY_HHmm}.txt
+```
+
+* Secure upload via `SUPABASE_SERVICE_ROLE_KEY`.
+* All auth headers are managed in `Engine/Files/auth.py`.
+
+#### 4. **OpenAI (Prompt Execution Layer)**
+
+* Each script uses either Chat Completions or Assistants API.
+* All prompts use `temperature=0.2` for consistency.
+* Structured responses are parsed from:
+
+  * `json_object` (preferred)
+  * `text` → `json.loads(...)` fallback
+  * Raw string fallback (error with explanation)
+
+---
+
+### 🧠 Application Structure
+
+#### ✅ Entry Point
+
+```python
+POST /ingest-typeform
+```
+
+* Extracts Typeform fields via stable `ref`.
+* Downloads uploaded file.
+* Writes file to Supabase.
+* Returns a payload with:
+
+  ```json
+  {
+    "prompt": "client_context",
+    "client": "...",
+    "client_context_url": "..."
+  }
+  ```
+
+#### ✅ Prompt Dispatcher
+
+```python
+POST /
+```
+
+* Payload contains `"prompt"` key (e.g. `"prompt_1_thinking"`).
+* Uses dynamic import to run:
+
+```python
+Scripts/<Report Type>/<prompt>.py
+```
+
+#### ✅ Prompt Execution Scripts
+
+Each script:
+
+* Loads a template from `/Prompts/...`
+* Escapes variables using `safe_escape()`:
+
+  ```python
+  def safe_escape(value):
+      return str(value).replace("{", "{{").replace("}", "}}")
+  ```
+* Fills the prompt via `.format(...)`
+* Sends to OpenAI
+* Returns structured output
+
+---
+
+### 📁 Directory & File Structure
+
+```
+/main.py
+/Engine/logger.py
+/Engine/Files/auth.py
+/Engine/Files/write_supabase_file.py
+/Engine/Files/read_supabase_file.py
+
+/Prompts/Client Context/client_context.txt
+/Prompts/Predictive Report/prompt_1_thinking.txt
+
+/Scripts/Client Context/client_context.py
+/Scripts/Predictive Report/prompt_1_thinking.py
+```
+
+> All prompt files must contain a `run_prompt(data)` method and use:
+
+```python
+from Engine.logger import logger
+```
+
+---
+
+### 📝 Logging Architecture
+
+Centralised in `Engine/logger.py`:
+
+* Uses a **singleton logger** named `"panelitix"`.
+* StreamHandler writes to stdout (Render log).
+* Format:
+
+  ```
+  [timestamp] [level] message
+  ```
+
+Each module logs:
+
+* Webhook trigger
+* Payload input
+* Supabase paths and results
+* Prompt content (DEBUG)
+* Final responses
+* Errors via `logger.exception(...)`
+
+---
+
+### 🧩 Report Modularity Rules
+
+Each report type (e.g., “Predictive Report”) is isolated into:
+
+```
+/Prompts/<Report Type>/
+/Scripts/<Report Type>/
+```
+
+To extend:
+
+1. Add `.txt` prompt in `/Prompts/...`
+2. Add `.py` runner in `/Scripts/...`
+3. Register prompt name in `/` route dispatcher in `main.py`
+
+---
+
+### 🔒 Security & Deployment
+
+* All Supabase writes use **authenticated PUT** via service role key.
+* File writes are isolated to specific folders.
+* Typeform is the only entry point—no user-facing endpoints are exposed.
+* Logs are only viewable in the Render console.
+
+---
+
+### ✅ Summary
+
+This system enables flexible, maintainable generation of structured AI reports by separating:
+
+* Input (Typeform)
+* Storage (Supabase)
+* Logic (Prompt Scripts)
+* Hosting (Render)
+* Logging (Centralised `logger.py`)
+* Output (JSON)
+
+It is modular, debuggable, and scalable for additional prompt stages or report types.
