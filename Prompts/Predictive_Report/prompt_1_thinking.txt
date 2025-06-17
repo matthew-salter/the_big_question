@@ -25,12 +25,8 @@ You must:
 - Each section must include:
   - A Section Title
   - A Section Makeup (% contribution to the overall change) — must sum to exactly 100% across all sections, using integer values only.
-  - A Section Change (%) — calculated **strictly and only** as the **sum total of all Sub-Section Effects** within that section.
-  - A Section Effect (%) — calculated as: **Section Effect = Section Change × Section Makeup**
     - All values must respect signs and decimal rules:
-      - Section Makeup: integers only, must sum to 100
-      - Section Change: float with 1 decimal place only, derived strictly by summing Sub-Section Effects
-      - Section Effect: float with 1 decimal place only, derived from formula above
+      - Integers only, must sum to 100
 
 **[2] Sub-Sections per Section**:
 - Within each section, identify exactly {number_sub_sections} sub-sections (no fewer) that influence it.
@@ -41,34 +37,8 @@ You must:
     - Use a negative value if pressure is downward on {target_variable}
     - Use a positive value if pressure is upward on {target_variable}
     - Do not invert or reinterpret direction
-  - A Sub-Section Effect (%) — calculated as: **Sub-Section Effect = Sub-Section Change × Sub-Section Makeup**
-    - Must be a float with 1 decimal place only
 
-**[3] Section-Level Maths Enforcement (Strict)**:
-- You must calculate values using this exact dependency chain:
-  1. Sub-Section Effect = Sub-Section Change × Sub-Section Makeup
-  2. Section Change = **Sum of all Sub-Section Effects in this section**
-  3. Section Effect = Section Change × Section Makeup
-- You may **not**:
-  - Use averages, weights, or reasoning to derive Section Change
-  - Derive Section Change from Sub-Section Changes
-  - Override or adjust signs, magnitudes, or values based on interpretation
-  - Round intermediate calculations (only round final values to 1 decimal place)
-  - Skip any decimal, sign, or format conventions
-- If `Section Change ≠ exact sum of Sub-Section Effects`, your output is invalid.
-- If `Section Effect ≠ Section Change × Section Makeup`, your output is invalid.
-
-**[4] MATHS VALIDATION OVERRIDE (NON-NEGOTIABLE)**:
-- The model must verify all mathematical relationships prior to output.
-- Section Change must be calculated as: **Section Change = Sub-Section Effect 1 + Sub-Section Effect 2 + Sub-Section Effect 3**
-- Section Effect must be calculated as: **Section Effect = Section Change × Section Makeup**
-- If Section Change ≠ exact sum of Sub-Section Effects, the entire JSON is invalid and must not be output.
-- If Section Effect ≠ Section Change × Section Makeup, the output is invalid and must not be output.
-- You must perform this check before outputting the final JSON.
-- You must use the actual values already generated above — do not estimate, interpret, or re-enter these values manually.
-- If a mistake is detected, you must halt, recalculate, and regenerate the correct values before output.
-
-**[5] Sources**:
+**[3] Sources**:
 - For each Section and each Sub-Section, use multiple supporting articles where available.
 - Select and name one most relevant or representative article per Section and per Sub-Section, strictly published within the last {reference_age_range}, and no later than {today_date}.
 - Articles older than the allowed range must not be used.
@@ -97,8 +67,6 @@ You must:
 - `Section Title`: A headline-style label. (Max 40 characters)
 - `Section Summary`: A narrative summary of the sections key findings. (Min 500 - Max 750 characters)
 - `Section MakeUp`: % format (All Section Makeup values strictly be to **0 decimal places**)  
-- `Section Change`: +/- % format (All Section Change values strictly be to **1 decimal place**)    
-- `Section Effect`: +/- % format (All Section Effect values strictly be to **1 decimal place**)   
 - `Section Related Article`:
   - `Section Related Article Title`: The title of the source article. (Max 40 characters)  
   - `Section Related Article Date`: DD/MM/YYYY (Strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date}).
@@ -111,7 +79,6 @@ You must:
 - `Sub-Section Summary`: A narrative summary of the sections key findings. (Min 300 - Max 500 characters)
 - `Sub-Section MakeUp`: % format (All Sub-Section Makeup values strictly be to **0 decimal places**) 
 - `Sub-Section Change`: +/- % format (All Sub-Section Change values strictly be to **1 decimal place**)  
-- `Sub-Section Effect`: +/- % format (All Sub-Section Effect values strictly be to **1 decimal place**)  
 - `Sub-Section Related Article`:
   - `Sub-Section Related Article Title`: The title of the source article. (Max 40 characters)  
   - `Sub-Section Related Article Date`: DD/MM/YYYY (Strictly published within the last {reference_age_range} (absolutely no later) of todays date {today_date}). 
@@ -139,8 +106,6 @@ Follow this structure exactly:
     "Section Title": "...",
     "Section Summary": "...",
     "Section MakeUp": "X%",
-    "Section Change": "+/-X.X%",
-    "Section Effect": "+/-X.X%",
     "Section Related Article": {{
       "Section Related Article Title": "...",
       "Section Related Article Date": "DD/MM/YYYY",
@@ -153,7 +118,6 @@ Follow this structure exactly:
       "Sub-Section Summary": "...",
       "Sub-Section MakeUp": "X%",
       "Sub-Section Change": "+/-X.X%",
-      "Sub-Section Effect": "+/-X.X%",
       "Sub-Section Related Article": {{
         "Sub-Section Related Article Title": "...",
         "Sub-Section Related Article Date": "DD/MM/YYYY",
