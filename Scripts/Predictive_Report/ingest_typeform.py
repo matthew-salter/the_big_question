@@ -1,5 +1,6 @@
 import os
 import requests
+import time
 from datetime import datetime
 from pathlib import Path
 from logger import logger
@@ -20,7 +21,7 @@ logger.info(f"   SUPABASE_ROOT_FOLDER = {SUPABASE_ROOT_FOLDER}")
 logger.info(f"   SUPABASE_URL = {SUPABASE_URL}")
 
 # --- HELPERS ---
-def download_file(url: str) -> bytes:
+def download_file(url: str, retries: int = 3, delay: int = 2) -> bytes:
     """Downloads a file from a given URL and returns its binary content, with Typeform auth if needed."""
     headers = {}
 
@@ -30,17 +31,34 @@ def download_file(url: str) -> bytes:
             raise EnvironmentError("TYPEFORM_TOKEN not set in environment variables")
         headers["Authorization"] = f"Bearer {typeform_token}"
 
-    logger.info(f"🌐 Downloading file from URL: {url}")
-    res = requests.get(url, headers=headers)
-    res.raise_for_status()
-    logger.info(f"📥 Download successful (size = {len(res.content)} bytes)")
-    return res.content
+    for attempt in range(1, retries + 1):
+        logger.info(f"🌐 Attempting download (try {attempt}) from URL: {url}")
+        try:
+            res = requests.get(url, headers=headers, timeout=10)
+            if res.status_code != 200:
+                logger.warning(f"📡 HTTP {res.status_code} - Response headers: {res.headers}")
+                logger.warning(f"📡 Response content preview: {res.content[:200]}")
+            res.raise_for_status()
+            logger.info(f"📥 Download successful (size = {len(res.content)} bytes)")
+            return res.content
+        except requests.RequestException as e:
+            logger.warning(f"⚠️ Download failed (attempt {attempt}): {e}")
+            if attempt < retries:
+                time.sleep(delay)
+            else:
+                logger.error(f"❌ Failed to download file after {retries} attempts: {url}")
+                raise
 
 # --- MAIN FUNCTION ---
 def process_typeform_submission(data):
     """Extracts client, context, and logo file from Typeform and writes to Supabase."""
     try:
         answers = data.get("form_response", {}).get("answers", [])
+        submitted_at = data.get("form_response", {}).get("submitted_at")
+        if submitted_at:
+            logger.info(f"🕒 Typeform submitted_at: {submitted_at}")
+        logger.info(f"🕒 Script start time: {datetime.utcnow().isoformat()}")
+
         client = None
         question_context_url = None
         logo_url = None
