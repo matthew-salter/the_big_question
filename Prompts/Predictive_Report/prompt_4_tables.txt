@@ -27,9 +27,14 @@ You must:
 - Follow the below structure to generate structured Report Table & Section Table data sets.
 
 - For the Report Change:
-  - Sum total all the **Section Effect** values to calculate the **Report Change**.
-  - **Do not reinterpret the direction, magnitude, or sign of these values. Always follow the exact calculations defined above.**
-  - The **Report Change** valuev must strictly be to **1 decimal place**  
+
+- For the Report Change:  
+  - Strictly sum the Section Effect values exactly as provided. Do not re-calculate or derive these values from other fields.  
+  - Do not use Section Makeup or Section Change values in any way to calculate the Report Change.
+  - Do not use any Sub-Section Makeup. Sub-Section Change or Sub-Section Effect values in any way to calculate the Report Change.
+  - The Section Effect values are already fixed and rounded. Use them directly, without modification.  
+  - The Report Change is the total of these values. Always round the final result to exactly 1 decimal place using standard rounding (e.g. 0.25% → 0.3%).  
+  - For example, if the Section Effects are -0.4%, +0.4%, -0.6%, +0.2%, +0.7%, then the Report Change is +0.3%.
   
 - For the Report table:
   - Create the **Report Change Title** as "{target_variable} of {commodity} in the {region} over the next {time_range}."
