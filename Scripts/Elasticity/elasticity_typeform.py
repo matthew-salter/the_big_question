@@ -71,8 +71,8 @@ def process_typeform_submission(data):
         supply_filename = supply_url.split("/")[-1]
         demand_filename = demand_url.split("/")[-1]
 
-        supply_path = f"{SUPABASE_ROOT_FOLDER}/Elasticity/Supply_Report/{supply_filename}"
-        demand_path = f"{SUPABASE_ROOT_FOLDER}/Elasticity/Demand_Report/{demand_filename}"
+        supply_path = f"Elasticity/Supply_Report/{supply_filename}"
+        demand_path = f"Elasticity/Demand_Report/{demand_filename}"
 
         logger.info("🧾 Supabase paths:")
         logger.info(f"   Supply: {supply_path}")
