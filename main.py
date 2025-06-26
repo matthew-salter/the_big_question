@@ -4,6 +4,7 @@ import threading
 import os
 from logger import logger
 from Scripts.Predictive_Report.ingest_typeform import process_typeform_submission
+from Scripts.Elasticity.elasticity_typeform import process_typeform_submission as process_elasticity_submission
 
 app = Flask(__name__)
 
@@ -82,6 +83,16 @@ def dynamic_ingest_typeform():
         logger.exception(f"❌ Error handling Typeform submission via {RENDER_ENV}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route("/elasticity-typeform", methods=["POST"])
+def elasticity_typeform_handler():
+    try:
+        data = request.get_json(force=True)
+        logger.info("📩 Elasticity Typeform webhook received")
+        process_elasticity_submission(data)
+        return jsonify({"status": "success", "message": "Elasticity files processed and saved."})
+    except Exception as e:
+        logger.exception("❌ Error handling Elasticity Typeform submission")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route("/", methods=["POST"])
 def dispatch_prompt():
