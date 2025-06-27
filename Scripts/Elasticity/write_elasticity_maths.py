@@ -4,15 +4,15 @@ from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
 
 # --- Helpers ---
-def parse_percent(value: str) -> Decimal:
+def parse_percent(value) -> Decimal:
     try:
         return Decimal(str(value).replace('%', '').strip())
     except:
         return Decimal("0.0")
 
-def parse_number(value: str) -> Decimal:
+def parse_number(value) -> Decimal:
     try:
-        return Decimal(str(value).strip())
+        return Decimal(value)
     except:
         return Decimal("0.0")
 
