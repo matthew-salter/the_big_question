@@ -17,13 +17,13 @@ def run_prompt(data):
         supply_change_raw = data.get("supply_change") or "0"
         demand_change_raw = data.get("demand_change") or "0"
 
-        # Direct parsing via str() ensures no float distortion
+        # Zapier may send float or string → wrap in str() to force safe conversion
         supply_elasticity = Decimal(str(data.get("supply_elasticity", "0")))
         demand_elasticity = Decimal(str(data.get("demand_elasticity", "0")))
         supply_change = Decimal(str(supply_change_raw).replace('%', '').strip())
         demand_change = Decimal(str(demand_change_raw).replace('%', '').strip())
 
-        # Step 2: Log input values
+        # Step 2: Log all inputs for debugging
         logger.info("📥 Raw inputs:")
         logger.info(f"  supply_change = {supply_change_raw}")
         logger.info(f"  demand_change = {demand_change_raw}")
@@ -36,7 +36,7 @@ def run_prompt(data):
         logger.info(f"  supply_elasticity = {supply_elasticity}")
         logger.info(f"  demand_elasticity = {demand_elasticity}")
 
-        # Step 3: Perform calculation
+        # Step 3: Perform the elasticity calculation
         numerator = demand_change - supply_change
         denominator = supply_elasticity + abs(demand_elasticity)
 
@@ -47,7 +47,7 @@ def run_prompt(data):
 
         rounded_change = raw_change.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
 
-        # Step 4: Format calculation string
+        # Step 4: Format calculation explanation
         calc_string = (
             f"Expected Price Change = ({demand_change:+.1f}% - ({supply_change:+.1f}%)) / "
             f"({supply_elasticity} + |{demand_elasticity}|) = "
@@ -60,7 +60,7 @@ def run_prompt(data):
         write_supabase_file(supabase_path, calc_string)
         logger.info(f"✅ Elasticity calculation written to Supabase: {supabase_path}")
 
-        # Step 6: Return meta blocks
+        # Step 6: Return structured result
         return {
             "status": "success",
             "run_id": run_id,
