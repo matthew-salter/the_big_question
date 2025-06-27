@@ -24,7 +24,7 @@ def run_prompt(data):
         if not file_list:
             return {
                 "status": "error",
-                "message": "No supply report files found in Supabase."
+                "message": "No demand report files found in Supabase."
             }
 
         # Sort by most recent
@@ -32,7 +32,7 @@ def run_prompt(data):
         most_recent_file = file_list[0]["name"]
         supabase_path = f"{target_folder}/{most_recent_file}"
 
-        logger.info(f"📄 Most recent supply report: {most_recent_file}")
+        logger.info(f"📄 Most recent demand report: {most_recent_file}")
 
         retries = 0
         while retries < MAX_RETRIES:
@@ -56,8 +56,8 @@ def run_prompt(data):
         }
 
     except Exception as e:
-        logger.exception("❌ Error in read_supply_report")
+        logger.exception("❌ Error in read_demand_report")
         return {
             "status": "error",
-            "message": f"Server error while reading supply report: {str(e)}"
+            "message": f"Server error while reading demand report: {str(e)}"
         }
