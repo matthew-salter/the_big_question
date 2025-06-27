@@ -22,11 +22,13 @@ def run_prompt(data):
         file_list = supabase.storage.from_(SUPABASE_BUCKET).list(target_folder)
 
         if not file_list:
-            return "No supply report files found in Supabase."
+            return {
+                "status": "error",
+                "message": "No supply report files found in Supabase."
+            }
 
-        # Sort by timestamp (descending), use `updated_at` or `created_at` if available
+        # Sort by most recent
         file_list.sort(key=lambda x: x.get("last_modified") or x.get("updated_at") or x.get("created_at"), reverse=True)
-
         most_recent_file = file_list[0]["name"]
         supabase_path = f"{target_folder}/{most_recent_file}"
 
@@ -39,14 +41,23 @@ def run_prompt(data):
                 response = supabase.storage.from_(SUPABASE_BUCKET).download(supabase_path)
                 content = response.decode("utf-8")
                 logger.info("✅ File read successfully")
-                return content.strip()
+                return {
+                    "status": "success",
+                    "supply_report": content.strip()
+                }
             except Exception as e:
-                logger.warning(f"Retry {retries + 1}: {e}")
+                logger.warning(f"⏳ Retry {retries + 1}/{MAX_RETRIES} — error: {e}")
                 time.sleep(RETRY_DELAY_SECONDS * (2 ** retries))
                 retries += 1
 
-        return f"❌ Max retries exceeded. Could not read file: {most_recent_file}"
+        return {
+            "status": "error",
+            "message": f"Supply report file not available after {MAX_RETRIES} retries."
+        }
 
     except Exception as e:
         logger.exception("❌ Error in read_supply_report")
-        return f"Server error while reading supply report: {str(e)}"
+        return {
+            "status": "error",
+            "message": f"Server error while reading supply report: {str(e)}"
+        }
