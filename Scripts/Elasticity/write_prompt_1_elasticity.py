@@ -13,36 +13,28 @@ def run_prompt(data):
         data["run_id"] = run_id  # ensure it's injected if missing
 
         # Extract and escape all inputs
-        client = safe_escape(data["client"])
-        client_context = safe_escape(data["client_context"])
-        main_question = safe_escape(data["main_question"])
-        question_context = safe_escape(data["question_context"])
-        number_sections = safe_escape(data["number_sections"])
-        number_sub_sections = safe_escape(data["number_sub_sections"])
-        target_variable = safe_escape(data["target_variable"])
         commodity = safe_escape(data["commodity"])
-        region = safe_escape(data["region"])
+        report_data = safe_escape(data["report_data"])
         time_range = safe_escape(data["time_range"])
-        reference_age_range = safe_escape(data["reference_age_range"])
-        today_date = safe_escape(data["today_date"])
+        region = safe_escape(data["region"])
+        supply_change = safe_escape(data["supply_change"])
+        demand_change = safe_escape(data["demand_change"])
+        supply_report = safe_escape(data["supply_report"])
+        demand_report = safe_escape(data["demand_report"])
 
         # Load and populate prompt template
-        with open("Prompts/Predictive_Report/prompt_1_thinking.txt", "r", encoding="utf-8") as f:
+        with open("Prompts/Elasticity/prompt_1_elasticity.txt", "r", encoding="utf-8") as f:
             template = f.read()
 
         prompt = template.format(
-            client=client,
-            client_context=client_context,
-            main_question=main_question,
-            question_context=question_context,
-            number_sections=number_sections,
-            number_sub_sections=number_sub_sections,
-            target_variable=target_variable,
             commodity=commodity,
-            region=region,
+            report_data=report_data,
             time_range=time_range,
-            reference_age_range=reference_age_range,
-            today_date=today_date
+            region=region,
+            supply_change=supply_change,
+            demand_change=demand_change,
+            supply_report=supply_report,
+            demand_report=demand_report
         )
 
         # Send prompt to OpenAI
@@ -64,7 +56,7 @@ def run_prompt(data):
             formatted = raw_result
 
         # Write AI response to Supabase
-        supabase_path = f"Predictive_Report/Ai_Responses/Prompt_1_Thinking/{run_id}.txt"
+        supabase_path = f"Elasticity/Ai_Responses/Prompt_1_Elasticity/{run_id}.txt"
         write_supabase_file(supabase_path, formatted)
         logger.info(f"✅ AI response written to Supabase: {supabase_path}")
 
@@ -72,4 +64,4 @@ def run_prompt(data):
 
     except Exception:
         logger.exception("❌ Error in run_prompt")
-        return {"status": "error", "message": "Failed to write Prompt 1 Thinking"}
+        return {"status": "error", "message": "Failed to write Prompt 1 Elasticity"}
