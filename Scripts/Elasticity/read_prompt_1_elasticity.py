@@ -1,5 +1,4 @@
 import time
-import json
 from logger import logger
 from Engine.Files.read_supabase_file import read_supabase_file
 
@@ -50,20 +49,19 @@ def run_prompt(data):
                 # Flatten for readability
                 flattened = flatten_json_like_text(raw_content).replace("{:", "")
 
-                # Extract numeric elasticity values from the JSON structure
-                try:
-                    parsed_json = json.loads(raw_content)
-                    supply_es = parsed_json.get("Supply", {}).get("Supply Elasticity", "").strip()
-                    demand_ed = parsed_json.get("Demand", {}).get("Demand Elasticity", "").strip()
-                except Exception as e:
-                    logger.warning(f"⚠️ Failed to parse elasticity values from raw JSON: {e}")
-                    supply_es = ""
-                    demand_ed = ""
+                # Extract values directly from flattened text
+                supply_es = ""
+                demand_ed = ""
+                for line in flattened.splitlines():
+                    if "Supply Elasticity:" in line:
+                        supply_es = line.split("Supply Elasticity:")[1].strip()
+                    if "Demand Elasticity:" in line:
+                        demand_ed = line.split("Demand Elasticity:")[1].strip()
 
                 return {
                     "status": "success",
                     "run_id": run_id,
-                    "prompt_1_elasticicty": flattened,
+                    "prompt_1_elasticity": flattened,
                     "Supply Elasticity (Es)": supply_es,
                     "Demand Elasticity (Ed)": demand_ed
                 }
