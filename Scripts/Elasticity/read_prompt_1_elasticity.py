@@ -1,4 +1,5 @@
 import time
+import json
 from logger import logger
 from Engine.Files.read_supabase_file import read_supabase_file
 
@@ -6,33 +7,23 @@ MAX_RETRIES = 6
 RETRY_DELAY_SECONDS = 2  # 2, 4, 8, 16, 32, 64 seconds
 
 def flatten_json_like_text(text: str) -> str:
-    """
-    Converts a JSON-style string into a readable, indented block text,
-    stripping ``` wrappers and trailing quotes.
-    """
     lines = text.strip().splitlines()
     result = []
     indent_level = 0
 
     for line in lines:
         clean_line = line.strip()
-
-        # Skip markdown block markers
         if clean_line.startswith("```"):
             continue
-
-        # Decrease indent after closing brace
         if clean_line.startswith("}") or clean_line.startswith("},"):
             indent_level = max(indent_level - 1, 0)
             continue
-
-        # Nested object
         if clean_line.endswith("{") or clean_line.endswith("{,"):
             key = clean_line.split(":", 1)[0].strip().strip('"')
             result.append("  " * indent_level + f"{key}:")
             indent_level += 1
         elif ":" in clean_line:
-            key, value = clean_line.split(":", 1)
+            key, value = line.split(":", 1)
             key = key.strip().strip('"')
             value = value.strip().strip('"').rstrip(",").rstrip('"')
             result.append("  " * indent_level + f"{key}: {value}")
@@ -53,15 +44,28 @@ def run_prompt(data):
         while retries < MAX_RETRIES:
             try:
                 logger.info(f"Attempting to read Supabase file: {supabase_path} (Attempt {retries + 1})")
-                content = read_supabase_file(supabase_path)
+                raw_content = read_supabase_file(supabase_path)
                 logger.info(f"✅ File retrieved successfully from Supabase for run_id: {run_id}")
 
-                flattened = flatten_json_like_text(content).replace("{:", "")
+                # Flatten for readability
+                flattened = flatten_json_like_text(raw_content).replace("{:", "")
+
+                # Extract numeric elasticity values from the JSON structure
+                try:
+                    parsed_json = json.loads(raw_content)
+                    supply_es = parsed_json.get("Supply", {}).get("Supply Elasticity", "").strip()
+                    demand_ed = parsed_json.get("Demand", {}).get("Demand Elasticity", "").strip()
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to parse elasticity values from raw JSON: {e}")
+                    supply_es = ""
+                    demand_ed = ""
 
                 return {
                     "status": "success",
                     "run_id": run_id,
-                    "prompt_1_elasticity": flattened
+                    "prompt_1_elasticicty": flattened,
+                    "Supply Elasticity (Es)": supply_es,
+                    "Demand Elasticity (Ed)": demand_ed
                 }
 
             except Exception as e:
@@ -69,7 +73,6 @@ def run_prompt(data):
                 time.sleep(RETRY_DELAY_SECONDS * (2 ** retries))
                 retries += 1
 
-        logger.error(f"❌ Max retries exceeded. File not found for run_id: {run_id}")
         return {
             "status": "error",
             "run_id": run_id,
@@ -79,6 +82,10 @@ def run_prompt(data):
     except Exception as e:
         logger.exception("Unhandled error in read_prompt_1_elasticity")
         return {
+            "status": "error",
+            "message": f"Unhandled server error: {str(e)}"
+        }
+
             "status": "error",
             "message": f"Unhandled server error: {str(e)}"
         }
