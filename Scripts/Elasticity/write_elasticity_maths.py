@@ -8,7 +8,8 @@ def parse_percent(value: str) -> Decimal:
     return Decimal(value.strip().replace('%', ''))
 
 def format_decimal(value: Decimal, dp: int = 1) -> str:
-    return f"{value.quantize(Decimal(f'1.{"0" * dp}'), rounding=ROUND_HALF_UP)}%"
+    precision = '1.' + ('0' * dp)
+    return f"{value.quantize(Decimal(precision), rounding=ROUND_HALF_UP)}%"
 
 def run_prompt(data):
     try:
