@@ -81,7 +81,9 @@ Based on these supply & demand reports for {commodity}, and based on the supply 
         - Supply Elasticity (Es)
         - Demand Elasticity (Ed)
     - Justify your elasticity selection using the reasoning above. Do not use placeholder or sector-default values.
-
+    - Supply Summary: A single text string containing exactly 4 short, analytical sentences, separated by `\n` — do not include any list markers like '-', '*', or numbers. Do not use double line breaks or formatting characters.
+    - Demand Summary: A single text string containing exactly 4 short, analytical sentences, separated by `\n` — do not include any list markers like '-', '*', or numbers. Do not use double line breaks or formatting characters.
+    - Elasticity Summary: A single text string containing exactly 3 short, analytical sentences, separated by `\n` — do not include any list markers like '-', '*', or numbers. Do not use double line breaks or formatting characters.
 ---
 
 ### OUTPUT REQUIREMENTS
@@ -94,11 +96,11 @@ Based on these supply & demand reports for {commodity}, and based on the supply 
 - Report Executive Summary: (Two paragraphs, combined max 750 characters summarising supply, demand & elasticity impacts clearly)
 - Supply Change: “{supply_change}”
 - Supply Elasticity: "X" (the Es)
-- Supply Summary: (write a summary of the supply report’s core drivers in a single string containing exactly 4 short, analytical sentences, separated by `\n` — do not include any list markers like '-', '*', or numbers. Do not use double line breaks or formatting characters.)
+- Supply Summary: (write a summary of the supply report’s core drivers in a single text string containing exactly 4 short, analytical sentences, separated by `\n` — do not include any list markers like '-', '*', or numbers. Do not use double line breaks or formatting characters.)
 - Demand Change: “{demand_change}”
 - Demand Elasticity: "X" (the Ed)
-- Demand Summary: (write a summary of the demand report’s core drivers in a single string containing exactly 4 short, analytical sentences, separated by `\n` — do not include any list markers like '-', '*', or numbers. Do not use double line breaks or formatting characters.)
-- Elasticity Summary: (write a summary of the elasticity core drivers in a single string containing exactly 3 short, analytical sentences, separated by `\n` — do not include any list markers like '-', '*', or numbers. Do not use double line breaks or formatting characters.)
+- Demand Summary: (write a summary of the demand report’s core drivers in a single text string containing exactly 4 short, analytical sentences, separated by `\n` — do not include any list markers like '-', '*', or numbers. Do not use double line breaks or formatting characters.)
+- Elasticity Summary: (write a summary of the elasticity core drivers in a single text sstring containing exactly 3 short, analytical sentences, separated by `\n` — do not include any list markers like '-', '*', or numbers. Do not use double line breaks or formatting characters.)
 
 ---
 
