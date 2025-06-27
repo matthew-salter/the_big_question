@@ -14,7 +14,7 @@ def run_prompt(data):
 
         # Extract and escape all inputs
         commodity = safe_escape(data["commodity"])
-        report_data = safe_escape(data["report_data"])
+        report_date = safe_escape(data["report_date"])
         time_range = safe_escape(data["time_range"])
         region = safe_escape(data["region"])
         supply_change = safe_escape(data["supply_change"])
@@ -28,7 +28,7 @@ def run_prompt(data):
 
         prompt = template.format(
             commodity=commodity,
-            report_data=report_data,
+            report_date=report_date,
             time_range=time_range,
             region=region,
             supply_change=supply_change,
