@@ -86,6 +86,13 @@ def run_prompt(data):
             "message": f"Unhandled server error: {str(e)}"
         }
 
+    except Exception as e:
+        logger.exception("Unhandled error in read_prompt_1_elasticity")
+        return {
+            "status": "error",
+            "message": f"Unhandled server error: {str(e)}"
+        }
+
             "status": "error",
             "message": f"Unhandled server error: {str(e)}"
         }
