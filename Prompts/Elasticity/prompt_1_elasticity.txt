@@ -82,9 +82,11 @@ Based on these supply & demand reports for {commodity}, and based on the supply 
         - Demand Elasticity (Ed)
     - Justify your elasticity selection using the reasoning above. Do not use placeholder or sector-default values.
     - Report Executive Summary:  Write a summary of the supply, demand & elasticity impacts in two paragraphs. Paragraph 1 max 500 characters, Paragraph 2 max 500 characters, Combined paragraphs max 750 characters. Separated by `\n\n`
-    - Supply Summary: A single text string containing exactly 4 short, analytical sentences, separated by `\n` — do not include any list markers like '-', '*', or numbers. Do not use double line breaks or formatting characters.
-    - Demand Summary: A single text string containing exactly 4 short, analytical sentences, separated by `\n` — do not include any list markers like '-', '*', or numbers. Do not use double line breaks or formatting characters.
-    - Elasticity Summary: A single text string containing exactly 3 short, analytical sentences, separated by `\n` — do not include any list markers like '-', '*', or numbers. Do not use double line breaks or formatting characters.
+    - Supply Summary: Output a single string with exactly 4 separate sentences, each describing a key supply driver. Separate each sentence using \n (newline character). Do not use bullet points, numbers, paragraph breaks, or list formatting. Each sentence should be concise and analytical. This string will be parsed as one line-delimited block — formatting must follow the Sentence.\nSentence.\nSentence.\nSentence. structure exactly.
+    - Demand Summary: Output a single string with exactly 4 separate sentences, each describing a key supply driver. Separate each sentence using \n (newline character). Do not use bullet points, numbers, paragraph breaks, or list formatting. Each sentence should be concise and analytical. This string will be parsed as one line-delimited block — formatting must follow the Sentence.\nSentence.\nSentence.\nSentence. structure exactly.
+    - Elasticity Summary: Output a single string with exactly 3 separate sentences, each describing a key supply driver. Separate each sentence using \n (newline character). Do not use bullet points, numbers, paragraph breaks, or list formatting. Each sentence should be concise and analytical. This string will be parsed as one line-delimited block — formatting must follow the Sentence.\nSentence.\nSentence.\nSentence. structure exactly.
+
+Output a single string with exactly 4 separate sentences, each describing a key supply driver. Separate each sentence using \n (newline character). Do not use bullet points, numbers, paragraph breaks, or list formatting. Each sentence should be concise and analytical. This string will be parsed as one line-delimited block — formatting must follow the Sentence.\nSentence.\nSentence.\nSentence. structure exactly.
 
 ---
 
