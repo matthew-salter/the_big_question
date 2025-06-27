@@ -34,10 +34,8 @@ You are required to analyse and forecast the price impact on a commodity based o
 
 ### OBJECTIVE  
 Please read and evaluate the supply and demand reports.
-Your primary objective is to achieve the defined objective. Use the supply and demand reports below as **strong** reference materials — they should significantly inform your reasoning.
-Based on these supply & demand reports for {commodity}, and based on the supply forecast percentage of {supply_change}, and based on the demand forecast percentage of {demand_change}, and using the following elasticity-based formula:
-
-Expected Price Change (%) = (Demand% Change - Supply% Change) / (Supply Elasticity + |Demand Elasticity|)
+Your primary objective is to achieve the defined objective. Use the supply and demand reports as **strong** reference materials — they should significantly inform your reasoning.
+Based on these supply & demand reports for {commodity}, and based on the supply forecast percentage of {supply_change}, and based on the demand forecast percentage of {demand_change}, you are to identify the supply elasticity (Es) and demand elasticity (Ed):
 
 **Definitions**:
 - Supply% Change: Percentage change in supply {supply_change}
@@ -45,12 +43,10 @@ Expected Price Change (%) = (Demand% Change - Supply% Change) / (Supply Elastici
 - Supply Elasticity (Es): Sensitivity of quantity supplied to price changes.
 - Demand Elasticity (Ed): Sensitivity of quantity demanded to price changes.
 
-Estimate the overall likely impact on {commodity} price changes. Assume typical elasticity conditions based on the commodity type.
-
 **Elasticity Estimation Guidance**:
 - Instruction:
-    - Estimate the price elasticity of supply (Es) and demand (Ed) for the specific commodity and time period provided.
-    - Do NOT rely on sector-wide averages. Instead, use economic reasoning to infer elasticity based on the characteristics of the named commodity ({commodity}) within the specified time range ({time_range}).
+    - Identify the elasticity of supply (Es) and demand (Ed) for the commodity {commodity} and time period {time_range} provided.
+    - Do NOT rely on sector-wide averages. Instead, use economic reasoning to infer elasticity based on the characteristics.
 
 - Objective:
     - Elasticity values must be appropriate for the unique behaviour of this commodity over the chosen time horizon.
@@ -93,18 +89,15 @@ Estimate the overall likely impact on {commodity} price changes. Assume typical 
 - Report Title: "How Supply and Demand Pressures Will Affect the Price of {commodity} in the {region} Over the Next {time_range}”
 - Commodity: "{commodity}"
 - Report Date: “{report_date}"
-- Time Range: “{time_range}”
 - Region: “{region}”
+- Time Range: “{time_range}”
 - Report Executive Summary: (Two paragraphs, combined max 750 characters summarising supply, demand & elasticity impacts clearly)
 - Supply Change: “{supply_change}”
+- Supply Elasticity: "X" (the Es)
 - Supply Summary: (summary from supply report’s core supply drivers in x4 bullet point style sentences)
 - Demand Change: “{demand_change}”
-- Demand Summary: (summary from demand report’s core supply drivers in x4 bullet point style sentences)
-- Elasticity Change: "+/-X%" (MUST NOT BE 0%, the Expected Price Change)
-- Elasticity Summary: (summary of the elasticity drivers in x3 bullet point style sentences)
-- Supply Elasticity: "X" (the Es)
 - Demand Elasticity: "X" (the Ed)
-- Elasticity Calculation: (Max 500 character explanation of how the elasticity is calculated)
+- Elasticity Summary: (summary of the elasticity drivers in x3 bullet point style sentences)
 
 ---
 
@@ -126,24 +119,22 @@ json
     "Report Title": "...",
     "Commodity: "...",
     "Report Date: "...",
-    "Time Range: "...",
     "Region: "...",
+    "Time Range: "...",
     "Report Executive Summary: "..."
   }},
   "Supply": {{
     "Supply Change": "...",
-    "Supply Summary": "...",
-    "Supply Elasticity": "..."
+    "Supply Elasticity": “…”,
+    "Supply Summary": "..."
     }},
   "Demand": {{
     "Demand Change": "...",
-    "Demand Summary": "...",
-    "Demand Elasticity": "..."
+    "Demand Elasticity": “…”,
+    "Demand Summary": "..."
     }},
   "Elasticity": {{
-    "Elasticity Change": "...",
     "Elasticity Summary": "...",
-    "Elasticity Calculation": "..."
     }}
   }}
 }}”
