@@ -1,1 +1,150 @@
+You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
 
+### INSTRUCTION & CONTEXT
+You are required to analyse and forecast the price impact on a commodity based on attached supply and demand reports, using provided elasticity formulas and assumptions.
+
+**COMMODITY**  
+{commodity}
+
+**REPORT DATE**
+{report_date}
+
+**TIME FRAME**
+{time_range}
+
+**REGION**
+{region}
+
+**SUPPLY FORECAST PERCENTAGE**  
+{supply_change}
+
+**DEMAND FORECAST PERCENTAGE**  
+{demand_change}
+
+**SUPPORTING DOCUMENTS**  
+*IMPORTANT*: Your primary objective is to achieve the defined objective. Use the supply and demand reports below as **strong** reference materials — they should significantly inform your reasoning.
+
+**SUPPLY REPORT**  
+{supply_report}
+
+**DEMAND REPORT**  
+{supply_report}
+
+---
+
+### OBJECTIVE  
+Please read and evaluate the supply and demand reports.
+Your primary objective is to achieve the defined objective. Use the supply and demand reports below as **strong** reference materials — they should significantly inform your reasoning.
+Based on these supply & demand reports for {commodity}, and based on the supply forecast percentage of {supply_change}, and based on the demand forecast percentage of {demand_change}, and using the following elasticity-based formula:
+
+Expected Price Change (%) = (Demand% Change - Supply% Change) / (Supply Elasticity + |Demand Elasticity|)
+
+**Definitions**:
+- Supply% Change: Percentage change in supply {supply_change}
+- Demand% Change: Percentage change in demand {demand_change}
+- Supply Elasticity (Es): Sensitivity of quantity supplied to price changes.
+- Demand Elasticity (Ed): Sensitivity of quantity demanded to price changes.
+
+Estimate the overall likely impact on {commodity} price changes. Assume typical elasticity conditions based on the commodity type.
+
+**Elasticity Estimation Guidance**:
+- Instruction:
+    - Estimate the price elasticity of supply (Es) and demand (Ed) for the specific commodity and time period provided.
+    - Do NOT rely on sector-wide averages. Instead, use economic reasoning to infer elasticity based on the characteristics of the named commodity ({commodity}) within the specified time range ({time_range}).
+
+- Objective:
+    - Elasticity values must be appropriate for the unique behaviour of this commodity over the chosen time horizon.
+    - Justify Es and Ed based on realistic production and consumption flexibility, not generic assumptions.
+
+- Cross-Sector Factors to Consider:
+    - Time flexibility of supply: how easily can producers scale up/down in this timeframe?
+    - Input availability: are raw materials or components scarce or abundant?
+    - Inventory/storability: can this good be stored or stockpiled?
+    - Substitutability: are alternative products or services readily available to consumers?
+    - Technological constraints: how complex is production scaling or innovation?
+    - Demand urgency: is this a critical good (inelastic) or discretionary (elastic)?
+    - Market structure: does the market behave competitively, monopolistically, or is it regulated?
+    - Global vs. local supply chain dependencies
+
+  - Elasticity and Time Horizon:
+    - In general, supply and demand elasticity increase with time — more time allows for more adjustment.
+    - Short-term: capacity and consumption tend to be rigid (low elasticity)
+    - Medium- and long-term: more adaptation possible (higher elasticity)
+
+  - Example Elasticities (for reference only, not templates):
+    - Wheat (short-term): Es ~0.2, Ed ~-0.3 (rigid cycles, essential good)
+    - Lithium (medium-term): Es ~0.6, Ed ~-0.5 (limited supply ramp, growing tech demand)
+    - Smart TVs (long-term): Es ~1.1, Ed ~-1.3 (scalable production, high substitutability)
+    - Electricity (short-term): Es ~0.1, Ed ~-0.2 (critical infrastructure, fixed short-term capacity)
+    - Solar panels (long-term): Es ~1.3, Ed ~-1.5 (tech innovation, strong demand curve)
+    - Luxury handbags (medium-term): Es ~0.9, Ed ~-1.8 (designer supply limits, elastic demand)
+    - Construction steel (short-term): Es ~0.4, Ed ~-0.4 (input-constrained supply, essential B2B demand)
+
+- Output Requirement:
+    - Return estimated values for:
+        - Supply Elasticity (Es)
+        - Demand Elasticity (Ed)
+    - Justify your elasticity selection using the reasoning above. Do not use placeholder or sector-default values.
+
+---
+
+### OUTPUT REQUIREMENTS
+
+- Report Title: "How Supply and Demand Pressures Will Affect the Price of {commodity} in the {region} Over the Next {time_range}”
+- Commodity: "{commodity}"
+- Report Date: “{report_date}"
+- Time Range: “{time_range}”
+- Region: “{region}”
+- Report Executive Summary: (Two paragraphs, combined max 750 characters summarising supply, demand & elasticity impacts clearly)
+- Supply Change: “{supply_change}”
+- Supply Summary: (summary from supply report’s core supply drivers in x4 bullet point style sentences)
+- Demand Change: “{demand_change}”
+- Demand Summary: (summary from demand report’s core supply drivers in x4 bullet point style sentences)
+- Elasticity Change: "+/-X%" (MUST NOT BE 0%, the Expected Price Change)
+- Elasticity Summary: (summary of the elasticity drivers in x3 bullet point style sentences)
+- Supply Elasticity: "X" (the Es)
+- Demand Elasticity: "X" (the Ed)
+- Elasticity Calculation: (Max 500 character explanation of how the elasticity is calculated)
+
+---
+
+### ADDITIONAL NOTES
+- Be concise, data-driven, and structured  
+- This data will feed a visualised report; clarity and consistency are critical
+- Match tone of a professional analytical report.
+- Output must be valid, parsable JSON  
+
+---
+
+### OUTPUT FORMAT
+Return a single JSON object for all of the sections containing the associated sub-sections.
+Follow this structure exactly:
+```
+json
+{{
+  "Report": {{
+    "Report Title": "...",
+    "Commodity: "...",
+    "Report Date: "...",
+    "Time Range: "...",
+    "Region: "...",
+    "Report Executive Summary: "..."
+  }},
+  "Supply": {{
+    "Supply Change": "...",
+    "Supply Summary": "...",
+    "Supply Elasticity": "..."
+    }},
+  "Demand": {{
+    "Demand Change": "...",
+    "Demand Summary": "...",
+    "Demand Elasticity": "..."
+    }},
+  "Elasticity": {{
+    "Elasticity Change": "...",
+    "Elasticity Summary": "...",
+    "Elasticity Calculation": "..."
+    }}
+  }}
+}}”
+```
