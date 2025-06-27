@@ -47,7 +47,7 @@ def run_prompt(data):
         if not run_id:
             raise ValueError("Missing run_id in request payload")
 
-        supabase_path = f"Predictive_Report/Ai_Responses/Prompt_1_Thinking/{run_id}.txt"
+        supabase_path = f"Elasticity/Ai_Responses/Prompt_1_Elasticity/{run_id}.txt"
 
         retries = 0
         while retries < MAX_RETRIES:
@@ -61,7 +61,7 @@ def run_prompt(data):
                 return {
                     "status": "success",
                     "run_id": run_id,
-                    "prompt_1_thinking": flattened
+                    "prompt_1_elasticicty": flattened
                 }
 
             except Exception as e:
@@ -73,11 +73,11 @@ def run_prompt(data):
         return {
             "status": "error",
             "run_id": run_id,
-            "message": "Prompt 1 Thinking file not yet available. Try again later."
+            "message": "Prompt 1 Elasticity file not yet available. Try again later."
         }
 
     except Exception as e:
-        logger.exception("Unhandled error in read_prompt_1_thinking")
+        logger.exception("Unhandled error in read_prompt_1_elasticity")
         return {
             "status": "error",
             "message": f"Unhandled server error: {str(e)}"
