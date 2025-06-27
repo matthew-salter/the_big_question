@@ -3,46 +3,32 @@ from decimal import Decimal, ROUND_HALF_UP
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
 
-# --- Helpers ---
-def parse_percent(value) -> Decimal:
-    try:
-        return Decimal(str(value).replace('%', '').strip())
-    except:
-        return Decimal("0.0")
-
-def parse_number(value) -> Decimal:
-    try:
-        return Decimal(str(value).strip())
-    except:
-        return Decimal("0.0")
-
+# --- Format decimal for display ---
 def format_decimal(value: Decimal, dp: int = 1) -> str:
     precision = '1.' + ('0' * dp)
     return f"{value.quantize(Decimal(precision), rounding=ROUND_HALF_UP)}%"
 
-# --- Main function ---
+# --- Main entry point ---
 def run_prompt(data):
     try:
         run_id = data.get("run_id") or str(uuid.uuid4())
 
-        # Step 1: Raw inputs from Zapier (no rounding)
+        # Step 1: Extract raw inputs (Zapier-safe)
         supply_change_raw = data.get("supply_change") or "0"
         demand_change_raw = data.get("demand_change") or "0"
-        supply_elasticity_raw = data.get("supply_elasticity") or "0"
-        demand_elasticity_raw = data.get("demand_elasticity") or "0"
 
-        # Step 2: Safe parsing as Decimal, preserving full precision
-        supply_change = parse_percent(supply_change_raw)
-        demand_change = parse_percent(demand_change_raw)
-        supply_elasticity = parse_number(supply_elasticity_raw)
-        demand_elasticity = parse_number(demand_elasticity_raw)
+        # Direct parsing via str() ensures no float distortion
+        supply_elasticity = Decimal(str(data.get("supply_elasticity", "0")))
+        demand_elasticity = Decimal(str(data.get("demand_elasticity", "0")))
+        supply_change = Decimal(str(supply_change_raw).replace('%', '').strip())
+        demand_change = Decimal(str(demand_change_raw).replace('%', '').strip())
 
-        # Step 3: Log values for debugging
+        # Step 2: Log input values
         logger.info("📥 Raw inputs:")
         logger.info(f"  supply_change = {supply_change_raw}")
         logger.info(f"  demand_change = {demand_change_raw}")
-        logger.info(f"  supply_elasticity = {supply_elasticity_raw}")
-        logger.info(f"  demand_elasticity = {demand_elasticity_raw}")
+        logger.info(f"  supply_elasticity = {data.get('supply_elasticity')}")
+        logger.info(f"  demand_elasticity = {data.get('demand_elasticity')}")
 
         logger.info("📊 Parsed values:")
         logger.info(f"  supply_change = {supply_change}")
@@ -50,7 +36,7 @@ def run_prompt(data):
         logger.info(f"  supply_elasticity = {supply_elasticity}")
         logger.info(f"  demand_elasticity = {demand_elasticity}")
 
-        # Step 4: Perform the calculation
+        # Step 3: Perform calculation
         numerator = demand_change - supply_change
         denominator = supply_elasticity + abs(demand_elasticity)
 
@@ -61,20 +47,20 @@ def run_prompt(data):
 
         rounded_change = raw_change.quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
 
-        # Step 5: Format calculation string
+        # Step 4: Format calculation string
         calc_string = (
             f"Expected Price Change = ({demand_change:+.1f}% - ({supply_change:+.1f}%)) / "
             f"({supply_elasticity} + |{demand_elasticity}|) = "
             f"[{numerator:+.1f}% / {denominator}] = {raw_change:.2f}%, rounded to {rounded_change:.1f}%."
         )
 
-        # Step 6: Write result to Supabase
+        # Step 5: Write to Supabase
         filename = f"{run_id}.txt"
         supabase_path = f"Elasticity/Ai_Responses/Elasticity_Maths/{filename}"
         write_supabase_file(supabase_path, calc_string)
         logger.info(f"✅ Elasticity calculation written to Supabase: {supabase_path}")
 
-        # Step 7: Return results for Zapier
+        # Step 6: Return meta blocks
         return {
             "status": "success",
             "run_id": run_id,
