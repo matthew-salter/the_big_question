@@ -39,7 +39,9 @@ BLOCKING_PROMPTS = {
     "move_files_1",
     "move_files_2",
     "read_supply_report",
-    "read_demand_report"
+    "read_demand_report",
+    "write_prompt_1_elasticity",
+    "read_prompt_1_elasticity"
 }
 
 PROMPT_MODULES = {
@@ -72,7 +74,9 @@ PROMPT_MODULES = {
     "move_files_1": "Scripts.Predictive_Report.move_files_1",
     "move_files_2": "Scripts.Predictive_Report.move_files_2",
     "read_supply_report": "Scripts.Elasticity.read_supply_report",
-    "read_demand_report": "Scripts.Elasticity.read_demand_report"
+    "read_demand_report": "Scripts.Elasticity.read_demand_report",
+    "write_prompt_1_elasticity": "Scripts.Elasticity.write_prompt_1_elasticity",
+    "read_prompt_1_elasticity": "Scripts.Elasticity.read_prompt_1_elasticity"
 }
 
 # --- ROUTES ---
