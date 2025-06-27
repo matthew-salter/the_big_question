@@ -128,20 +128,20 @@ json
     "Report Date: "...",
     "Region: "...",
     "Time Range: "...",
-    "Report Executive Summary: "..."
+    "Report Executive Summary: "...\n\n..."
   }},
   "Supply": {{
     "Supply Change": "...",
     "Supply Elasticity": “…”,
-    "Supply Summary": "..."
+    "Supply Summary": "...\n...\n...\n..."
     }},
   "Demand": {{
     "Demand Change": "...",
     "Demand Elasticity": “…”,
-    "Demand Summary": "..."
+    "Demand Summary": "...\n...\n...\n..."
     }},
   "Elasticity": {{
-    "Elasticity Summary": "...",
+    "Elasticity Summary": "...\n...\n...",
     }}
   }}
 }}”
