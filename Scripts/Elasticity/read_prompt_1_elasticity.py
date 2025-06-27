@@ -61,7 +61,7 @@ def run_prompt(data):
                 return {
                     "status": "success",
                     "run_id": run_id,
-                    "prompt_1_elasticicty": flattened
+                    "prompt_1_elasticity": flattened
                 }
 
             except Exception as e:
