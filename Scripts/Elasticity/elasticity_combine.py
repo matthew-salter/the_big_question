@@ -8,15 +8,18 @@ def deindent(text):
 
 def insert_additional_fields(text, client, elasticity_change, elasticity_calculation):
     # Inject Client after Report Title
-    text = re.sub(r'(Report Title:.*?\n)', r'\1Client: {}\n'.format(client), text, count=1)
-
-    # Inject Elasticity Change and Calculation after Elasticity Summary
     text = re.sub(
-        r'(Elasticity Summary:.*?)\n',
-        r'\1\nElasticity Change: {}\nElasticity Calculation: {}\n'.format(elasticity_change, elasticity_calculation),
+        r'(Report Title:.*?\n)',
+        r'\1Client: {}\n'.format(client),
         text,
         count=1
     )
+
+    # Inject Elasticity Change and Calculation *before* Elasticity Summary
+    pattern = r'(?:^|\n)(Elasticity Summary:)'
+    insert_block = f"Elasticity Change: {elasticity_change}\n\nElasticity Calculation: {elasticity_calculation}\n\n\\1"
+    text = re.sub(pattern, insert_block, text, count=1)
+
     return text
 
 def remove_section_headers(text):
