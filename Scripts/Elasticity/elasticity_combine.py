@@ -7,7 +7,7 @@ def deindent(text):
     return re.sub(r'(?m)^ {2,}', '', text)
 
 def insert_additional_fields(text, client, elasticity_change, elasticity_calculation):
-    # Inject Client after Report Title
+    # Insert Client after Report Title
     text = re.sub(
         r'(Report Title:.*?\n)',
         r'\1Client: {}\n'.format(client),
@@ -15,10 +15,19 @@ def insert_additional_fields(text, client, elasticity_change, elasticity_calcula
         count=1
     )
 
-    # Inject Elasticity Change and Calculation *before* Elasticity Summary
-    pattern = r'(?:^|\n)(Elasticity Summary:)'
-    insert_block = f"Elasticity Change: {elasticity_change}\n\nElasticity Calculation: {elasticity_calculation}\n\n\\1"
-    text = re.sub(pattern, insert_block, text, count=1)
+    # Insert Elasticity Change before Elasticity Summary
+    text = re.sub(
+        r'(Elasticity Summary:)',
+        f"Elasticity Change: {elasticity_change}\n\n\\1",
+        text,
+        count=1
+    )
+
+    # Insert Elasticity Calculation after Elasticity Summary block
+    # Match the entire Elasticity Summary block (label + body), then inject calculation after
+    pattern = r'(Elasticity Summary:\n(?:.*?\n)+?)(?=\n\S|$)'
+    replacement = r'\1Elasticity Calculation: {}\n\n'.format(elasticity_calculation)
+    text = re.sub(pattern, replacement, text, count=1)
 
     return text
 
