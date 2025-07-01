@@ -7,7 +7,7 @@ def deindent(text):
     return re.sub(r'(?m)^ {2,}', '', text)
 
 def insert_additional_fields(text, client, elasticity_change, elasticity_calculation):
-    # Insert Client after Report Title
+    # Inject Client after Report Title
     text = re.sub(
         r'(Report Title:.*?\n)',
         r'\1Client: {}\n'.format(client),
@@ -15,7 +15,7 @@ def insert_additional_fields(text, client, elasticity_change, elasticity_calcula
         count=1
     )
 
-    # Insert Elasticity Change before Elasticity Summary
+    # Inject Elasticity Change before Elasticity Summary
     text = re.sub(
         r'(Elasticity Summary:)',
         f"Elasticity Change: {elasticity_change}\n\n\\1",
@@ -23,8 +23,10 @@ def insert_additional_fields(text, client, elasticity_change, elasticity_calcula
         count=1
     )
 
-    # Append Elasticity Calculation at the end
-    text = text.rstrip() + "\n\nElasticity Calculation:\n" + elasticity_calculation + "\n"
+    # Append Elasticity Calculation at the end (always last)
+    text = text.rstrip() + f"\n\nElasticity Calculation:\n{elasticity_calculation}\n"
+
+    return text
 
 def remove_section_headers(text):
     lines = text.splitlines()
@@ -51,30 +53,21 @@ def split_key_value_lines(text):
 def run_prompt(data):
     try:
         run_id = str(uuid.uuid4())
-        prompt_raw = data.get("prompt_1_elasticity", "")
+        prompt_raw = data.get("prompt_1_elasticity", "").strip()
         client = data.get("client", "").strip()
         elasticity_change = data.get("elasticity_change", "").strip()
         elasticity_calculation = data.get("elasticity_calculation", "").strip()
 
-        if not prompt_raw or not isinstance(prompt_raw, str):
-            raise ValueError("Missing or invalid 'prompt_1_elasticity' content in input data.")
+        if not prompt_raw:
+            raise ValueError("Missing 'prompt_1_elasticity' content in input data.")
 
-        # Step 1: De-indent the raw block
-        text = re.sub(r'(?m)^ {2,}', '', prompt_raw.strip())
-
-        # Step 2: Inject client + elasticity fields
+        text = deindent(prompt_raw)
         text = insert_additional_fields(text, client, elasticity_change, elasticity_calculation)
-
-        # Step 3: Remove section headers (Report:, Supply:, etc.)
         text = remove_section_headers(text)
-
-        # Step 4: Split keys and values onto separate lines
         text = split_key_value_lines(text)
 
-        # Step 5: Write to Supabase
         supabase_path = f"Elasticity/Ai_Responses/Elasticity_Combine/{run_id}.txt"
         write_supabase_file(supabase_path, text)
-
         logger.info(f"✅ Elasticity file written to: {supabase_path}")
 
         return {
