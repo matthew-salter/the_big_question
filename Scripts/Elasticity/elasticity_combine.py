@@ -23,13 +23,24 @@ def insert_additional_fields(text, client, elasticity_change, elasticity_calcula
         count=1
     )
 
-    # Insert Elasticity Calculation after Elasticity Summary block
-    # Match the entire Elasticity Summary block (label + body), then inject calculation after
-    pattern = r'(Elasticity Summary:\n(?:.*?\n)+?)(?=\n\S|$)'
-    replacement = r'\1Elasticity Calculation: {}\n\n'.format(elasticity_calculation)
-    text = re.sub(pattern, replacement, text, count=1)
-
-    return text
+    # Insert Elasticity Calculation after the Elasticity Summary block
+    lines = text.splitlines()
+    new_lines = []
+    inserted = False
+    for i, line in enumerate(lines):
+        new_lines.append(line)
+        if line.strip() == "Elasticity Summary:" and not inserted:
+            # Append summary value if present
+            if i + 1 < len(lines) and lines[i + 1].strip():
+                new_lines.append(lines[i + 1])
+                i += 1
+            # Now insert the calculation block
+            new_lines.append("")
+            new_lines.append("Elasticity Calculation:")
+            new_lines.append(elasticity_calculation)
+            new_lines.append("")
+            inserted = True
+    return '\n'.join(new_lines)
 
 def remove_section_headers(text):
     lines = text.splitlines()
