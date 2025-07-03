@@ -24,7 +24,7 @@ def insert_additional_fields(text, client, elasticity_change, elasticity_calcula
     )
 
     # Append Elasticity Calculation at the end (always last)
-    text = text.rstrip() + f"\n\nElasticity Calculation:\n{elasticity_calculation}"
+    text = text.rstrip() + f"\n\nElasticity Calculation:{elasticity_calculation}"
 
     return text
 
