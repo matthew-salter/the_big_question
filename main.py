@@ -45,7 +45,8 @@ BLOCKING_PROMPTS = {
     "write_elasticity_maths",
     "elasticity_combine",
     "elasticity_csv",
-    "write_create_elasticity_folders"
+    "write_create_elasticity_folders",
+    "read_create_elasticity_folders"
 }
 
 PROMPT_MODULES = {
@@ -84,7 +85,8 @@ PROMPT_MODULES = {
     "write_elasticity_maths": "Scripts.Elasticity.write_elasticity_maths",
     "elasticity_combine": "Scripts.Elasticity.elasticity_combine",
     "elasticity_csv": "Scripts.Elasticity.elasticity_csv",
-    "write_create_elasticity_folders": "Scripts.Elasticity.write_create_elasticity_folders"
+    "write_create_elasticity_folders": "Scripts.Elasticity.write_create_elasticity_folders",
+    "read_create_elasticity_folders": "Scripts.Elasticity.read_create_elasticity_folders"
 }
 
 # --- ROUTES ---
