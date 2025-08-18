@@ -90,7 +90,7 @@ Additionally, include **one** illustrative **Related Article** that supports you
 Return a single JSON object with the following structure:
 
 ```json
-{
+{{
   "Question": "{question}",
   "Header": "...",
   "Sub-Header": "...",
@@ -99,12 +99,12 @@ Return a single JSON object with the following structure:
   "Statistic": "...",
   "Insight": "...",
   "Recommendation": "...",
-  "Related Article": {
+  "Related Article": {{
     "Related Article Title": "...",
     "Related Article Date": "DD/MM/YYYY",
     "Related Article Summary": "...",
     "Related Article Relevance": "...",
     "Related Article Source": "..."
-  }
-}
+  }}
+}}
 ```
