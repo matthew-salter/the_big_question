@@ -5,7 +5,7 @@ Can {condition} be fully cured, or is it a lifelong condition?
 How will my doctor diagnose {condition}?
 What are the most common symptoms of {condition}?
 How might {condition} affect my daily life?
-What is the long-term outlook or prognosis for{condition}?
+What is the long-term outlook or prognosis for {condition}?
 What treatment options are available for {condition}?
 What useful questions should I ask my doctor about {condition}?
 What lifestyle changes could help manage {condition}?
@@ -21,7 +21,7 @@ How likely am I to avoid future complications or relapses from {condition}?
 What important questions should I ask at my first specialist appointment for {condition}?
 How can I make my home safer to manage {condition}?
 What activities and hobbies are still safe for me with {condition}?
-Can my GP help coordinate my treatment if I see multiple specialists?
+for {condition}, can my GP help coordinate my treatment if I see multiple specialists?
 What new treatments are likely to become available in the next few years for {condition}?
 As a patient with {condition}, what treatment might I be offered by the NHS?
 What are the leading treatment centers in the UK for {condition}?
@@ -32,8 +32,8 @@ What is the current NHS treatment plan for {condition} according to NICE guideli
 Are any functional medicine approaches to {condition} available in the UK?
 What are the waiting times and access issues for NHS {condition} services?
 Can I combine NHS and private treatment for {condition}?
-How do I push for faster tests or treatment if NHS waiting times are long?
-How can I combine NHS care with private treatment without wasting money or duplicating tests?
+For {condition}, how do I push for faster tests or treatment if NHS waiting times are long?
+For {condition}, how can I combine NHS care with private treatment without wasting money or duplicating tests?
 As a patient with {condition}, what treatment might I be offered in France? 
 As a patient with {condition}, what treatment might I be offered in USA?
 As a patient with {condition}, what treatment might I be offered in China?
