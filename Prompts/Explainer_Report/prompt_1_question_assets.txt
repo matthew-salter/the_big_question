@@ -22,9 +22,7 @@ Before answering, first assess whether the question is **relevant to the conditi
 ---
 
 ## PATIENT CONTEXT
-
-**Patient First Name**: {first_name}  
-**Patient Sur Name**: {sur_name}  
+ 
 **Condition**: {condition}  
 **Age**: {age}  
 **Gender**: {gender}  
