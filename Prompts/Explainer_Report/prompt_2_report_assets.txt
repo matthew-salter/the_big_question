@@ -12,8 +12,6 @@ Use your understanding of the patient context and the attached section assets to
 
 ## PATIENT CONTEXT
 
-**Patient First Name**: {first_name}  
-**Patient Sur Name**: {sur_name}  
 **Condition**: {condition}  
 **Age**: {age}  
 **Gender**: {gender}  
