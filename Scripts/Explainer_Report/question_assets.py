@@ -8,7 +8,6 @@ import time
 import threading
 import hashlib
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Dict, Any, List
 
 from openai import OpenAI
@@ -120,14 +119,17 @@ def clean_ai_output(ai_text: str) -> str:
         # If it isn't valid JSON, just return the cleaned text
         return cleaned
 
-def supabase_write_json(path: str, content: str):
+def supabase_write_txt(path: str, content: str):
     """
-    Write JSON content with an explicit content-type to Supabase.
+    Write text content (JSON string inside, but saved as .txt).
     """
     write_supabase_file(path, content, content_type="text/plain; charset=utf-8")
 
-def write_json(path: str, obj: Dict[str, Any]):
-    supabase_write_json(path, json.dumps(obj, ensure_ascii=False, indent=2))
+def supabase_write_textjson(path: str, obj: Dict[str, Any]):
+    """
+    Convenience for manifest/checkpoint stored as text/plain JSON.
+    """
+    supabase_write_txt(path, json.dumps(obj, ensure_ascii=False, indent=2))
 
 # =========================
 # Checkpoint & Manifest
@@ -211,8 +213,8 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
         ckpt = default_checkpoint()
 
         # Persist initial metadata
-        write_json(paths["manifest"], manifest)
-        write_json(paths["checkpoint"], ckpt)
+        supabase_write_textjson(paths["manifest"], manifest)
+        supabase_write_textjson(paths["checkpoint"], ckpt)
 
         # Sequential loop — only advance after successful write
         for idx, q_tmpl in enumerate(q_templates):
@@ -228,12 +230,6 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             q_id = f"{idx+1:02d}_{slugify(filled_q)[:50]}_{sha8(filled_q)}"
             outfile = f'{paths["base"]}/{q_id}.txt'
 
-            # Clean to pure JSON string
-            final_output = clean_ai_output(ai_text)
-
-            # Save as .txt but content is JSON
-            supabase_write_txt(outfile, final_output)
-
             item = {
                 "q_id": q_id,
                 "index": idx,
@@ -246,27 +242,31 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                 "error": None,
             }
             upsert_manifest_item(manifest, item)
-            write_json(paths["manifest"], manifest)
+            supabase_write_textjson(paths["manifest"], manifest)
 
             try:
                 t0 = time.time()
-                ai_text = call_openai(prompt, model=payload.get("model", DEFAULT_MODEL), temperature=TEMPERATURE)
+                ai_text = call_openai(
+                    prompt,
+                    model=payload.get("model", DEFAULT_MODEL),
+                    temperature=TEMPERATURE
+                )
                 elapsed = round(time.time() - t0, 3)
 
-                # Clean to pure JSON (no markdown fences, no headers)
+                # Clean to pure JSON string (no markdown fences, no debug header)
                 final_output = clean_ai_output(ai_text)
 
-                # Write to Supabase with correct content-type
-                supabase_write_json(outfile, final_output)
+                # Save as .txt but content is JSON
+                supabase_write_txt(outfile, final_output)
 
                 # Mark done
                 item.update({"status": "done", "completed_at": now_iso(), "latency_seconds": elapsed})
                 upsert_manifest_item(manifest, item)
-                write_json(paths["manifest"], manifest)
+                supabase_write_textjson(paths["manifest"], manifest)
 
                 # Checkpoint after successful write
                 ckpt = update_checkpoint(ckpt, idx)
-                write_json(paths["checkpoint"], ckpt)
+                supabase_write_textjson(paths["checkpoint"], ckpt)
 
                 # Politeness delay (tune/remove as needed)
                 time.sleep(0.25)
@@ -278,7 +278,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     "error": {"type": type(e).__name__, "message": str(e)},
                 })
                 upsert_manifest_item(manifest, item)
-                write_json(paths["manifest"], manifest)
+                supabase_write_textjson(paths["manifest"], manifest)
                 # Continue to next question
 
         logger.info(
