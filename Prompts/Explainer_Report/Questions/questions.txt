@@ -1,75 +1,68 @@
-What is {condition}?
-What causes {condition}? 
-Why do people develop {condition}?
-Can {condition}  be cured, or will I have it for life?
-How will my doctor confirm if I have {condition}, and what do the tests mean for me?
-What symptoms are typical of {condition}?
-What changes might I notice in my everyday life with {condition}?
-What is the long-term outlook for {condition}?
-What treatment is available for {condition}?
-As a patient with {condition}, what treatment might I be offered at {world class leading institution} for {condition}? Please review and summarise the treatments they offer which differentiate.
-What are the leading clinics, hospitals and other types of treatment centre in the UK for {condition} 
-As a patient with {condition}, what treatment might I be offered at {UK NHS} for {condition}?
-Are there any experimental treatments for {condition} in the pipeline? Please review and summarise the treatments.
-What international research studies on {condition} might be useful and relevant? Please give specific examples.
-What are the pros, cons, and possible side effects of my treatment choices??
-How long will it take to feel better for {condition}?
-Are there lifestyle or dietary changes I should make with {condition}?
-What {dietary theories} are associated with treating {condition}?
+What exactly is {condition}?
+What are the main causes of {condition}?
+Why might someone develop {condition}?
+Can {condition} be fully cured, or is it a lifelong condition?
+How will my doctor diagnose {condition}?
+What are the most common symptoms of {condition}?
+How might {condition} affect my daily life?
+What is the long-term outlook or prognosis for{condition}?
+What treatment options are available for {condition}?
+What useful questions should I ask my doctor about {condition}?
+What lifestyle changes could help manage {condition}?
+What activities should I avoid if I have {condition}?
+How quickly does {condition} usually develop or progress?
+How have other people learned to cope emotionally after a {condition} diagnosis?
+Where can I find support groups or online communities for people with {condition}?
+How can I talk to my partner, children, or friends about {condition}?
+What workplace adjustments could help me manage {condition}?
+What strategies can help me cope emotionally after being diagnosed with {condition}?
+What can I start doing today to feel more in control of my health with {condition}?
+How likely am I to avoid future complications or relapses from {condition}?
+What important questions should I ask at my first specialist appointment for {condition}?
+How can I make my home safer to manage {condition}?
+What activities and hobbies are still safe for me with {condition}?
+Can my GP help coordinate my treatment if I see multiple specialists?
+What new treatments are likely to become available in the next few years for {condition}?
+As a patient with {condition}, what treatment might I be offered by the NHS?
+What are the leading treatment centers in the UK for {condition}?
+How long will it take to feel better from {condition}?
 Will I need regular follow-up or monitoring with {condition}?
-What should I do if my symptoms change or worsen having {condition}?
-What useful questions should I ask my doctor about {condition}.
-If I pay privately for {condition} treatment in the UK, how will it differ from NHS care?
-What are the costs of private {condition} treatment in the UK?
-What is the standard NHS treatment protocol for {condition} based on current NICE guidelines?
-How do {condition} treatments in the USA differ from those in the UK?
-Are there any leading European clinics offering advanced {condition} treatments?
-Are there longevity or biohacking clinics offering {condition} reversal or prevention treatments?
-Can I access better treatments for {condition} by travelling abroad? What countries are known for this?
-Are there integrated or functional medicine approaches to {condition} being used internationally?
+What should I do if my {condition} symptoms change or get worse?
+What is the current NHS treatment plan for {condition} according to NICE guidelines?
+Are any functional medicine approaches to {condition} available in the UK?
+What are the waiting times and access issues for NHS {condition} services?
+Can I combine NHS and private treatment for {condition}?
+How do I push for faster tests or treatment if NHS waiting times are long?
+How can I combine NHS care with private treatment without wasting money or duplicating tests?
+As a patient with {condition}, what treatment might I be offered in France? 
+As a patient with {condition}, what treatment might I be offered in USA?
+As a patient with {condition}, what treatment might I be offered in China?
+As a patient with {condition}, what treatment might I be offered at Mayo clinic?
+Are there longevity or biohacking clinics offering {condition} reversal treatments?
+Are there functional medicine approaches to {condition} being used internationally?
+Give specific examples of international research studies on {condition} that might be useful and relevant?
+What clinical trials are currently recruiting {condition} patients internationally?
+For {condition}, what are the pros and cons of having treatment abroad?
+Can vibration therapy be used with {condition}?
+Can red light therapy be used with {condition}?
+Can stem cell therapy be used with {condition}?
+Can cold therapy be used with {condition}?
+Can infra-red therapy be used with {condition}?
+What dietary theories are associated with treating {condition}?
+How does acupuncture approach {condition}?
+How does Ayurveda approach {condition}?
+How does Traditional Chinese Medicine approach {condition}?
 What are the newest drug treatments for {condition} and how do they work?
-How effective are bisphosphonates, and how do they compare to alternatives like denosumab or romosozumab for {condition}?
-What is parathyroid hormone therapy and when is it used for {condition}?
-Are there non-drug interventions such as vibration therapy, red light therapy, or stem cell therapy for {condition}?
-How do alternative or complementary therapies (like acupuncture, Ayurveda, or Traditional Chinese Medicine) approach {condition}?
-What clinical trials are currently recruiting {condition} patients in the UK or internationally?
 What are the most promising {condition} treatments in development globally?
 Has gene therapy or mRNA-based therapy been tested for {condition}?
 What is the role of AI in {condition} diagnosis or treatment planning?
-Can {condition} be reversed with nutrition, supplements, and exercise alone?
-What’s the best way to build a personalised {condition} prevention or treatment plan?
-How can I track my {condition} progression or improvement using home technology or digital tools?
-What are the main treatment options for {condition}?
+What’s the best way to build a personalised {condition} treatment plan?
+How can I track my {condition} progression or improvement?
 For {condition}, how do I know which treatment is right for me?
-What activities should I avoid or adapt if I have {condition}?
-Can {condition} be misdiagnosed or over diagnosed?
-What are the waiting times and access issues for NHS {condition} services?
-Can I combine NHS and private treatment for {condition}?
-For {condition}, what are the pros and cons of having treatment abroad?
-How effective are bisphosphonates for treating {condition}?
-How do newer drugs for {condition}, like denosumab or romosozumab, compare to traditional treatments?
+Can {condition} be misdiagnosed or overdiagnosed?
+How effective are commonly prescribed drugs for treating {condition}?
+How do newer drugs for {condition} compare to traditional treatments?
 What are the long-term risks of staying on {condition} medications?
-What happens if I stop taking medicationfor {condition}?
-For {condition}, are there any UK-based research programmes I could join?
 How far are we from a cure for {condition}?
-What role do strength training and resistance exercise play in bone health for {condition}?
-For {condition}, how do I know if my current lifestyle is helping or harming bone health?
-For {condition}, what’s the best way to monitor bone density and strength over time?
-How do other people cope emotionally with an {condition} diagnosis?
-Where can I find support groups or online communities for {condition}?
-With {condition}, how do I talk to my partner, children or friends about my condition?
-What workplace adjustments might I need for {condition}?
-
-
-How can I cope emotionally with a {condition} diagnosis?
-What can I do today to feel more in control {condition}?
-If I follow a plan for {condition}, what changes can I realistically expect in 1 year, 3 years, and 5 years?
-How likely am I to avoid future fractures?
-What questions should I ask at my first specialist appointment?
-How do I push for faster tests or treatment if NHS waiting times are long?
-How can I make my home safer to prevent falls and fractures?
-What activities and hobbies are still safe for me?
-How can I combine NHS care with private treatment without wasting money or duplicating tests?
-Can my GP help coordinate my treatment if I see multiple specialists?
-What new treatments are likely to become available in the next few years?
-How can I find out if I’m eligible for a clinical trial?
+For {condition}, how do I know if my current lifestyle is helping or harming my health?
+For {condition}, what’s the best way to monitor my condition over time?
