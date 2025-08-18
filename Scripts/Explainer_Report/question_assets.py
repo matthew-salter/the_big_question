@@ -17,7 +17,7 @@ from Engine.Files.write_supabase_file import write_supabase_file
 # ---------- Config ----------
 QUESTIONS_PATH = "Prompts/Explainer_Report/Questions/questions.txt"
 PROMPT_PATH = "Prompts/Explainer_Report/prompt_1_question_assets.txt"
-SUPABASE_BASE_DIR = "The_Big_Question/Explainer_Report/Ai_Responses/Question_Assets"
+SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
 
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
