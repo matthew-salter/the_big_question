@@ -10,7 +10,7 @@ You are helping to generate report-wide assets based on structured data previous
 Use your understanding of the patient context and the attached section assets to help generate the report assets.
 {question_assets}
 
-  ## PATIENT CONTEXT
+## PATIENT CONTEXT
 
 **Patient First Name**: {first_name}  
 **Patient Sur Name**: {sur_name}  
@@ -23,9 +23,9 @@ Use your understanding of the patient context and the attached section assets to
 
 ---
 
-  ## REPORT DELIVERY STYLE
+## REPORT DELIVERY STYLE
 
-  These two variables are critical. They define **how** your response should be written, regardless of medical content.
+These two variables are critical. They define **how** your response should be written, regardless of medical content.
 
 **Tone of Voice**: Formal (Professional)  
     - Your language and emotional tone must match this exactly.  
@@ -35,7 +35,7 @@ Use your understanding of the patient context and the attached section assets to
 
 ---
 
-  ## OBJECTIVE
+## OBJECTIVE
 You must:
 Generate full-report-wide **report assets**.
 - Use the attached provided **question assets** alongside the above **patient context** and **report delivery style** as source material.
@@ -43,16 +43,16 @@ Generate full-report-wide **report assets**.
 
 ---
 
-  ## RULES
+## RULES
 - Do not invent new sections, assets, data points, or metrics.
 - Only use supplied data and context.
 - Avoid placeholder content and duplication.
 
 ---
 
-  ## OUTPUT REQUIREMENTS
+## OUTPUT REQUIREMENTS
 
-  ### REPORT ASSETS
+### REPORT ASSETS
 - `Report Title`: A concise, punchy report label. (Max 40 characters)
 - `Report Sub-Title`: A one-line framing label. (Max 80 characters)
 - `Disclaimer`: “This report is not medical advice. It is not a diagnosis. It is not a treatment plan.\n\nThe purpose of this report is to provide a general, AI-generated overview of the condition you requested, tailored to the personal details you’ve shared. The report is designed to help you better understand the condition, potential treatments, and areas of research or interest — based on your preferences and inputs.\n\nThis report should never replace medical advice, diagnosis, or treatment provided by a licensed healthcare professional.\n\nYou should always consult your GP or other qualified medical professional before making any decisions about your health, treatment options, or care pathways — especially if you are considering stopping or changing medication or delaying treatment.”
