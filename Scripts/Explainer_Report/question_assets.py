@@ -124,7 +124,7 @@ def supabase_write_json(path: str, content: str):
     """
     Write JSON content with an explicit content-type to Supabase.
     """
-    write_supabase_file(path, content, content_type="application/json; charset=utf-8")
+    write_supabase_file(path, content, content_type="text/plain; charset=utf-8")
 
 def write_json(path: str, obj: Dict[str, Any]):
     supabase_write_json(path, json.dumps(obj, ensure_ascii=False, indent=2))
@@ -226,7 +226,13 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             prompt = build_prompt(prompt_template, filled_q, ctx)
 
             q_id = f"{idx+1:02d}_{slugify(filled_q)[:50]}_{sha8(filled_q)}"
-            outfile = f'{paths["base"]}/{q_id}.json'
+            outfile = f'{paths["base"]}/{q_id}.txt'
+
+            # Clean to pure JSON string
+            final_output = clean_ai_output(ai_text)
+
+            # Save as .txt but content is JSON
+            supabase_write_txt(outfile, final_output)
 
             item = {
                 "q_id": q_id,
