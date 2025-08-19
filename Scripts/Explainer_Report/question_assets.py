@@ -24,7 +24,7 @@ PROMPT_PATH = "Prompts/Explainer_Report/prompt_1_question_assets.txt"
 # IMPORTANT:
 # Do NOT include "The_Big_Question" here; write_supabase_file() already
 # prepends SUPABASE_ROOT_FOLDER to the path.
-SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
+SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets/Individal_Question_Outputs"
 
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
