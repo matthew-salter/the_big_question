@@ -1,6 +1,6 @@
 How will my doctor diagnose {condition}?
 What are the main causes of {condition}?
-Is osteoporosis a chronic condition or can it be cured?
+Is {condition} a chronic condition or can it be cured?
 What is the current NHS treatment plan for {condition} according to NICE guidelines?
 What useful questions should I ask my doctor about {condition}?
 What important questions should I ask at my first specialist appointment for {condition}?
@@ -49,46 +49,6 @@ How do newer drugs for {condition} compare to traditional treatments?
 What are the long-term risks of staying on {condition} medications?
 How far are we from a cure for {condition}?
 For {condition}, how do I know if my current lifestyle is helping or harming my health?
-What strategies can help me cope emotionally after being diagnosed with {condition}?
-What can I start doing today to feel more in control of my health with {condition}?
-How likely am I to avoid future complications or relapses from {condition}?
-What important questions should I ask at my first specialist appointment for {condition}?
-How can I make my home safer to manage {condition}?
-What activities and hobbies are still safe for me with {condition}?
-For {condition}, can my GP help coordinate my treatment if I see multiple specialists?
-What new treatments are likely to become available in the next few years for {condition}?
-As a patient with {condition}, what treatment might I be offered by the NHS?
-What are the leading treatment centers in the UK for {condition}?
-How long will it take to feel better from {condition}?
-Will I need regular follow-up or monitoring with {condition}?
-What should I do if my {condition} symptoms change or get worse?
-What is the current NHS treatment plan for {condition} according to NICE guidelines?
-Are any functional medicine approaches to {condition} available in the UK?
-What are the waiting times and access issues for NHS {condition} services?
-Can I combine NHS and private treatment for {condition}?
-For {condition}, how do I push for faster tests or treatment if NHS waiting times are long?
-For {condition}, how can I combine NHS care with private treatment without wasting money or duplicating tests?
-As a patient with {condition}, what treatment might I be offered in France? 
-As a patient with {condition}, what treatment might I be offered in USA?
-As a patient with {condition}, what treatment might I be offered in China?
-As a patient with {condition}, what treatment might I be offered at Mayo clinic?
-Are there longevity or biohacking clinics offering {condition} reversal treatments?
-Are there functional medicine approaches to {condition} being used internationally?
-Give specific examples of international research studies on {condition} that might be useful and relevant?
-What clinical trials are currently recruiting {condition} patients internationally?
-For {condition}, what are the pros and cons of having treatment abroad?
-Can vibration therapy be used with {condition}?
-Can red light therapy be used with {condition}?
-Can stem cell therapy be used with {condition}?
-Can cold therapy be used with {condition}?
-Can infra-red therapy be used with {condition}?
-What dietary theories are associated with treating {condition}?
-How does acupuncture approach {condition}?
-How does Ayurveda approach {condition}?
-How does Traditional Chinese Medicine approach {condition}?
-What are the newest drug treatments for {condition} and how do they work?
-What are the most promising {condition} treatments in development globally?
-Has gene therapy or mRNA-based therapy been tested for {condition}?
 What is the role of AI in {condition} diagnosis or treatment planning?
 What’s the best way to build a personalised {condition} treatment plan?
 How can I track my {condition} progression or improvement?
