@@ -71,7 +71,7 @@ Additionally, include **one** illustrative **Related Article** that supports you
 - `Question`: Verbatim word-for-word of the original **Main Question**
 - `Header`: A headline-style label. (Max 40 characters)
 - `Sub-Header`: A one-line framing label. (Max 60 characters)
-- `Summary`: A narrative summary. (Min 500 - Max 750 characters)
+- `Summary`: A narrative summary. Output a single string with exactly **two separate paragraphs**. **Separate each paragraph using \n\n** (x2 newline characters). Formatting must follow the **Paragraph 1.\n\nParagraph 2** structure exactly. (Paragraph 1 Min 250 - Max 350 characters / Paragraph 2 Min 250 - Max 350 characters / Total Overall Length Min 500 - Max 600 characters)
 - `Insight`: A single sentence statement giving a novel insight. (Max 200 characters)
 - `Statistic`: A single sentence statement giving data-driven statistic (percent, ratio, or count format only). (Max 200 characters)
 - `Recommendation`: A single sentence actionable directional steer. (Max 200 characters)
@@ -94,7 +94,7 @@ Return a single JSON object with the following structure:
   "Question": "{question}",
   "Header": "...",
   "Sub-Header": "...",
-  "Summary": "...",
+  "Summary": "...\n\n...",
   "Bullet Points": "...\n…\n…\n…”,
   "Statistic": "...",
   "Insight": "...",
