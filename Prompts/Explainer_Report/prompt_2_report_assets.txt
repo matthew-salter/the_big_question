@@ -7,7 +7,7 @@ Resume where you left off. Continue output in valid JSON only.
 ## INSTRUCTIONS
 
 You are helping to generate report-wide assets based on structured data previously identified.
-Use your understanding of the patient context and the attached section assets to help generate the report assets.
+Use your understanding of the patient context and the below section assets to help generate the report assets.
 
 ## PATIENT CONTEXT
 
@@ -17,6 +17,9 @@ Use your understanding of the patient context and the attached section assets to
 **Ethnicity**: {ethnicity}  
 **Region**: {region}  
 **Todays Date**: {todays_date} 
+
+## SECTION ASSETS
+{question_assets}
 
 ---
 
