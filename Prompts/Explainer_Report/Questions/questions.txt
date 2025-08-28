@@ -43,16 +43,6 @@ What is the role of AI in {condition} diagnosis or treatment planning?
 What’s the best way to build a personalised {condition} treatment plan?
 How can I track my {condition} progression or improvement?
 For {condition}, how do I know which treatment is right for me?
-Can {condition} be misdiagnosed or over diagnosed?
-How effective are commonly prescribed drugs for treating {condition}?
-How do newer drugs for {condition} compare to traditional treatments?
-What are the long-term risks of staying on {condition} medications?
-How far are we from a cure for {condition}?
-For {condition}, how do I know if my current lifestyle is helping or harming my health?
-What is the role of AI in {condition} diagnosis or treatment planning?
-What’s the best way to build a personalised {condition} treatment plan?
-How can I track my {condition} progression or improvement?
-For {condition}, how do I know which treatment is right for me?
 Can {condition} be misdiagnosed or over-diagnosed?
 How effective are commonly prescribed drugs for treating {condition}?
 How do newer drugs for {condition} compare to traditional treatments?
