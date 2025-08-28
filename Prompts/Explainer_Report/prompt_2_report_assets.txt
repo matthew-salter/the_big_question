@@ -8,7 +8,6 @@ Resume where you left off. Continue output in valid JSON only.
 
 You are helping to generate report-wide assets based on structured data previously identified.
 Use your understanding of the patient context and the attached section assets to help generate the report assets.
-{question_assets}
 
 ## PATIENT CONTEXT
 
