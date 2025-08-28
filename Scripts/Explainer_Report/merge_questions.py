@@ -127,7 +127,9 @@ def merge_questions(run_id: str, first_name: str, sur_name: str,
         else:
             logger.warning(f"⚠️ Empty content in {rel_path}, including as blank section.")
 
-    merged_text = "\n\n".join(merged_chunks) + "\n"
+    # Strip trailing whitespace from each chunk to avoid extra newlines
+    cleaned_chunks = [c.rstrip() for c in merged_chunks if c]
+    merged_text = "\n".join(cleaned_chunks) + "\n"
 
     # Build output filename
     first = normalize_name(first_name or "Unknown")
