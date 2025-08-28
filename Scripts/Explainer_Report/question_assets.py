@@ -24,7 +24,7 @@ PROMPT_PATH = "Prompts/Explainer_Report/prompt_1_question_assets.txt"
 # IMPORTANT:
 # Do NOT include "The_Big_Question" here; write_supabase_file() already
 # prepends SUPABASE_ROOT_FOLDER to the path.
-SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets/Individal_Question_Outputs"
+SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
 
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
@@ -127,17 +127,17 @@ def supabase_write_txt(path: str, content: str):
 
 def supabase_write_textjson(path: str, obj: Dict[str, Any]):
     """
-    Convenience for manifest/checkpoint stored as text/plain JSON.
+    Convenience for writing JSON objects as text/plain.
     """
     supabase_write_txt(path, json.dumps(obj, ensure_ascii=False, indent=2))
 
 # =========================
 # Checkpoint & Manifest
-# (stored alongside outputs in Supabase)
+# (stored alongside outputs)
 # =========================
 
 def supabase_paths(run_id: str) -> Dict[str, str]:
-    base = f"{SUPABASE_BASE_DIR}/{run_id}"
+    base = f"{SUPABASE_BASE_DIR}/{run_id}/Individal_Question_Outputs"
     return {
         "base": base,
         "manifest": f"{base}/manifest.json",
@@ -212,7 +212,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
         )
         ckpt = default_checkpoint()
 
-        # Persist initial metadata
+        # Persist initial metadata (in the same folder as outputs)
         supabase_write_textjson(paths["manifest"], manifest)
         supabase_write_textjson(paths["checkpoint"], ckpt)
 
@@ -253,7 +253,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                 )
                 elapsed = round(time.time() - t0, 3)
 
-                # Clean to pure JSON string (no markdown fences, no debug header)
+                # Clean to pure JSON string (no markdown fences)
                 final_output = clean_ai_output(ai_text)
 
                 # Save as .txt but content is JSON
@@ -321,5 +321,5 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
         "status": "processing",
         "run_id": run_id,
         "message": "Explainer report run started. Results will stream into Supabase.",
-        "supabase_base_dir": f"{SUPABASE_BASE_DIR}/{run_id}/"
+        "supabase_base_dir": f"{SUPABASE_BASE_DIR}/{run_id}/Individal_Question_Outputs/"
     }
