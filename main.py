@@ -49,7 +49,8 @@ BLOCKING_PROMPTS = {
     "read_create_elasticity_folders"
     "move_elasticity_files_1",
     "move_elasticity_files_2",
-    "question_assets"
+    "question_assets",
+    "merge_questions"
 }
 
 PROMPT_MODULES = {
@@ -92,7 +93,8 @@ PROMPT_MODULES = {
     "read_create_elasticity_folders": "Scripts.Elasticity.read_create_elasticity_folders",
     "move_elasticity_files_1": "Scripts.Elasticity.move_elasticity_files_1",
     "move_elasticity_files_2": "Scripts.Elasticity.move_elasticity_files_2",
-    "question_assets": "Scripts.Explainer_Report.question_assets"
+    "question_assets": "Scripts.Explainer_Report.question_assets",
+    "merge_questions": "Scripts.Explainer_Report.merge_questions"
 }
 
 # --- ROUTES ---
