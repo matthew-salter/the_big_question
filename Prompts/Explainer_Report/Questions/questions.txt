@@ -5,7 +5,6 @@ What is the current NHS treatment plan for {condition} according to NICE guideli
 What useful questions should I ask my doctor about {condition}?
 What important questions should I ask at my first specialist appointment for {condition}?
 What lifestyle changes could help manage {condition}?
-How quickly does {condition} usually develop or progress?
 How have other people learned to cope emotionally after a {condition} diagnosis?
 Where can I find support groups or online communities for people with {condition}?
 How can I talk to my partner, children, or friends about {condition}?
