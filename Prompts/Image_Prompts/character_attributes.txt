@@ -1,0 +1,78 @@
+You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured. 
+Disable all inline citations, footnotes, and content references. Do not use ::contentReference or oaicite. 
+Resume where you left off. Continue output in valid JSON only.
+
+## INSTRUCTIONS
+
+You are helping to generate a consistent avatar character for image generation.  
+Use your understanding of the below **patient context** to create a detailed JSON snippet of avatar attributes.  
+This avatar definition will later be used for image prompts to ensure continuity across all images.  
+
+## PATIENT CONTEXT
+**Condition**: {condition}  
+**Age**: {age}  
+**Gender**: {gender}  
+**Ethnicity**: {ethnicity}  
+**Region**: {region}  
+
+## OBJECTIVE
+Please generate a JSON snippet of detailed avatar character attributes that represent this patient.  
+Use realistic, culturally-appropriate details that match the patient’s demographic.  
+The avatar should feel consistent, professional, and respectful.  
+
+## OUTPUT REQUIREMENTS
+
+**Core Demographics**
+- `Gender`: Must match the provided patient context. (string)  
+- `Age`: Provide both numeric age and life-stage description (e.g., “61, older adult”). (string)  
+- `Ethnicity`: Must match patient context. (string)  
+- `Region`: Must match patient context but add cultural framing if relevant. (string)  
+
+**Physical Features**
+- `Height`: Choose from: “short”, “average”, “tall”. (string)  
+- `Build`: Choose from: “slim”, “average”, “athletic”, “overweight”. (string)  
+- `Hair Colour`: Common natural colours only (e.g., “grey”, “brown”, “black”, “blonde”, “ginger”, “silver-grey”). (string)  
+- `Hair Length`: Choose from: “short”, “medium”, “long”. (string)  
+- `Hair Texture`: Choose from: “straight”, “wavy”, “curly”. (string)  
+- `Eye Colour`: Choose from: “brown”, “blue”, “green”, “hazel”, “grey”. (string)  
+- `Facial Features`: Freeform description (e.g., “round face with soft wrinkles”). (string)  
+
+**Clothing & Accessories**
+- `Clothing Style`: Choose from: “casual”, “formal”, “professional”, “practical”, “traditional”. (string)  
+- `Clothing Description`: Freeform (e.g., “light beige cardigan over white blouse and black trousers”). (string)  
+- `Footwear`: Freeform but realistic (e.g., “comfortable flat shoes”). (string)  
+- `Accessories`: List glasses, jewellery, hearing aid, walking stick, or return “none”. (string)  
+- `Cultural Clothing Notes`: Freeform if relevant, else “none”. (string)  
+
+**Lifestyle / Contextual Details**
+- `Living Environment`: Choose from: “urban”, “suburban”, “rural”, “coastal”. (string)  
+- `Activity Style`: Choose from: “active”, “moderately active”, “sedentary”, “outdoorsy”, “homely”. (string)   
+- `Emotional Expression`: Choose from: “neutral”, “smiling”, “thoughtful”. (string)  
+
+## IMPORTANT - STRICT JSON-ONLY FORMAT
+**DO NOT** add any explanations, summaries, visualisations, or tables.  
+**DO NOT** return any text before or after the JSON output.  
+**ONLY** return JSON in the exact format below.  
+
+json
+{{
+  "Gender": "...",
+  "Age": "...",
+  "Ethnicity": "...",
+  "Region": "...",
+  "Height": "...",
+  "Build": "...",
+  "Hair_Colour": "...",
+  "Hair_Length": "...",
+  "Hair_Texture": "...",
+  "Eye_Colour": "...",
+  "Facial_Features": "...",
+  "Clothing_Style": "...",
+  "Clothing_Description": "...",
+  "Footwear": "...",
+  "Accessories": "...",
+  "Cultural_Clothing_Notes": "...",
+  "Living_Environment": "...",
+  "Activity_Style": "...",
+  "Emotional_Expression": "..."
+}}
