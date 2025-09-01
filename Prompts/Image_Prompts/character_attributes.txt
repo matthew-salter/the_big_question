@@ -16,38 +16,64 @@ This avatar definition will later be used for image prompts to ensure continuity
 **Region**: {region}  
 
 ## OBJECTIVE
-Please generate a JSON snippet of detailed avatar character attributes that represent this patient.  
-Use realistic, culturally-appropriate details that match the patient’s demographic.  
-The avatar should feel consistent, professional, and respectful.  
+Generate avatar attributes that are flattering, respectful, and culturally accurate while authentically reflecting the patient’s condition where appropriate.  
+The avatar should look like a healthy, well-presented version of the patient (uplifting and confident), without misrepresenting age or condition.
+
+## FLATTERING PRESENTATION POLICY (APPLIES TO ALL FIELDS)
+- Prioritise an **uplifting, professional, well-groomed** appearance (clean lines, neat hair, healthy complexion, comfortable fit).
+- **Apparent_Age Guidance** (choose within the ranges below; never depict under 18):
+  - Age 18–29: match actual age within ±2 years; avoid making younger.
+  - Age 30–59: present **3–8 years younger** *if natural and plausible* (no extreme age regression).
+  - Age 60–74: present **2–6 years younger** *if natural*; allow subtle salt-and-pepper/soft greying where appropriate.
+  - Age ≥75: present authentically (0–3 years younger); grey/white hair appropriate.
+- **Condition-aware depiction**: reflect condition with **subtle, respectful cues** (see OUTPUT REQUIREMENTS) — **never** exaggerate distress, illness, or frailty.
+- **Demeanour**: prefer calm, warm, confident. Avoid sad, miserable, or distressed expressions unless clinically essential (rare).
+- **Body type & cues**: represent truthfully but flatteringly (good posture, neat clothing, gentle lighting implied via wardrobe/setting cues).
+- **Cultural fidelity**: hair/skin/wardrobe choices must align with ethnicity & region.
 
 ## OUTPUT REQUIREMENTS
 
 **Core Demographics**
-- `Gender`: Must match the provided patient context. (string)  
-- `Age`: Provide both numeric age and life-stage description (e.g., “61, older adult”). (string)  
-- `Ethnicity`: Must match patient context. (string)  
-- `Region`: Must match patient context but add cultural framing if relevant. (string)  
+- `Gender`: Must match the provided patient context. (string)
+- `Age`: Provide numeric age and life-stage (e.g., "61, older adult"). (string)
+- `Apparent_Age`: A single integer reflecting the chosen flattering, plausible apparent age (follow the policy ranges). (integer)
+- `Age_Presentation_Style`: Choose from: "matches_age", "slightly_younger", "authentically_older_adult". (string)
+- `Ethnicity`: Must match patient context. (string)
+- `Region`: Must match patient context, may include brief cultural framing if relevant. (string)
 
 **Physical Features**
-- `Height`: Choose from: “short”, “average”, “tall”. (string)  
-- `Build`: Choose from: “slim”, “average”, “athletic”, “overweight”. (string)  
-- `Hair Colour`: Common natural colours only (e.g., “grey”, “brown”, “black”, “blonde”, “ginger”, “silver-grey”). (string)  
-- `Hair Length`: Choose from: “short”, “medium”, “long”. (string)  
-- `Hair Texture`: Choose from: “straight”, “wavy”, “curly”. (string)  
-- `Eye Colour`: Choose from: “brown”, “blue”, “green”, “hazel”, “grey”. (string)  
-- `Facial Features`: Freeform description (e.g., “round face with soft wrinkles”). (string)  
+- `Height`: Choose from: "short", "average", "tall". (string)
+- `Build`: Choose from: "slim", "average", "athletic", "overweight", "broad". (string)
+- `Skin_Tone`: Choose from: "light", "medium", "olive", "brown", "dark". (string)
+- `Hair_Colour`: Natural colour aligned with age & ethnicity. If Age ≥75, grey/white allowed; 60–74 may be "salt-and-pepper" or natural shade. Avoid grey/white for <60 unless culturally typical. (string)
+- `Hair_Length`: Choose from: "short", "medium", "long". (string)
+- `Hair_Texture`: Choose from: "straight", "wavy", "curly". (string)
+- `Eye_Colour`: Choose from: "brown", "blue", "green", "hazel", "grey". (string)
+- `Facial_Features`: Freeform (e.g., "soft wrinkles, gentle cheekbones, friendly eyes"). (string)
+- `Distinguishing_Marks`: List scars/freckles/moles or "none". (string)
+- `Posture`: Choose from: "upright", "relaxed", "slightly_hunched" (prefer upright unless condition suggests otherwise). (string)
+- `Grooming`: Choose from: "neat", "well-groomed", "natural_neat". (string)
+- `Complexion`: Freeform (e.g., "healthy, even complexion"). (string)
 
 **Clothing & Accessories**
-- `Clothing Style`: Choose from: “casual”, “formal”, “professional”, “practical”, “traditional”. (string)  
-- `Clothing Description`: Freeform (e.g., “light beige cardigan over white blouse and black trousers”). (string)  
-- `Footwear`: Freeform but realistic (e.g., “comfortable flat shoes”). (string)  
-- `Accessories`: List glasses, jewellery, hearing aid, walking stick, or return “none”. (string)  
-- `Cultural Clothing Notes`: Freeform if relevant, else “none”. (string)  
+- `Clothing_Style`: Choose from: "casual", "formal", "professional", "practical", "traditional". (string)
+- `Clothing_Description`: Freeform (e.g., "light cardigan over blouse and tailored trousers"). (string)
+- `Wardrobe_Palette`: Choose from: "neutral", "soft_pastels", "rich_warm", "cool_minimal". (string)
+- `Footwear`: Freeform but realistic (e.g., "comfortable low-heel shoes"). (string)
+- `Accessories`: List items (e.g., "glasses", "simple necklace", "hearing aid", "walking stick") or "none". (string)
+- `Cultural_Clothing_Notes`: Freeform if relevant, else "none". (string)
 
 **Lifestyle / Contextual Details**
-- `Living Environment`: Choose from: “urban”, “suburban”, “rural”, “coastal”. (string)  
-- `Activity Style`: Choose from: “active”, “moderately active”, “sedentary”, “outdoorsy”, “homely”. (string)   
-- `Emotional Expression`: Choose from: “neutral”, “smiling”, “thoughtful”. (string)  
+- `Living_Environment`: Choose from: "urban", "suburban", "rural", "coastal". (string)
+- `Activity_Style`: Choose from: "active", "moderately_active", "sedentary", "outdoorsy", "homely". (string)
+- `Occupation_Or_Role`: Short description (e.g., "retired teacher"). (string)
+- `Emotional_Expression`: Choose from: "neutral", "smiling", "thoughtful" (prefer "smiling" or "thoughtful" for uplift). (string)
+- `Typical_Setting`: Freeform but grounded (e.g., "bright kitchen", "garden", "doctor’s office"). (string)
+
+**Medical Relevance (Condition-Aware, Subtle)**
+- `Condition_Cues_Strength`: Choose from: "subtle", "moderate". (string)
+- `Medical_Condition_Cues`: Freeform description of **respectful, non-stigmatizing** cues that reflect the condition (e.g., "slightly careful posture" for osteoporosis; "spectacles" for glaucoma; "larger body frame" for obesity). (string)
+- `Health_Context_Expression`: Choose from: "calm", "slightly_concerned", "resilient" (prefer "calm" or "resilient"). (string)
 
 ## IMPORTANT - STRICT JSON-ONLY FORMAT
 **DO NOT** add any explanations, summaries, visualisations, or tables.  
@@ -58,21 +84,34 @@ json
 {{
   "Gender": "...",
   "Age": "...",
+  "Apparent_Age": 0,
+  "Age_Presentation_Style": "...",
   "Ethnicity": "...",
   "Region": "...",
   "Height": "...",
   "Build": "...",
+  "Skin_Tone": "...",
   "Hair_Colour": "...",
   "Hair_Length": "...",
   "Hair_Texture": "...",
   "Eye_Colour": "...",
   "Facial_Features": "...",
+  "Distinguishing_Marks": "...",
+  "Posture": "...",
+  "Grooming": "...",
+  "Complexion": "...",
   "Clothing_Style": "...",
   "Clothing_Description": "...",
+  "Wardrobe_Palette": "...",
   "Footwear": "...",
   "Accessories": "...",
   "Cultural_Clothing_Notes": "...",
   "Living_Environment": "...",
   "Activity_Style": "...",
-  "Emotional_Expression": "..."
+  "Occupation_Or_Role": "...",
+  "Emotional_Expression": "...",
+  "Typical_Setting": "...",
+  "Condition_Cues_Strength": "...",
+  "Medical_Condition_Cues": "...",
+  "Health_Context_Expression": "..."
 }}
