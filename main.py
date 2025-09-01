@@ -52,7 +52,8 @@ BLOCKING_PROMPTS = {
     "question_assets",
     "merge_questions",
     "explainer_report_assets",
-    "character_attribute_generation"
+    "character_attribute_generation",
+    "question_image_generation"
 }
 
 PROMPT_MODULES = {
@@ -98,7 +99,8 @@ PROMPT_MODULES = {
     "question_assets": "Scripts.Explainer_Report.question_assets",
     "merge_questions": "Scripts.Explainer_Report.merge_questions",
     "explainer_report_assets": "Scripts.Explainer_Report.explainer_report_assets",
-    "character_attribute_generation": "Scripts.Image_Prompts.character_attribute_generation"
+    "character_attribute_generation": "Scripts.Image_Prompts.character_attribute_generation",
+    "question_image_generation": "Scripts.Image_Prompts.question_image_generation"
 }
 
 # --- ROUTES ---
