@@ -51,7 +51,8 @@ BLOCKING_PROMPTS = {
     "move_elasticity_files_2",
     "question_assets",
     "merge_questions",
-    "explainer_report_assets"
+    "explainer_report_assets",
+    "character_attribute_generation"
 }
 
 PROMPT_MODULES = {
@@ -96,7 +97,8 @@ PROMPT_MODULES = {
     "move_elasticity_files_2": "Scripts.Elasticity.move_elasticity_files_2",
     "question_assets": "Scripts.Explainer_Report.question_assets",
     "merge_questions": "Scripts.Explainer_Report.merge_questions",
-    "explainer_report_assets": "Scripts.Explainer_Report.explainer_report_assets"
+    "explainer_report_assets": "Scripts.Explainer_Report.explainer_report_assets",
+    "character_attribute_generation": "Scripts.Image_Prompts.character_attribute_generation"
 }
 
 # --- ROUTES ---
