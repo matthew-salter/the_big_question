@@ -20,7 +20,7 @@ SUPABASE_BUCKET = "panelitix"
 SUPABASE_ROOT_FOLDER = os.getenv("SUPABASE_ROOT_FOLDER", "The_Big_Question")
 
 PARENT_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
-INDIVIDUAL_SUBDIR = "Individal_Question_Outputs"   # keep existing spelling
+INDIVIDUAL_SUBDIR = "Individual_Question_Outputs"   # keep existing spelling
 MERGED_SUBDIR = "Merged_Question_Outputs"
 
 AE_BE_PATH = "Prompts/American_to_British/american_to_british.txt"
