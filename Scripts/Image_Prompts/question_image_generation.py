@@ -42,6 +42,9 @@ BASE_BACKOFF = 1.0  # seconds
 # Helpers
 # =============================================================================
 
+# Regex to capture leading question number (1_, 01_, 123_, etc.)
+_QFILE_RE = re.compile(r"^(\d+)_")
+
 def safe_escape_braces(value: str) -> str:
     """Protect accidental braces in injected strings before str.format()."""
     return str(value if value is not None else "").replace("{", "{{").replace("}", "}}")
