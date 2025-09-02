@@ -179,37 +179,63 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
     logger.info(f"📥 Reading character attributes: {char_path}")
     character_attributes_text = read_supabase_file(char_path, binary=False) or ""
     character_attributes_text = character_attributes_text.strip()
+    logger.info(f"🧩 character_attributes length={len(character_attributes_text)}")
     if not character_attributes_text:
         raise FileNotFoundError(f"Character attributes file empty or not found: {char_path}")
 
     # ---- List question files and select every 4th
     questions_prefix = f"{BASE_DIR}/{run_id}/{QUESTION_SUBDIR}"
-    entries = list_supabase_folder(questions_prefix)
-    files = [e["name"] for e in entries if isinstance(e, dict) and e.get("name", "").lower().endswith(".txt")]
+    logger.info(f"📂 Looking for question files under: {questions_prefix}")
+
+    try:
+        entries = list_supabase_folder(questions_prefix)
+        logger.info(f"📂 Supabase returned {len(entries)} entries")
+    except Exception as e:
+        logger.exception(f"❌ Error listing Supabase folder: {questions_prefix}: {e}")
+        raise
+
+    files = [
+        e.get("name", "") for e in entries
+        if isinstance(e, dict) and e.get("name", "").lower().endswith(".txt")
+    ]
+    logger.info(f"📄 TXT files discovered ({len(files)}): {files}")
 
     # Parse question numbers and sort by numeric order
     numbered: List[Tuple[int, str]] = []
     for name in files:
         qnum = parse_question_number(name)
+        logger.info(f"🔎 Parsed qnum={qnum} from file='{name}'")
         if qnum > 0:
             numbered.append((qnum, name))
+        else:
+            logger.warning(f"⚠️ Could not parse question number from: {name}")
+
     numbered.sort(key=lambda x: x[0])
+    logger.info(f"📊 Numbered files (sorted): {numbered}")
 
     # Filter to every 4th: 1,5,9,...
     targets = [(q, n) for (q, n) in numbered if is_every_4th_question(q)]
+    logger.info(f"🎯 Files selected (every 4th): {targets}")
     if not targets:
         logger.warning("⚠️ No question files matched the every-4th rule (1,5,9,...)")
 
     # ---- Load prompt template
     prompt_template = load_text(PROMPT_PATH)
+    logger.info(f"📝 Loaded prompt template from {PROMPT_PATH} (len={len(prompt_template)})")
 
     # ---- Process each selected question
     outputs = []
     for qnum, fname in targets:
         q_rel = f"{questions_prefix}/{fname}"
         logger.info(f"📥 Reading question file: {q_rel}")
-        question_text = read_supabase_file(q_rel, binary=False) or ""
+        try:
+            question_text = read_supabase_file(q_rel, binary=False) or ""
+        except Exception as e:
+            logger.exception(f"❌ Error reading question file {q_rel}: {e}")
+            continue
+
         question_text = question_text.strip()
+        logger.info(f"🧾 question_text length={len(question_text)} for qnum={qnum}")
         if not question_text:
             logger.warning(f"⚠️ Skipping empty question file: {q_rel}")
             continue
@@ -229,26 +255,45 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
 
         try:
             prompt = prompt_template.format(**mapping)
+            logger.info(f"🧠 Built prompt for Q{qnum} (len={len(prompt)})")
         except KeyError as e:
             missing = str(e).strip("'")
-            raise KeyError(f"Prompt template missing value for {{{missing}}}") from e
+            logger.error(f"❌ Prompt template missing value for {{{missing}}}; skipping Q{qnum}")
+            continue
+        except Exception as e:
+            logger.exception(f"❌ Error formatting prompt for Q{qnum}: {e}")
+            continue
 
         # ---- Call OpenAI
-        ai_text = call_openai(prompt, model=data.get("model", DEFAULT_MODEL), temperature=TEMPERATURE)
+        try:
+            t0 = time.time()
+            ai_text = call_openai(prompt, model=data.get("model", DEFAULT_MODEL), temperature=TEMPERATURE)
+            latency = round(time.time() - t0, 3)
+            logger.info(f"🤖 OpenAI response for Q{qnum} received (latency={latency}s, len={len(ai_text or '')})")
+        except Exception as e:
+            logger.exception(f"❌ OpenAI call failed for Q{qnum}: {e}")
+            continue
 
         # ---- Clean to JSON text (no fences)
         final_text = clean_ai_output_to_json_text(ai_text)
+        logger.info(f"🧹 Cleaned output for Q{qnum} (len={len(final_text)})")
 
         # ---- Save to Supabase
         qnum_str = zero_pad(qnum, 2 if qnum < 100 else 3)
         out_rel = f"{BASE_DIR}/{run_id}/{IMAGE_PROMPTS_SUBDIR}/Question_{qnum_str}.txt"
-        logger.info(f"📤 Writing image prompt for Q{qnum} -> {out_rel}")
-        write_supabase_file(out_rel, final_text, content_type="text/plain; charset=utf-8")
+        try:
+            write_supabase_file(out_rel, final_text, content_type="text/plain; charset=utf-8")
+            logger.info(f"📤 Wrote image prompt for Q{qnum} -> {out_rel}")
+        except Exception as e:
+            logger.exception(f"❌ Failed to write output for Q{qnum} to {out_rel}: {e}")
+            continue
 
         outputs.append({"qnum": qnum, "output_path": out_rel})
 
         # Optional small delay
         time.sleep(0.2)
+
+    logger.info(f"✅ Processing complete: processed={len(outputs)} for run_id={run_id}")
 
     return {
         "status": "ok",
@@ -259,7 +304,6 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
         "question_folder": questions_prefix,
         "output_folder": f"{BASE_DIR}/{run_id}/{IMAGE_PROMPTS_SUBDIR}/"
     }
-
 
 # -----------------------------------------------------------------------------
 # Optional local test
