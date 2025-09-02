@@ -137,7 +137,7 @@ def supabase_write_textjson(path: str, obj: Dict[str, Any]):
 # =========================
 
 def supabase_paths(run_id: str) -> Dict[str, str]:
-    base = f"{SUPABASE_BASE_DIR}/{run_id}/Individal_Question_Outputs"
+    base = f"{SUPABASE_BASE_DIR}/{run_id}/Individual_Question_Outputs"
     return {
         "base": base,
         "manifest": f"{base}/manifest.json",
@@ -321,5 +321,5 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
         "status": "processing",
         "run_id": run_id,
         "message": "Explainer report run started. Results will stream into Supabase.",
-        "supabase_base_dir": f"{SUPABASE_BASE_DIR}/{run_id}/Individal_Question_Outputs/"
+        "supabase_base_dir": f"{SUPABASE_BASE_DIR}/{run_id}/Individual_Question_Outputs/"
     }
