@@ -31,6 +31,7 @@ TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
 # Supabase env (for folder listing)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_BUCKET = "panelitix"
+SUPABASE_ROOT_FOLDER = os.getenv("SUPABASE_ROOT_FOLDER", "The_Big_Question")
 
 # Retry policy
 MAX_TRIES = 6
