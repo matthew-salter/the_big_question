@@ -137,26 +137,101 @@ def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TE
             logger.warning(f"⚠️ OpenAI error (attempt {attempt}/{MAX_TRIES}): {e}. Backing off {sleep:.2f}s")
             time.sleep(sleep)
 
-
 # =============================================================================
 # Core
 # =============================================================================
 
+def _process_run(
+    run_id: str,
+    ctx: Dict[str, Any],
+    prompt_template: str,
+    character_attributes_text: str,
+    questions_prefix: str,
+    targets: List[Tuple[int, str]],
+) -> None:
+    """
+    Heavy worker: for each selected question file, build a prompt, call OpenAI,
+    and write the result to Supabase.
+    """
+    try:
+        logger.info(f"🚀 [ImagePrompts.Run] start run_id={run_id}, targets={len(targets)}")
+
+        for qnum, fname in targets:
+            q_rel = f"{questions_prefix}/{fname}"
+            logger.info(f"📥 Reading question file: {q_rel}")
+            try:
+                question_text = read_supabase_file(q_rel, binary=False) or ""
+            except Exception as e:
+                logger.exception(f"❌ Error reading question file {q_rel}: {e}")
+                continue
+
+            question_text = question_text.strip()
+            logger.info(f"🧾 question_text length={len(question_text)} for qnum={qnum}")
+            if not question_text:
+                logger.warning(f"⚠️ Skipping empty question file: {q_rel}")
+                continue
+
+            # ---- Build prompt mapping
+            mapping = {
+                "character_attributes": safe_escape_braces(character_attributes_text),
+                "question_assets": safe_escape_braces(question_text),
+                "condition": safe_escape_braces(ctx.get("condition", "")),
+                "age": safe_escape_braces(ctx.get("age", "")),
+                "gender": safe_escape_braces(ctx.get("gender", "")),
+                "ethnicity": safe_escape_braces(ctx.get("ethnicity", "")),
+                "region": safe_escape_braces(ctx.get("region", "")),
+                "todays_date": safe_escape_braces(ctx.get("todays_date", "")),
+                "run_id": safe_escape_braces(ctx.get("run_id", "")),
+            }
+
+            try:
+                prompt = prompt_template.format(**mapping)
+                logger.info(f"🧠 Built prompt for Q{qnum} (len={len(prompt)})")
+            except Exception as e:
+                logger.exception(f"❌ Error formatting prompt for Q{qnum}: {e}")
+                continue
+
+            # ---- OpenAI call
+            try:
+                t0 = time.time()
+                ai_text = call_openai(
+                    prompt,
+                    model=ctx.get("model", DEFAULT_MODEL),
+                    temperature=TEMPERATURE
+                )
+                latency = round(time.time() - t0, 3)
+                logger.info(f"🤖 OpenAI response for Q{qnum} received (latency={latency}s, len={len(ai_text or '')})")
+            except Exception as e:
+                logger.exception(f"❌ OpenAI call failed for Q{qnum}: {e}")
+                continue
+
+            # ---- Clean to JSON text (no fences)
+            final_text = clean_ai_output_to_json_text(ai_text)
+            logger.info(f"🧹 Cleaned output for Q{qnum} (len={len(final_text)})")
+
+            # ---- Save to Supabase
+            qnum_str = zero_pad(qnum, 2 if qnum < 100 else 3)
+            out_rel = f"{BASE_DIR}/{run_id}/{IMAGE_PROMPTS_SUBDIR}/Question_{qnum_str}.txt"
+            try:
+                write_supabase_file(out_rel, final_text, content_type="text/plain; charset=utf-8")
+                logger.info(f"📤 Wrote image prompt for Q{qnum} -> {out_rel}")
+            except Exception as e:
+                logger.exception(f"❌ Failed to write output for Q{qnum} to {out_rel}: {e}")
+                continue
+
+            # Politeness delay to avoid hammering APIs
+            time.sleep(0.2)
+
+        logger.info(f"✅ [ImagePrompts.Run] completed run_id={run_id}, generated={len(targets)}")
+
+    except Exception as outer:
+        logger.exception(f"❌ [ImagePrompts.Run] fatal for run_id={run_id}: {outer}")
+
+
 def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Expects JSON payload from Zapier with:
-      {
-        "run_id": "...",
-        "condition": "...",
-        "age": "...",
-        "gender": "...",
-        "ethnicity": "...",
-        "region": "...",
-        "todays_date": "DD/MM/YYYY",
-        "model": "gpt-4o" (optional)
-      }
-    Creates image prompt files for every 4th question (1,5,9,...) under:
-      Explainer_Report/Ai_Responses/Question_Assets/{run_id}/Image_Prompts/Question_{NN}.txt
+    Called by main.py. Returns immediately so Zapier isn't held open.
+    Spawns a background worker to generate image prompts for every 4th question.
     """
     # ---- Required
     run_id = (data.get("run_id") or "").strip()
@@ -172,13 +247,19 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
         "region": data.get("region", ""),
         "todays_date": data.get("todays_date", ""),
         "run_id": run_id,
+        "model": data.get("model", DEFAULT_MODEL),
     }
 
     logger.info("📥 question_image_generation.run_prompt payload:")
     logger.info(json.dumps({
         "run_id": run_id,
-        **ctx,
-        "model": data.get("model", DEFAULT_MODEL),
+        "condition": ctx["condition"],
+        "age": ctx["age"],
+        "gender": ctx["gender"],
+        "ethnicity": ctx["ethnicity"],
+        "region": ctx["region"],
+        "todays_date": ctx["todays_date"],
+        "model": ctx["model"],
     }, ensure_ascii=False))
 
     # ---- Load character attributes (JSON snippet stored as .txt)
@@ -190,17 +271,15 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
     if not character_attributes_text:
         raise FileNotFoundError(f"Character attributes file empty or not found: {char_path}")
 
-    # ---- List question files and select every 4th
+    # ---- List question files (correct folder) and select every 4th
     questions_prefix = f"{BASE_DIR}/{run_id}/{QUESTION_SUBDIR}"
     logger.info(
         f"📂 Looking for question files under: {questions_prefix} "
         f"(full: {SUPABASE_ROOT_FOLDER}/{questions_prefix})"
     )
-    entries = list_supabase_folder(questions_prefix)
-
     try:
         entries = list_supabase_folder(questions_prefix)
-        logger.info(f"📂 Supabase returned {len(entries)} entries")
+        logger.info(f"📂 Supabase returned {len(entries)} entries for {SUPABASE_ROOT_FOLDER}/{questions_prefix}")
     except Exception as e:
         logger.exception(f"❌ Error listing Supabase folder: {questions_prefix}: {e}")
         raise
@@ -226,95 +305,37 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
 
     # Filter to every 4th: 1,5,9,...
     targets = [(q, n) for (q, n) in numbered if is_every_4th_question(q)]
+    selected_qnums = [q for q, _ in targets]
     logger.info(f"🎯 Files selected (every 4th): {targets}")
     if not targets:
         logger.warning("⚠️ No question files matched the every-4th rule (1,5,9,...)")
 
-    # ---- Load prompt template
+    # ---- Load prompt template once
     prompt_template = load_text(PROMPT_PATH)
     logger.info(f"📝 Loaded prompt template from {PROMPT_PATH} (len={len(prompt_template)})")
 
-    # ---- Process each selected question
-    outputs = []
-    for qnum, fname in targets:
-        q_rel = f"{questions_prefix}/{fname}"
-        logger.info(f"📥 Reading question file: {q_rel}")
-        try:
-            question_text = read_supabase_file(q_rel, binary=False) or ""
-        except Exception as e:
-            logger.exception(f"❌ Error reading question file {q_rel}: {e}")
-            continue
+    # ---- Spawn background worker and RETURN IMMEDIATELY
+    import threading
+    t = threading.Thread(
+        target=_process_run,
+        args=(run_id, ctx, prompt_template, character_attributes_text, questions_prefix, targets),
+        daemon=True,
+    )
+    t.start()
+    logger.info(f"🚀 Background worker started for run_id={run_id}, thread={t.name}")
 
-        question_text = question_text.strip()
-        logger.info(f"🧾 question_text length={len(question_text)} for qnum={qnum}")
-        if not question_text:
-            logger.warning(f"⚠️ Skipping empty question file: {q_rel}")
-            continue
-
-        # ---- Build prompt
-        mapping = {
-            "character_attributes": safe_escape_braces(character_attributes_text),
-            "question_assets": safe_escape_braces(question_text),
-            "condition": safe_escape_braces(ctx["condition"]),
-            "age": safe_escape_braces(ctx["age"]),
-            "gender": safe_escape_braces(ctx["gender"]),
-            "ethnicity": safe_escape_braces(ctx["ethnicity"]),
-            "region": safe_escape_braces(ctx["region"]),
-            "todays_date": safe_escape_braces(ctx["todays_date"]),
-            "run_id": safe_escape_braces(ctx["run_id"]),
-        }
-
-        try:
-            prompt = prompt_template.format(**mapping)
-            logger.info(f"🧠 Built prompt for Q{qnum} (len={len(prompt)})")
-        except KeyError as e:
-            missing = str(e).strip("'")
-            logger.error(f"❌ Prompt template missing value for {{{missing}}}; skipping Q{qnum}")
-            continue
-        except Exception as e:
-            logger.exception(f"❌ Error formatting prompt for Q{qnum}: {e}")
-            continue
-
-        # ---- Call OpenAI
-        try:
-            t0 = time.time()
-            ai_text = call_openai(prompt, model=data.get("model", DEFAULT_MODEL), temperature=TEMPERATURE)
-            latency = round(time.time() - t0, 3)
-            logger.info(f"🤖 OpenAI response for Q{qnum} received (latency={latency}s, len={len(ai_text or '')})")
-        except Exception as e:
-            logger.exception(f"❌ OpenAI call failed for Q{qnum}: {e}")
-            continue
-
-        # ---- Clean to JSON text (no fences)
-        final_text = clean_ai_output_to_json_text(ai_text)
-        logger.info(f"🧹 Cleaned output for Q{qnum} (len={len(final_text)})")
-
-        # ---- Save to Supabase
-        qnum_str = zero_pad(qnum, 2 if qnum < 100 else 3)
-        out_rel = f"{BASE_DIR}/{run_id}/{IMAGE_PROMPTS_SUBDIR}/Question_{qnum_str}.txt"
-        try:
-            write_supabase_file(out_rel, final_text, content_type="text/plain; charset=utf-8")
-            logger.info(f"📤 Wrote image prompt for Q{qnum} -> {out_rel}")
-        except Exception as e:
-            logger.exception(f"❌ Failed to write output for Q{qnum} to {out_rel}: {e}")
-            continue
-
-        outputs.append({"qnum": qnum, "output_path": out_rel})
-
-        # Optional small delay
-        time.sleep(0.2)
-
-    logger.info(f"✅ Processing complete: processed={len(outputs)} for run_id={run_id}")
-
+    # ---- Immediate response (so Zapier doesn't time out)
     return {
-        "status": "ok",
+        "status": "processing",
         "run_id": run_id,
-        "processed": len(outputs),
-        "items": outputs,
+        "message": "Question image generation started. Results will stream into Supabase.",
         "character_attributes_path": char_path,
         "question_folder": questions_prefix,
+        "selected_count": len(targets),
+        "selected_qnums": selected_qnums,
         "output_folder": f"{BASE_DIR}/{run_id}/{IMAGE_PROMPTS_SUBDIR}/"
     }
+
 
 # -----------------------------------------------------------------------------
 # Optional local test
