@@ -62,8 +62,11 @@ def list_supabase_folder(prefix: str) -> List[Dict[str, Any]]:
     headers = get_supabase_headers()
     headers["Content-Type"] = "application/json"
 
+    # IMPORTANT: include the root folder so we list the correct directory
+    full_prefix = f"{SUPABASE_ROOT_FOLDER}/{prefix}".rstrip("/") + "/"
+
     payload = {
-        "prefix": prefix.rstrip("/") + "/",
+        "prefix": full_prefix,
         "limit": 1000,
         "offset": 0,
         "sortBy": {"column": "name", "order": "asc"},
@@ -72,9 +75,9 @@ def list_supabase_folder(prefix: str) -> List[Dict[str, Any]]:
     logger.info(f"📄 Listing Supabase folder: {payload['prefix']}")
     resp = requests.post(url, headers=headers, data=json.dumps(payload))
     resp.raise_for_status()
-    return resp.json() or []
-
-_QFILE_RE = re.compile(r"^(\d{2,})_")
+    items = resp.json() or []
+    logger.info(f"📂 Supabase returned {len(items)} entries for {payload['prefix']}")
+    return items
 
 def parse_question_number(filename: str) -> int:
     """
@@ -185,7 +188,11 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
 
     # ---- List question files and select every 4th
     questions_prefix = f"{BASE_DIR}/{run_id}/{QUESTION_SUBDIR}"
-    logger.info(f"📂 Looking for question files under: {questions_prefix}")
+    logger.info(
+        f"📂 Looking for question files under: {questions_prefix} "
+        f"(full: {SUPABASE_ROOT_FOLDER}/{questions_prefix})"
+    )
+    entries = list_supabase_folder(questions_prefix)
 
     try:
         entries = list_supabase_folder(questions_prefix)
