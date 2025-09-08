@@ -1,4 +1,4 @@
-You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
+You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.  
 Disable all inline citations, footnotes, and content references. Do not use ::contentReference or oaicite.
 
 ## INSTRUCTIONS
@@ -29,10 +29,10 @@ Do **not** contradict or invent new attributes; you may selectively reference or
 
 These two variables are critical. They define **how** your image prompts should be written, regardless of medical content.
 
-**Tone of Voice**: Formal (Professional)
+**Tone of Voice**: Formal (Professional)  
     - Your language and emotional tone must match this exactly.  
 
-**Report Use Case**: Personal Education
+**Report Use Case**: Personal Education  
     - Structure your prompts to serve this purpose explicitly.
 
 ## OBJECTIVE
@@ -41,16 +41,16 @@ Generate an image prompt for the given question that seamlessly integrates all t
 
 1. **Patient Context**  
    - Accurately reflect the condition ({condition}) in the visual scene with subtle, respectful cues.  
-   - Ppresent the patient in a flattering and approachable way.  
+   - Present the patient in a flattering and approachable way.  
    - Ensure the setting/environment is culturally and geographically consistent with the region (e.g., a UK home, clinic, or park).  
 
-2. **Character Attributes (Avatar Continuity)** 
+2. **Character Attributes (Avatar Continuity)**  
    - Depict the patient avatar drawing directly from the provided **Character Attributes**.  
    - Honor appearance details such as hair, clothing, posture, grooming, and expression.  
-   - Preserve the characters attributes while presenting the patient in a flattering and approachable way (whilst presenting in an uplifting, confident posture and approachable demeanor).  
+   - Preserve the character’s attributes while presenting the patient in a flattering and approachable way (uplifting, confident posture and approachable demeanor).  
 
 3. **Question Section Assets**  
-   - Ground the image in the educational purpose of the **Question**  
+   - Ground the image in the educational purpose of the **Question**.  
    - Emphasize the context of the specific question (e.g., diagnosis, treatment, lifestyle) through environment, props, or subtle cues.  
    - Draw inspiration from the Summary, Bullet Points, Statistic, Insight, or Recommendation fields, translating them into visual elements when appropriate.  
    - Never depict text from the assets literally inside the image; instead, visualise their meaning (e.g., showing a doctor’s office to imply “diagnosis” rather than writing “diagnosis” on screen).  
@@ -65,19 +65,23 @@ Generate an image prompt for the given question that seamlessly integrates all t
 
 - Begin the prompt with EXACTLY:  
   "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image."
-- Depict the avatar as **well-presented, confident, and approachable**, following the Character Attributes (e.g., age presentation, grooming, clothing style, posture).
-- Ensure you include all of the **charater attributes** inside the prompt to ensure continuety of avatar across multiple future imape prompts.
-- Include setting and lighting details suitable to the **Region** (e.g., UK home, clinic, park, kitchen, garden), avoiding stereotypes.
-- If medical cues are relevant (per Condition), include them **subtly** (e.g., gentle posture cue, glasses, walking stick) — never exaggerate symptoms or distress.
-- Avoid logos, watermarks, or on-image text. Avoid brand names and identifiable private locations.
-- Keep language precise and visual: specify scene, subject, setting, composition, lighting, and mood.
+- Depict the avatar simply as “an older adult male/female” or equivalent basic phrasing.  
+- Describe only the **scene, setting, lighting, posture, and mood** in the main narrative section.  
+- Do **not** include the condition or detailed character attributes in this section.  
+- After the main scene description, append a separate block that begins with **"Character attributes:"**, followed by the full verbatim list of:  
+  - Condition  
+  - All attributes from `{character_attributes}`  
+- Avoid logos, watermarks, or on-image text. Avoid brand names and identifiable private locations.  
+- Keep language precise and visual.  
 
 ## OUTPUT REQUIREMENTS
 
-- `Question`: Verbatim word-for-word of the original **Main Question** from the attached question assets.
-- `Image_Prompt`: A single string that starts with the required lead-in sentence (see above), followed by the full visual direction. Incorporate relevant Character Attributes and Patient Context. Keep it concise but complete (recommended 2–6 sentences after the lead-in).
+- `Question`: Verbatim word-for-word of the original **Main Question** from the attached question assets.  
+- `Image_Prompt`: A single string containing:  
+  1. The lead-in sentence and scene description (2–6 sentences).  
+  2. A newline, then the block of Character Attributes exactly as specified above.  
 
-## IMPORTANT - STRICT JSON-ONLY FORMAT
+## IMPORTANT - STRICT JSON-ONLY FORMAT  
 **DO NOT** add any explanations, summaries, visualisations, or tables.  
 **DO NOT** return any text before or after the JSON output.  
 **ONLY** return JSON in the exact format below.
@@ -85,5 +89,5 @@ Generate an image prompt for the given question that seamlessly integrates all t
 json
 {{
   "Question": "...",
-  "Image_Prompt": "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image. ..."
+  "Image_Prompt": "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image. The scene depicts... The setting includes ...\n\nCharacter attributes:\nCondition: ...\nGender: ...\nAge: ...\nApparent Age: ...\nAge Presentation Style: ...\nEthnicity: ...\nRegion: ...\nHeight: ...\nBuild: ...\nSkin Tone: ...\nHair Colour: ...\nHair Length: ...\nHair Texture: ...\nEye Colour: ...\nFacial Features: ...\nDistinguishing Marks: ...\nPosture: ...\nGrooming: ...\nComplexion: ...\nClothing Style: ...\nClothing Description: ...\nWardrobe Palette: ...\nFootwear: ...\nAccessories: ...\nCultural Clothing Notes: ...\nLiving Environment: ..\nActivity Style: ...\nOccupation Or Role: ...\nEmotional Expression: ...\nTypical Setting: ...\nCondition Cues Strength: ...\nMedical Condition Cues: ...\nHealth Context Expression: ..."
 }}
