@@ -1,0 +1,89 @@
+You must return valid, uninterrupted JSON with no commentary, explanation, or content references. Do not truncate or substitute. Output the full JSON exactly as structured.
+Disable all inline citations, footnotes, and content references. Do not use ::contentReference or oaicite.
+
+## INSTRUCTIONS
+
+You are helping to write a single image prompt to generate an AI image for a visual health report.  
+Use your understanding of the **patient context**, the **character attributes** (avatar definition), and the attached **question assets** to produce an image generation prompt.
+
+## QUESTION ASSETS
+
+{question_assets}
+
+## PATIENT CONTEXT
+
+**Condition**: {condition}  
+**Age**: {age}  
+**Gender**: {gender}  
+**Ethnicity**: {ethnicity}  
+**Region**: {region}  
+**Todays Date**: {todays_date}
+
+## CHARACTER ATTRIBUTES (Avatar for continuity)
+
+Use the following avatar attributes verbatim to ensure consistent depiction across all images.  
+Do **not** contradict or invent new attributes; you may selectively reference or imply them to keep the prompt concise.  
+{character_attributes}
+
+## REPORT DELIVERY STYLE
+
+These two variables are critical. They define **how** your image prompts should be written, regardless of medical content.
+
+**Tone of Voice**: Formal (Professional)
+    - Your language and emotional tone must match this exactly.  
+
+**Report Use Case**: Personal Education
+    - Structure your prompts to serve this purpose explicitly.
+
+## OBJECTIVE
+
+Generate an image prompt for the given question that seamlessly integrates all three input sources:
+
+1. **Patient Context**  
+   - Accurately reflect the condition ({condition}) in the visual scene with subtle, respectful cues.  
+   - Ppresent the patient in a flattering and approachable way.  
+   - Ensure the setting/environment is culturally and geographically consistent with the region (e.g., a UK home, clinic, or park).  
+
+2. **Character Attributes (Avatar Continuity)** 
+   - Depict the patient avatar drawing directly from the provided **Character Attributes**.  
+   - Honor appearance details such as hair, clothing, posture, grooming, and expression.  
+   - Preserve the characters attributes while presenting the patient in a flattering and approachable way (whilst presenting in an uplifting, confident posture and approachable demeanor).  
+
+3. **Question Section Assets**  
+   - Ground the image in the educational purpose of the **Question**  
+   - Emphasize the context of the specific question (e.g., diagnosis, treatment, lifestyle) through environment, props, or subtle cues.  
+   - Draw inspiration from the Summary, Bullet Points, Statistic, Insight, or Recommendation fields, translating them into visual elements when appropriate.  
+   - Never depict text from the assets literally inside the image; instead, visualise their meaning (e.g., showing a doctor’s office to imply “diagnosis” rather than writing “diagnosis” on screen).  
+
+4. **Overall Presentation**  
+   - The image should be visually clear, relatable, and reassuring.  
+   - Convey professionalism (formal tone) and education (supportive, non-stigmatising).  
+   - Avoid distressing, clinical, or overly dramatic portrayals of conditions.  
+   - Always maintain cultural fidelity, uplifting tone, and continuity across all generated images.  
+
+## IMAGE PROMPT RULES
+
+- Begin the prompt with EXACTLY:  
+  "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image."
+- Depict the avatar as **well-presented, confident, and approachable**, following the Character Attributes (e.g., age presentation, grooming, clothing style, posture).
+- Ensure you include all of the **charater attributes** inside the prompt to ensure continuety of avatar across multiple future imape prompts.
+- Include setting and lighting details suitable to the **Region** (e.g., UK home, clinic, park, kitchen, garden), avoiding stereotypes.
+- If medical cues are relevant (per Condition), include them **subtly** (e.g., gentle posture cue, glasses, walking stick) — never exaggerate symptoms or distress.
+- Avoid logos, watermarks, or on-image text. Avoid brand names and identifiable private locations.
+- Keep language precise and visual: specify scene, subject, setting, composition, lighting, and mood.
+
+## OUTPUT REQUIREMENTS
+
+- `Question`: Verbatim word-for-word of the original **Main Question** from the attached question assets.
+- `Image_Prompt`: A single string that starts with the required lead-in sentence (see above), followed by the full visual direction. Incorporate relevant Character Attributes and Patient Context. Keep it concise but complete (recommended 2–6 sentences after the lead-in).
+
+## IMPORTANT - STRICT JSON-ONLY FORMAT
+**DO NOT** add any explanations, summaries, visualisations, or tables.  
+**DO NOT** return any text before or after the JSON output.  
+**ONLY** return JSON in the exact format below.
+
+json
+{{
+  "Question": "...",
+  "Image_Prompt": "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image. ..."
+}}
