@@ -23,6 +23,7 @@ Use your understanding of the **patient context**, the **character attributes** 
 
 Use the following avatar attributes verbatim to ensure consistent depiction across all images.  
 Do **not** contradict or invent new attributes; you may selectively reference or imply them to keep the prompt concise.  
+
 {character_attributes}
 
 ## REPORT DELIVERY STYLE
@@ -70,7 +71,7 @@ Generate an image prompt for the given question that seamlessly integrates all t
 - Do **not** include the condition or detailed character attributes in this section.  
 - After the main scene description, append a separate block that begins with **"Character attributes:"**, followed by the full verbatim list of:  
   - Condition  
-  - All attributes from `{character_attributes}`  
+  - All attributes from **character attributes** 
 - Avoid logos, watermarks, or on-image text. Avoid brand names and identifiable private locations.  
 - Keep language precise and visual.  
 
