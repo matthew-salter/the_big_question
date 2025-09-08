@@ -88,7 +88,11 @@ def normalize_date_for_filename(value: str) -> str:
     return v or "date"
 
 def should_skip_filename(name: str) -> bool:
+    # Skip only the attributes file; we DO want to include Report_Prompts.txt (special handling below)
     return name.lower() == "character_attributes.txt"
+
+def is_report_prompts(name: str) -> bool:
+    return name.lower() == "report_prompts.txt"
 
 def add_question_number_to_snippet(raw_text: str, qnum_str: str) -> str:
     """
@@ -131,8 +135,10 @@ def merge_image_prompts(run_id: str, first_name: str, sur_name: str,
                         condition: str, todays_date: str) -> Dict[str, Any]:
     """
     Merge all image prompt .txt files for a given run_id into a single text file.
-    Injects "Question_Number": "NN" based on the filename. If no number can be
-    extracted, assigns sequential numbers in sorted order.
+    Behavior:
+      - If 'Report_Prompts.txt' exists, its content is placed FIRST verbatim (no injection).
+      - All other .txt files get "Question_Number": "NN" injected as before.
+      - If a file has no detectable number, assign sequential numbers based on sorted order.
     """
     src_dir = f"{PARENT_DIR}/{run_id}/{IMAGE_PROMPTS_SUBDIR}"
     out_dir = f"{PARENT_DIR}/{run_id}/{MERGED_IMAGE_PROMPTS_SUBDIR}"
@@ -151,14 +157,22 @@ def merge_image_prompts(run_id: str, first_name: str, sur_name: str,
             f"No .txt files (excluding character_attributes.txt) found under {src_dir}"
         )
 
-    # Sort deterministically: by (detected index if any, then filename)
+    # Pull out Report_Prompts.txt (if present) to place FIRST
+    report_names = [n for n in txt_names if is_report_prompts(n)]
+    non_report_names = [n for n in txt_names if not is_report_prompts(n)]
+
+    # Sort the non-report deterministically: by (detected index if any, then filename)
     sort_keys: List[Tuple[int, str]] = []
-    for n in txt_names:
+    for n in non_report_names:
         idx, _, _ = extract_question_index_and_str(n)
         sort_keys.append((idx, n.lower()))
-    txt_names = [n for _, n in sorted(zip(sort_keys, txt_names), key=lambda t: t[0])]
+    non_report_sorted = [n for _, n in sorted(zip(sort_keys, non_report_names), key=lambda t: t[0])]
 
-    logger.info(f"🖼️ Found {len(txt_names)} image prompt files to merge.")
+    # Final processing order: Report first (if any), then all others
+    ordered_txt_names = report_names + non_report_sorted
+
+    logger.info(f"🖼️ Found {len(txt_names)} image prompt files to merge. "
+                f"Report_Prompts present: {bool(report_names)}")
 
     merged_chunks: List[str] = []
     injected_count = 0
@@ -166,11 +180,24 @@ def merge_image_prompts(run_id: str, first_name: str, sur_name: str,
     parse_fallback_used = 0
     detected_numbers: List[str] = []
 
-    # First pass: detect numbers (for logging) and see who needs sequential fallback
+    # First pass: detect numbers for non-report files (for logging) and setup sequential fallback
     detected = []
-    for n in txt_names:
+    for n in non_report_sorted:
         idx, s, matched = extract_question_index_and_str(n)
         detected.append((n, idx, s, matched))
+
+    # Read & append Report_Prompts.txt FIRST (verbatim)
+    report_prompts_included = False
+    for rn in report_names:
+        rel_path = f"{src_dir}/{rn}"
+        logger.info(f"📥 Reading (report): {rel_path}")
+        content = read_supabase_file(rel_path, binary=False)
+        if content is None:
+            logger.warning(f"⚠️ No content in {rel_path}; skipping.")
+            continue
+        report_prompts_included = True
+        # Ensure a trailing newline so the next block starts cleanly
+        merged_chunks.append(content.rstrip() + "\n")
 
     # Determine sequential counter for those with no match
     seq = 1
@@ -213,12 +240,12 @@ def merge_image_prompts(run_id: str, first_name: str, sur_name: str,
             except Exception:
                 parse_fallback_used += 1
 
-        merged_chunks.append(processed_after)
+        merged_chunks.append(processed_after + "\n")
 
     if not merged_chunks:
         raise ValueError("All matched .txt files were empty; nothing to merge.")
 
-    merged_text = "\n".join(merged_chunks) + "\n"
+    merged_text = "".join(merged_chunks)
 
     # Build output filename
     first = normalize_name(first_name)
@@ -244,6 +271,7 @@ def merge_image_prompts(run_id: str, first_name: str, sur_name: str,
         "question_numbers_injected": injected_count,
         "sequential_numbers_assigned": seq_assigned,
         "parse_fallback_used": parse_fallback_used,
+        "report_prompts_included": report_prompts_included,
         "output_path": out_path,
     }
 
