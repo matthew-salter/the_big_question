@@ -54,6 +54,7 @@ BLOCKING_PROMPTS = {
     "explainer_report_assets",
     "character_attribute_generation",
     "question_image_generation",
+    "explainer_report_image_prompts",
     "merge_image_prompts"
 }
 
@@ -102,6 +103,7 @@ PROMPT_MODULES = {
     "explainer_report_assets": "Scripts.Explainer_Report.explainer_report_assets",
     "character_attribute_generation": "Scripts.Image_Prompts.character_attribute_generation",
     "question_image_generation": "Scripts.Image_Prompts.question_image_generation",
+    "explainer_report_image_prompts": "Scripts.Image_Prompts.explainer_report_image_prompts",
     "merge_image_prompts": "Scripts.Image_Prompts.merge_image_prompts"
 }
 
