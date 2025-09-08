@@ -117,11 +117,20 @@ def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TE
 
 def _process_run(run_id: str, ctx: Dict[str, Any], prompt_template: str) -> None:
     """
-    Heavy worker: read the single Report_Assets file, build a prompt, call OpenAI once,
-    and write the result to Supabase as Image_Prompts/Report_Prompts.txt.
+    Heavy worker: read the single Report_Assets file, plus character_attributes,
+    build one prompt, call OpenAI once, and write the result to Report_Prompts.txt.
     """
     try:
         logger.info(f"🚀 [ExplainerImagePrompts.Run] start run_id={run_id}")
+
+        # ---- Load character attributes (required, like original script)
+        char_path = f"{BASE_DIR}/{run_id}/{IMAGE_PROMPTS_SUBDIR}/character_attributes.txt"
+        logger.info(f"📥 Reading character attributes: {char_path}")
+        character_attributes_text = read_supabase_file(char_path, binary=False) or ""
+        character_attributes_text = character_attributes_text.strip()
+        logger.info(f"🧩 character_attributes length={len(character_attributes_text)}")
+        if not character_attributes_text:
+            raise FileNotFoundError(f"Character attributes file empty or not found: {char_path}")
 
         # ---- Locate the single report assets file
         report_prefix = f"{BASE_DIR}/{run_id}/{REPORT_ASSETS_SUBDIR}"
@@ -168,6 +177,7 @@ def _process_run(run_id: str, ctx: Dict[str, Any], prompt_template: str) -> None
 
         # ---- Build prompt mapping
         mapping = {
+            "character_attributes": safe_escape_braces(character_attributes_text),
             "report_assets": safe_escape_braces(report_assets_text),
             "condition": safe_escape_braces(ctx.get("condition", "")),
             "age": safe_escape_braces(ctx.get("age", "")),
@@ -275,6 +285,7 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
         "status": "processing",
         "run_id": run_id,
         "message": "Explainer report image prompts generation started. Results will stream into Supabase.",
+        "character_attributes_path": f"{BASE_DIR}/{run_id}/{IMAGE_PROMPTS_SUBDIR}/character_attributes.txt",
         "report_assets_folder": f"{BASE_DIR}/{run_id}/{REPORT_ASSETS_SUBDIR}",
         "output_file": f"{BASE_DIR}/{run_id}/{IMAGE_PROMPTS_SUBDIR}/Report_Prompts.txt"
     }
