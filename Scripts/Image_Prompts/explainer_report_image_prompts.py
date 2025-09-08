@@ -78,32 +78,26 @@ def list_supabase_folder(prefix: str) -> List[Dict[str, Any]]:
     logger.info(f"📂 Supabase returned {len(items)} entries for {payload['prefix']}")
     return items
 
-def _normalize_trailing_newlines_in_objects(text: str) -> str:
+def _normalize_quote_to_brace_spacing(text: str) -> str:
     """
-    Some models insert a cosmetic blank line before the closing brace of each
-    top-level JSON object when returning multiple objects back-to-back:
-
-        ".... final sentence."
+    Ensure exactly one newline exists between the closing quote of the value and the closing brace:
+        "...end."
     }
-
-    This normalizes those by removing only the newline/whitespace between the
-    closing quote and the object '}' so the line becomes:
-
-        ".... final sentence."}
-
-    It is safe for your format because each value is a single-line string.
+    This collapses 0+ blank lines/whitespace to exactly one newline, keeping your desired style.
+    Safe because each value is a single-line string.
     """
-    # Handle Windows \r\n and Unix \n line endings
     text = text.replace("\r\n", "\n")
-    # Remove *only* whitespace/newlines between a closing quote and the brace on next line
-    text = re.sub(r'("\s*)\n(\s*})', r'"}', text)
+    # Replace either same-line brace or multiple blank lines with exactly one newline before }
+    text = re.sub(r'("\s*)(?:\n\s*)?}', r'"\n}', text)  # handles 0 or 1+ newlines -> 1 newline
+    # If the model ever produced multiple newlines, collapse them to one (paranoia pass)
+    text = re.sub(r'("\s*)\n{2,}\s*}', r'"\n}', text)
     return text
 
 def clean_ai_output_to_json_text(ai_text: str) -> str:
     """
     Strip ``` fences; pretty-print JSON if parseable; else return cleaned raw.
     If the model returned multiple standalone JSON objects (non-parseable as one
-    JSON value), normalize cosmetic blank lines before '}'.
+    JSON value), normalize spacing so the closing brace is on its own line.
     """
     cleaned = (ai_text or "").strip()
     cleaned = re.sub(r"^\s*```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
@@ -113,7 +107,7 @@ def clean_ai_output_to_json_text(ai_text: str) -> str:
         return json.dumps(obj, ensure_ascii=False, indent=2)
     except json.JSONDecodeError:
         logger.warning("⚠️ AI output not valid JSON—writing raw text as received.")
-        cleaned = _normalize_trailing_newlines_in_objects(cleaned)
+        cleaned = _normalize_quote_to_brace_spacing(cleaned)
         return cleaned
 
 def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TEMPERATURE) -> str:
