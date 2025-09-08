@@ -78,9 +78,32 @@ def list_supabase_folder(prefix: str) -> List[Dict[str, Any]]:
     logger.info(f"📂 Supabase returned {len(items)} entries for {payload['prefix']}")
     return items
 
+def _normalize_trailing_newlines_in_objects(text: str) -> str:
+    """
+    Some models insert a cosmetic blank line before the closing brace of each
+    top-level JSON object when returning multiple objects back-to-back:
+
+        ".... final sentence."
+    }
+
+    This normalizes those by removing only the newline/whitespace between the
+    closing quote and the object '}' so the line becomes:
+
+        ".... final sentence."}
+
+    It is safe for your format because each value is a single-line string.
+    """
+    # Handle Windows \r\n and Unix \n line endings
+    text = text.replace("\r\n", "\n")
+    # Remove *only* whitespace/newlines between a closing quote and the brace on next line
+    text = re.sub(r'("\s*)\n(\s*})', r'"}', text)
+    return text
+
 def clean_ai_output_to_json_text(ai_text: str) -> str:
     """
     Strip ``` fences; pretty-print JSON if parseable; else return cleaned raw.
+    If the model returned multiple standalone JSON objects (non-parseable as one
+    JSON value), normalize cosmetic blank lines before '}'.
     """
     cleaned = (ai_text or "").strip()
     cleaned = re.sub(r"^\s*```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
@@ -90,6 +113,7 @@ def clean_ai_output_to_json_text(ai_text: str) -> str:
         return json.dumps(obj, ensure_ascii=False, indent=2)
     except json.JSONDecodeError:
         logger.warning("⚠️ AI output not valid JSON—writing raw text as received.")
+        cleaned = _normalize_trailing_newlines_in_objects(cleaned)
         return cleaned
 
 def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TEMPERATURE) -> str:
