@@ -3,12 +3,12 @@ Disable all inline citations, footnotes, and content references. Do not use ::co
 
 ## INSTRUCTIONS
 
-You are helping to write a single image prompt to generate an AI image for a visual health report.  
-Use your understanding of the **patient context**, the **character attributes** (avatar definition), and the attached **question assets** to produce an image generation prompt.
+You are helping to write five image prompts to generate an AI images for a visual health report.  
+Use your understanding of the **patient context**, the **character attributes** (avatar definition), and the attached **report assets** to produce the image generation prompts.
 
-## QUESTION ASSETS
+## REPORT ASSETS
 
-{question_assets}
+{report_assets}
 
 ## PATIENT CONTEXT
 
@@ -37,11 +37,11 @@ These two variables are critical. They define **how** your image prompts should 
 
 ## OBJECTIVE
 
-Generate an image prompt for the given question that seamlessly integrates all three input sources:
+Generate five image prompts that seamlessly integrates all three input sources:
 
 1. **Patient Context**  
    - Accurately reflect the condition ({condition}) in the visual scene with subtle, respectful cues.  
-   - Ppresent the patient in a flattering and approachable way.  
+   - Present the patient in a flattering and approachable way.  
    - Ensure the setting/environment is culturally and geographically consistent with the region (e.g., a UK home, clinic, or park).  
 
 2. **Character Attributes (Avatar Continuity)** 
@@ -49,21 +49,21 @@ Generate an image prompt for the given question that seamlessly integrates all t
    - Honor appearance details such as hair, clothing, posture, grooming, and expression.  
    - Preserve the characters attributes while presenting the patient in a flattering and approachable way (whilst presenting in an uplifting, confident posture and approachable demeanor).  
 
-3. **Question Section Assets**  
-   - Ground the image in the educational purpose of the **Question**  
-   - Emphasize the context of the specific question (e.g., diagnosis, treatment, lifestyle) through environment, props, or subtle cues.  
-   - Draw inspiration from the Summary, Bullet Points, Statistic, Insight, or Recommendation fields, translating them into visual elements when appropriate.  
+3. **Report Assets**  
+   - Ground the image in the educational purpose of the **Report Assets**  
+   - Emphasize the context of the specific report assets (e.g., diagnosis, treatment, lifestyle) through environment, props, or subtle cues.  
+   - Draw inspiration from the **executive summary**, **key findings**, **conclusion**, **call to action** and **recommendations** fields, translating them into visual elements when appropriate.  
    - Never depict text from the assets literally inside the image; instead, visualise their meaning (e.g., showing a doctor’s office to imply “diagnosis” rather than writing “diagnosis” on screen).  
 
 4. **Overall Presentation**  
-   - The image should be visually clear, relatable, and reassuring.  
+   - The images should be visually clear, relatable, and reassuring.  
    - Convey professionalism (formal tone) and education (supportive, non-stigmatising).  
    - Avoid distressing, clinical, or overly dramatic portrayals of conditions.  
    - Always maintain cultural fidelity, uplifting tone, and continuity across all generated images.  
 
 ## IMAGE PROMPT RULES
 
-- Begin the prompt with EXACTLY:  
+- Begin each prompt with EXACTLY:  
   "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image."
 - Depict the avatar as **well-presented, confident, and approachable**, following the Character Attributes (e.g., age presentation, grooming, clothing style, posture).
 - Ensure you include all of the **charater attributes** inside the prompt to ensure continuety of avatar across multiple future imape prompts.
@@ -74,8 +74,7 @@ Generate an image prompt for the given question that seamlessly integrates all t
 
 ## OUTPUT REQUIREMENTS
 
-- `Question`: Verbatim word-for-word of the original **Main Question** from the attached question assets.
-- `Image_Prompt`: A single string that starts with the required lead-in sentence (see above), followed by the full visual direction. Incorporate relevant Character Attributes and Patient Context. Keep it concise but complete (recommended 2–6 sentences after the lead-in).
+- `Main_Image_Prompt_n`: A single string that starts with the required lead-in sentence (see above), followed by the full visual direction. Incorporate relevant Character Attributes and Patient Context. Keep it concise but complete (recommended 2–6 sentences after the lead-in).
 
 ## IMPORTANT - STRICT JSON-ONLY FORMAT
 **DO NOT** add any explanations, summaries, visualisations, or tables.  
@@ -84,6 +83,17 @@ Generate an image prompt for the given question that seamlessly integrates all t
 
 json
 {{
-  "Question": "...",
-  "Image_Prompt": "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image. ..."
+  "Main_Image_Prompt_1": "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image. ..."
+}}
+{{
+  "Main_Image_Prompt_2": "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image. ..."
+}}
+{{
+  "Main_Image_Prompt_3": "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image. ..."
+}}
+{{
+  "Main_Image_Prompt_4": "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image. ..."
+}}
+{{
+  "Main_Image_Prompt_5": "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image. ..."
 }}
