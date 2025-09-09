@@ -3,7 +3,7 @@ Disable all inline citations, footnotes, and content references. Do not use ::co
 
 ## INSTRUCTIONS
 
-You are helping to write five image prompts to generate an AI images for a visual health report.  
+You are helping to write three image prompts to generate an AI images for a visual health report.  
 Use your understanding of the **patient context**, the **character attributes** (avatar definition), and the attached **report assets** to produce the image generation prompts.
 
 ## REPORT ASSETS
@@ -38,7 +38,7 @@ These two variables are critical. They define **how** your image prompts should 
 
 ## OBJECTIVE
 
-Generate five image prompts that seamlessly integrate all three input sources:
+Generate three image prompts that seamlessly integrate all three input sources:
 
 1. **Patient Context**  
    - Accurately reflect the condition ({condition}) in the visual scene with subtle, respectful cues.  
@@ -94,10 +94,4 @@ json
 }}
 {{
   "Main_Image_Prompt_3": "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image. The scene depicts... The setting includes ...\n\nCharacter attributes:\nCondition: ...\nGender: ...\nAge: ...\nApparent Age: ...\nAge Presentation Style: ...\nEthnicity: ...\nRegion: ...\nHeight: ...\nBuild: ...\nSkin Tone: ...\nHair Colour: ...\nHair Length: ...\nHair Texture: ...\nEye Colour: ...\nFacial Features: ...\nDistinguishing Marks: ...\nPosture: ...\nGrooming: ...\nComplexion: ...\nClothing Style: ...\nClothing Description: ...\nWardrobe Palette: ...\nFootwear: ...\nAccessories: ...\nCultural Clothing Notes: ...\nLiving Environment: ..\nActivity Style: ...\nOccupation Or Role: ...\nEmotional Expression: ...\nTypical Setting: ...\nCondition Cues Strength: ...\nMedical Condition Cues: ...\nHealth Context Expression: ..."
-}}
-{{
-  "Main_Image_Prompt_4": "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image. The scene depicts... The setting includes ...\n\nCharacter attributes:\nCondition: ...\nGender: ...\nAge: ...\nApparent Age: ...\nAge Presentation Style: ...\nEthnicity: ...\nRegion: ...\nHeight: ...\nBuild: ...\nSkin Tone: ...\nHair Colour: ...\nHair Length: ...\nHair Texture: ...\nEye Colour: ...\nFacial Features: ...\nDistinguishing Marks: ...\nPosture: ...\nGrooming: ...\nComplexion: ...\nClothing Style: ...\nClothing Description: ...\nWardrobe Palette: ...\nFootwear: ...\nAccessories: ...\nCultural Clothing Notes: ...\nLiving Environment: ..\nActivity Style: ...\nOccupation Or Role: ...\nEmotional Expression: ...\nTypical Setting: ...\nCondition Cues Strength: ...\nMedical Condition Cues: ...\nHealth Context Expression: ..."
-}}
-{{
-  "Main_Image_Prompt_5": "A realistic photograph. The image is taken in focus with a natural depth of field. The image appears as if taken with a professional camera. No text is present in the image. The scene depicts... The setting includes ...\n\nCharacter attributes:\nCondition: ...\nGender: ...\nAge: ...\nApparent Age: ...\nAge Presentation Style: ...\nEthnicity: ...\nRegion: ...\nHeight: ...\nBuild: ...\nSkin Tone: ...\nHair Colour: ...\nHair Length: ...\nHair Texture: ...\nEye Colour: ...\nFacial Features: ...\nDistinguishing Marks: ...\nPosture: ...\nGrooming: ...\nComplexion: ...\nClothing Style: ...\nClothing Description: ...\nWardrobe Palette: ...\nFootwear: ...\nAccessories: ...\nCultural Clothing Notes: ...\nLiving Environment: ..\nActivity Style: ...\nOccupation Or Role: ...\nEmotional Expression: ...\nTypical Setting: ...\nCondition Cues Strength: ...\nMedical Condition Cues: ...\nHealth Context Expression: ..."
 }}
