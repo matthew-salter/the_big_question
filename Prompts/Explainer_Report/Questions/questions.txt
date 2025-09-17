@@ -32,7 +32,7 @@ Can acupuncture therapy be used with {condition}?
 Can cold therapy be used with {condition}?
 Can infra-red therapy be used with {condition}?
 What dietary theories are associated with treating {condition}?
-How does approach {condition}?
+How does acupuncture work for {condition}?
 How does Ayurveda approach {condition}?
 How does Traditional Chinese Medicine approach {condition}?
 What are the newest drug treatments for {condition} and how do they work?
