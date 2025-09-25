@@ -18,6 +18,7 @@ from Engine.Files.write_supabase_file import write_supabase_file
 # =============================================================================
 
 PROMPT_PATH = "Prompts/Image_Prompts/question_image_generation.txt"
+QUESTIONS_FILE_PATH = "Prompts/Explainer_Report/Questions/questions.txt"  # source of truth
 
 # Supabase paths (write_supabase_file prepends SUPABASE_ROOT_FOLDER automatically)
 BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
@@ -42,8 +43,8 @@ BASE_BACKOFF = 1.0  # seconds
 # Helpers
 # =============================================================================
 
-# Regex to capture leading question number (1_, 01_, 123_, etc.)
-_QFILE_RE = re.compile(r"^(\d+)_")
+# Loosened regex to capture leading question number with _, -, or space after it.
+_QFILE_RE = re.compile(r"^\s*(\d+)[_\-\s]")
 
 def safe_escape_braces(value: str) -> str:
     """Protect accidental braces in injected strings before str.format()."""
@@ -85,7 +86,7 @@ def list_supabase_folder(prefix: str) -> List[Dict[str, Any]]:
 
 def parse_question_number(filename: str) -> int:
     """
-    Extract leading integer from filenames like '01_question-title_xxxxx.txt'.
+    Extract leading integer from filenames like '01_question-title_xxxxx.txt' or '01 - ...'.
     Returns -1 if not matched.
     """
     m = _QFILE_RE.match(filename)
@@ -136,6 +137,91 @@ def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TE
             sleep = BASE_BACKOFF * (2 ** (attempt - 1)) + 0.25 * (attempt - 1)
             logger.warning(f"⚠️ OpenAI error (attempt {attempt}/{MAX_TRIES}): {e}. Backing off {sleep:.2f}s")
             time.sleep(sleep)
+
+# ---------- NEW HELPERS: preflight + stability + resumability ----------
+
+def read_questions_file(path: str = QUESTIONS_FILE_PATH) -> List[str]:
+    """Read canonical questions list from repo and return non-empty lines."""
+    raw = load_text(path)
+    lines = [ln.strip() for ln in raw.splitlines()]
+    return [ln for ln in lines if ln]
+
+def list_supabase_txt_files(prefix: str) -> List[str]:
+    """Return just the .txt filenames in the given Supabase prefix (case-insensitive)."""
+    entries = list_supabase_folder(prefix)
+    files = [
+        e.get("name", "") for e in entries
+        if isinstance(e, dict)
+        and e.get("name", "")
+        and e.get("name", "").lower().endswith(".txt")
+    ]
+    return files
+
+def wait_for_expected_txt_files(prefix: str,
+                                expected_count: int,
+                                stable_seconds: float = 5.0,
+                                interval: float = 1.0,
+                                max_wait: float = 180.0) -> List[str]:
+    """
+    Poll Supabase until count of .txt files reaches expected_count and stays
+    unchanged for stable_seconds. Returns final .txt filenames list (unsorted).
+    """
+    last_count = None
+    last_change = time.time()
+    start = time.time()
+
+    while True:
+        files = list_supabase_txt_files(prefix)
+        count = len(files)
+
+        if count != last_count:
+            last_count = count
+            last_change = time.time()
+            logger.info(
+                f"🕘 Waiting for {expected_count} .txt files in '{prefix}' (currently {count})..."
+            )
+        else:
+            # if count hasn't changed for stable_seconds, and we have expected_count+, finish
+            if count >= expected_count and time.time() - last_change >= stable_seconds:
+                logger.info(
+                    f"✅ Folder stable: {count}/{expected_count} .txt files for {stable_seconds}s."
+                )
+                return files
+
+        if time.time() - start > max_wait:
+            logger.warning(
+                f"⏱️ Max wait reached; proceeding with {count}/{expected_count} .txt files."
+            )
+            return files
+
+        time.sleep(interval)
+
+def expected_question_numbers(n: int) -> List[int]:
+    """1..n"""
+    return list(range(1, n + 1))
+
+def find_missing_by_number(found_filenames: List[str], expected_numbers: List[int]) -> List[int]:
+    """Compare found files to expected numbers using the leading number parser."""
+    present_nums = set()
+    for name in found_filenames:
+        qnum = parse_question_number(name)
+        if qnum > 0:
+            present_nums.add(qnum)
+
+    missing = [q for q in expected_numbers if q not in present_nums]
+    return sorted(missing)
+
+def output_exists(run_id: str, qnum: int) -> bool:
+    """Check if the image prompt output already exists for a given question."""
+    qnum_str = f"{qnum:02d}" if qnum < 100 else f"{qnum:03d}"
+    out_rel = f"{BASE_DIR}/{run_id}/{IMAGE_PROMPTS_SUBDIR}/Question_{qnum_str}.txt"
+    try:
+        # Using read to check existence; underlying helper should raise/return None if 404.
+        content = read_supabase_file(out_rel, binary=True)
+        return content is not None
+    except Exception:
+        return False
+
 
 # =============================================================================
 # Core
@@ -222,6 +308,17 @@ def _process_run(
             # Politeness delay to avoid hammering APIs
             time.sleep(0.2)
 
+        # Optional: write a simple completion marker
+        try:
+            marker_rel = f"{BASE_DIR}/{run_id}/{IMAGE_PROMPTS_SUBDIR}/_run_complete.json"
+            write_supabase_file(
+                marker_rel,
+                json.dumps({"finished_at": time.time(), "generated": len(targets)}, ensure_ascii=False, indent=2),
+                content_type="application/json"
+            )
+        except Exception as e:
+            logger.warning(f"⚠️ Could not write completion marker: {e}")
+
         logger.info(f"✅ [ImagePrompts.Run] completed run_id={run_id}, generated={len(targets)}")
 
     except Exception as outer:
@@ -231,7 +328,8 @@ def _process_run(
 def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Called by main.py. Returns immediately so Zapier isn't held open.
-    Spawns a background worker to generate image prompts for every 4th question.
+    Spawns a background worker to generate image prompts for every 4th question,
+    but only after verifying the expected question files are present and stable.
     """
     # ---- Required
     run_id = (data.get("run_id") or "").strip()
@@ -271,28 +369,40 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
     if not character_attributes_text:
         raise FileNotFoundError(f"Character attributes file empty or not found: {char_path}")
 
-    # ---- List question files (correct folder) and select every 4th
+    # ---- SOURCE OF TRUTH: how many questions should exist?
+    all_questions = read_questions_file(QUESTIONS_FILE_PATH)
+    expected_count = len(all_questions)
+    logger.info(f"📚 questions.txt count = {expected_count}")
+
+    # ---- Wait for Supabase to have all expected .txt files (and stabilize)
     questions_prefix = f"{BASE_DIR}/{run_id}/{QUESTION_SUBDIR}"
     logger.info(
-        f"📂 Looking for question files under: {questions_prefix} "
+        f"📂 Waiting for question files under: {questions_prefix} "
         f"(full: {SUPABASE_ROOT_FOLDER}/{questions_prefix})"
     )
-    try:
-        entries = list_supabase_folder(questions_prefix)
-        logger.info(f"📂 Supabase returned {len(entries)} entries for {SUPABASE_ROOT_FOLDER}/{questions_prefix}")
-    except Exception as e:
-        logger.exception(f"❌ Error listing Supabase folder: {questions_prefix}: {e}")
-        raise
 
-    files = [
-        e.get("name", "") for e in entries
-        if isinstance(e, dict) and e.get("name", "").lower().endswith(".txt")
-    ]
-    logger.info(f"📄 TXT files discovered ({len(files)}): {files}")
+    found_txt_files = wait_for_expected_txt_files(
+        questions_prefix,
+        expected_count=expected_count,
+        stable_seconds=5.0,
+        interval=1.0,
+        max_wait=180.0,
+    )
 
-    # Parse question numbers and sort by numeric order
+    # Optional: final cross-check + diagnostics by number
+    missing_nums = find_missing_by_number(found_txt_files, expected_question_numbers(expected_count))
+    if missing_nums:
+        logger.warning(
+            f"⚠️ Missing {len(missing_nums)} expected question files by number: "
+            f"{missing_nums[:20]}{'...' if len(missing_nums) > 20 else ''}"
+        )
+        # Choose policy: bail hard or proceed best-effort.
+        # To enforce "all or nothing", uncomment the next line:
+        # raise RuntimeError(f"Not all question files are present: missing {missing_nums}")
+
+    # ---- Build numbered list from whatever is present (sorted by qnum)
     numbered: List[Tuple[int, str]] = []
-    for name in files:
+    for name in found_txt_files:
         qnum = parse_question_number(name)
         logger.info(f"🔎 Parsed qnum={qnum} from file='{name}'")
         if qnum > 0:
@@ -303,12 +413,19 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
     numbered.sort(key=lambda x: x[0])
     logger.info(f"📊 Numbered files (sorted): {numbered}")
 
-    # Filter to every 4th: 1,5,9,...
-    targets = [(q, n) for (q, n) in numbered if is_every_4th_question(q)]
+    # ---- Filter to every 4th: 1,5,9,... and make it resumable (skip existing outputs)
+    targets: List[Tuple[int, str]] = []
+    for (q, n) in numbered:
+        if is_every_4th_question(q):
+            if output_exists(run_id, q):
+                logger.info(f"⏭️ Output already exists for Q{q}; skipping.")
+                continue
+            targets.append((q, n))
+
     selected_qnums = [q for q, _ in targets]
-    logger.info(f"🎯 Files selected (every 4th): {targets}")
+    logger.info(f"🎯 Files selected (every 4th, missing outputs only): {targets}")
     if not targets:
-        logger.warning("⚠️ No question files matched the every-4th rule (1,5,9,...)")
+        logger.warning("⚠️ No questions selected (either none present or outputs already exist)")
 
     # ---- Load prompt template once
     prompt_template = load_text(PROMPT_PATH)
@@ -331,6 +448,9 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
         "message": "Question image generation started. Results will stream into Supabase.",
         "character_attributes_path": char_path,
         "question_folder": questions_prefix,
+        "expected_questions": expected_count,
+        "found_question_txt_files": len(found_txt_files),
+        "missing_question_numbers": missing_nums,
         "selected_count": len(targets),
         "selected_qnums": selected_qnums,
         "output_folder": f"{BASE_DIR}/{run_id}/{IMAGE_PROMPTS_SUBDIR}/"
