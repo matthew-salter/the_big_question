@@ -68,7 +68,6 @@ The avatar should look like a healthy, well-presented version of the patient (up
 - `Activity_Style`: Choose from: "active", "moderately_active", "sedentary", "outdoorsy", "homely". (string)
 - `Occupation_Or_Role`: Short description (e.g., "retired teacher"). (string)
 - `Emotional_Expression`: Choose from: "neutral", "smiling", "thoughtful" (prefer "smiling" or "thoughtful" for uplift). (string)
-- `Typical_Setting`: Freeform but grounded (e.g., "bright kitchen", "garden", "doctor’s office"). (string)
 
 **Medical Relevance (Condition-Aware, Subtle)**
 - `Condition_Cues_Strength`: Choose from: "subtle", "moderate". (string)
@@ -110,7 +109,6 @@ json
   "Activity_Style": "...",
   "Occupation_Or_Role": "...",
   "Emotional_Expression": "...",
-  "Typical_Setting": "...",
   "Condition_Cues_Strength": "...",
   "Medical_Condition_Cues": "...",
   "Health_Context_Expression": "..."
