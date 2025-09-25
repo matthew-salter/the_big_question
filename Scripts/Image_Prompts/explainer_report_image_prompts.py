@@ -33,9 +33,13 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_BUCKET = "panelitix"
 SUPABASE_ROOT_FOLDER = os.getenv("SUPABASE_ROOT_FOLDER", "The_Big_Question")
 
-# Retry policy
+# Retry policy (network/transport)
 MAX_TRIES = 6
 BASE_BACKOFF = 1.0  # seconds
+
+# Semantic retry policy (valid-JSON check)
+SEMANTIC_MAX_RETRIES = 3
+SEMANTIC_RETRY_SLEEP = 0.4  # seconds
 
 
 # =============================================================================
@@ -80,18 +84,31 @@ def list_supabase_folder(prefix: str) -> List[Dict[str, Any]]:
 
 def _normalize_quote_to_brace_spacing(text: str) -> str:
     """
-    Ensure exactly one newline exists between the closing quote of the value and the closing brace:
-        "...end."
-    }
-    This collapses 0+ blank lines/whitespace to exactly one newline, keeping your desired style.
+    Ensure exactly one newline exists between the closing quote of the value and the closing brace.
     Safe because each value is a single-line string.
     """
     text = text.replace("\r\n", "\n")
-    # Replace either same-line brace or multiple blank lines with exactly one newline before }
-    text = re.sub(r'("\s*)(?:\n\s*)?}', r'"\n}', text)  # handles 0 or 1+ newlines -> 1 newline
-    # If the model ever produced multiple newlines, collapse them to one (paranoia pass)
+    text = re.sub(r'("\s*)(?:\n\s*)?}', r'"\n}', text)
     text = re.sub(r'("\s*)\n{2,}\s*}', r'"\n}', text)
     return text
+
+def _strip_fences(s: str) -> str:
+    cleaned = (s or "").strip()
+    cleaned = re.sub(r"^\s*```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s*```\s*$", "", cleaned)
+    return cleaned
+
+def is_valid_json(ai_text: str) -> bool:
+    """
+    True if the (fence-stripped) text parses as a single JSON value (object/array/string/number).
+    We expect an object with 3 keys, but we accept any parseable JSON as 'valid' for this guard.
+    """
+    payload = _strip_fences(ai_text)
+    try:
+        json.loads(payload)
+        return True
+    except Exception:
+        return False
 
 def clean_ai_output_to_json_text(ai_text: str) -> str:
     """
@@ -99,9 +116,7 @@ def clean_ai_output_to_json_text(ai_text: str) -> str:
     If the model returned multiple standalone JSON objects (non-parseable as one
     JSON value), normalize spacing so the closing brace is on its own line.
     """
-    cleaned = (ai_text or "").strip()
-    cleaned = re.sub(r"^\s*```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
-    cleaned = re.sub(r"\s*```\s*$", "", cleaned)
+    cleaned = _strip_fences(ai_text)
     try:
         obj = json.loads(cleaned)
         return json.dumps(obj, ensure_ascii=False, indent=2)
@@ -136,12 +151,13 @@ def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TE
 def _process_run(run_id: str, ctx: Dict[str, Any], prompt_template: str) -> None:
     """
     Heavy worker: read the single Report_Assets file, plus character_attributes,
-    build one prompt, call OpenAI once, and write the result to Report_Prompts.txt.
+    build one prompt, call OpenAI once (with semantic JSON validation & retries),
+    and write the result to Report_Prompts.txt.
     """
     try:
         logger.info(f"🚀 [ExplainerImagePrompts.Run] start run_id={run_id}")
 
-        # ---- Load character attributes (required, like original script)
+        # ---- Load character attributes (required)
         char_path = f"{BASE_DIR}/{run_id}/{IMAGE_PROMPTS_SUBDIR}/character_attributes.txt"
         logger.info(f"📥 Reading character attributes: {char_path}")
         character_attributes_text = read_supabase_file(char_path, binary=False) or ""
@@ -207,27 +223,52 @@ def _process_run(run_id: str, ctx: Dict[str, Any], prompt_template: str) -> None
         }
 
         try:
-            prompt = prompt_template.format(**mapping)
-            logger.info(f"🧠 Built prompt (len={len(prompt)})")
+            base_prompt = prompt_template.format(**mapping)
+            logger.info(f"🧠 Built prompt (len={len(base_prompt)})")
         except Exception as e:
             logger.exception(f"❌ Error formatting prompt: {e}")
             return
 
-        # ---- OpenAI call (single)
-        try:
-            t0 = time.time()
-            ai_text = call_openai(
-                prompt,
-                model=ctx.get("model", DEFAULT_MODEL),
-                temperature=TEMPERATURE
-            )
-            latency = round(time.time() - t0, 3)
-            logger.info(f"🤖 OpenAI response received (latency={latency}s, len={len(ai_text or '')})")
-        except Exception as e:
-            logger.exception(f"❌ OpenAI call failed: {e}")
-            return
+        # ---- OpenAI call with simple semantic retries for valid JSON
+        ai_text = None
+        final_prompt = None
 
-        # ---- Clean to JSON text (no fences)
+        for attempt in range(1, SEMANTIC_MAX_RETRIES + 1):
+            # On retries, append a succinct JSON-only reminder
+            if attempt == 1:
+                prompt = base_prompt
+            else:
+                prompt = base_prompt + (
+                    "\n\nReturn VALID JSON only. "
+                    "Do not add any text before or after the JSON. "
+                    "Output a single JSON value matching the requested structure."
+                )
+
+            final_prompt = prompt
+            try:
+                t0 = time.time()
+                ai_text = call_openai(
+                    prompt,
+                    model=ctx.get("model", DEFAULT_MODEL),
+                    temperature=TEMPERATURE
+                )
+                latency = round(time.time() - t0, 3)
+                logger.info(f"🤖 OpenAI response (semantic attempt {attempt}/{SEMANTIC_MAX_RETRIES}) "
+                            f"(latency={latency}s, len={len(ai_text or '')})")
+            except Exception as e:
+                logger.exception(f"❌ OpenAI call failed on semantic attempt {attempt}: {e}")
+                # Network error is already retried inside call_openai(); if we are here, it's final. Abort.
+                return
+
+            if is_valid_json(ai_text):
+                logger.info("✅ Model returned parseable JSON.")
+                break  # accept
+            else:
+                logger.warning("⚠️ Model reply is not valid JSON; will retry if attempts remain.")
+                if attempt < SEMANTIC_MAX_RETRIES:
+                    time.sleep(SEMANTIC_RETRY_SLEEP)
+
+        # ---- Clean to JSON text (no fences). If invalid, this will just pass through text.
         final_text = clean_ai_output_to_json_text(ai_text)
         logger.info(f"🧹 Cleaned output (len={len(final_text)})")
 
