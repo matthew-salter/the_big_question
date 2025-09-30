@@ -6,8 +6,7 @@ Can {condition} be misdiagnosed or over-diagnosed?
 How will my doctor diagnose {condition}?
 How long does it normally take to get a diagnosis of {condition}?
 What is the role of AI in diagnosis of {condition}?
-What is the current NHS treatment plan for {condition} according to NICE guidelines?
-What are the waiting times and access issues for NHS {condition} services?
+What is the current standard treatment for {condition}?
 How effective are commonly prescribed drugs for treating {condition}?
 How do newer drugs for {condition} compare to traditional treatments?
 Are there any long-term risks of staying on {condition} medications?
@@ -18,26 +17,25 @@ How can I track my {condition} progression or improvement?
 What can I start doing today to feel more in control of my health with {condition}?
 Suggest 5 useful questions I could ask my doctor about {condition}.
 What important questions should I ask at my first specialist appointment for {condition}?
-For {condition}, can my GP help coordinate my treatment if I see multiple specialists?
 Will I need regular follow-up or monitoring with {condition}?
 Will I need to carry emergency medication for {condition}?
 What should I do if my {condition} symptoms change or get worse?
-For {condition}, how do I know which treatment is right for me?
 How have other people learned to cope emotionally after a {condition} diagnosis?
 Where can I find support groups or online communities for people with {condition}?
 How can I talk to my partner, children, or friends about {condition}?
+What is the current NHS treatment plan for {condition} according to NICE guidelines?
+What are the waiting times and access issues for NHS {condition} services?
 For {condition}, how can I combine NHS care with private treatment without duplication?
+For the UK, list the leading treatment centres for {condition}?
 As a patient with {condition}, what treatment might I be offered in France?
 As a patient with {condition}, what treatment might I be offered in USA?
 As a patient with {condition}, what treatment might I be offered in China?
 As a patient with {condition}, what treatment might I be offered in Japan?
 As a patient with {condition}, what treatment might I be offered at Mayo Clinic in USA?
-What are the leading treatment centres in the UK for {condition}?
 What are the functional medicine approaches to {condition}?
 What dietary theories are associated with treating {condition}?
 Can vibration therapy be used with {condition}?
 Can red light therapy be used with {condition}?
-Can stem cell therapy be used with {condition}?
 Can acupuncture therapy be used with {condition}?
 Can cold therapy be used with {condition}?
 Can infra-red therapy be used with {condition}?
@@ -49,9 +47,11 @@ What biohacking strategies have been suggested for managing {condition}?
 What does Dr Stephen Gundry say about {condition}?
 What does Dave Asprey’s say about {condition}?
 What new treatments are likely to become available in the next few years for {condition}?
-What are the newest drug treatments for {condition} and how do they work?
+What are the newest drug treatments for {condition}?
 What are the most promising {condition} treatments in development globally?
 Has gene therapy or mRNA-based therapy been tested for {condition}?
-What clinical trials are currently recruiting {condition} patients internationally?
+Is stem cell therapy being trialled for {condition}?
 What is the role of AI in treatment of {condition}?
 How far are we from a cure for {condition}?
+What clinical trials are currently taking place for {condition} in the UK?
+What clinical trials are currently taking place for {condition} internationally?
