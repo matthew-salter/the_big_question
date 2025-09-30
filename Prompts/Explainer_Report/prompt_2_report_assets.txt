@@ -7,9 +7,9 @@ Resume where you left off. Continue output in valid JSON only.
 ## INSTRUCTIONS
 
 You are helping to generate report-wide assets based on structured data previously identified.
-Use your understanding of the patient context and the below section assets to help generate the report assets.
+Use your understanding of the profile context and the below section assets to help generate the report assets.
 
-## PATIENT CONTEXT
+## PROFILE CONTEXT
 
 **Condition**: {condition}  
 **Age**: {age}  
@@ -38,7 +38,7 @@ These two variables are critical. They define **how** your response should be wr
 ## OBJECTIVE
 You must:
 Generate full-report-wide **report assets**.
-- Use the attached provided **question assets** alongside the above **patient context** and **report delivery style** as source material.
+- Use the attached provided **question assets** alongside the above **profile context** and **report delivery style** as source material.
 - Do not rephrase summaries; generate original, stylised content.
 
 ---
