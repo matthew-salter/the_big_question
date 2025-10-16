@@ -15,7 +15,7 @@ Would pacing help manage {condition}?
 Would stress management help {condition}?
 How can I track my {condition} progression or improvement?
 What can I start doing today to feel more in control of my health with {condition}?
-Suggest 5 useful questions I could ask my doctor about {condition}.
+Suggest 4 useful questions I could ask my doctor about {condition}.
 What important questions should I ask at my first specialist appointment for {condition}?
 Will I need regular follow-up or monitoring with {condition}?
 Will I need to carry emergency medication for {condition}?
