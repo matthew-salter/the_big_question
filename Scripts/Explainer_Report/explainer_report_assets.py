@@ -4,7 +4,7 @@ import os
 import re
 import json
 import time
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 import requests
 from openai import OpenAI
@@ -24,8 +24,17 @@ PARENT_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
 MERGED_SUBDIR = "Merged_Question_Outputs"
 REPORT_SUBDIR = "Report_Assets"
 
-DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+# Match script #1 defaults
+DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5")  # or "gpt-5-mini"
 TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
+
+# Conversation continuity (aligns with script #1)
+# "client" -> reuse rolling transcript from manifest.json
+# "none"   -> stateless, ignore prior Q/A
+# "server" -> placeholder for future server-side conversation_id (falls back to client)
+CONTEXT_MODE = os.getenv("EXPLAINER_CONTEXT_MODE", "client").lower()
+MAX_QA_IN_CONTEXT = int(os.getenv("EXPLAINER_MAX_QA_IN_CONTEXT", "8"))
+MAX_CONTEXT_CHARS = int(os.getenv("EXPLAINER_MAX_CONTEXT_CHARS", "24000"))
 
 # Supabase env
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -84,7 +93,6 @@ def list_supabase_folder(prefix: str) -> List[Dict[str, Any]]:
     resp.raise_for_status()
     return resp.json() or []
 
-
 # ---------------- AE → BE conversion ----------------
 
 _PAIR_RE = re.compile(r'"([^"]+)"\s*:\s*"([^"]+)"')
@@ -123,19 +131,91 @@ def american_to_british(text: str, compiled) -> str:
     pattern, mapping = compiled
     return pattern.sub(lambda m: mapping.get(m.group(1), m.group(1)), text)
 
+# ---------------- Conversation continuity (load from script #1) ----------------
 
-# ---------------- OpenAI ----------------
+def _path_manifest_for_run(run_id: str) -> str:
+    # Matches script #1: {PARENT_DIR}/{run_id}/Individual_Question_Outputs/manifest.json
+    return f"{PARENT_DIR}/{run_id}/Individual_Question_Outputs/manifest.json"
 
-def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TEMPERATURE) -> str:
+def load_conversation_state(run_id: str) -> Dict[str, Any]:
+    """
+    Load the conversation_state saved by script #1's manifest.
+    Returns dict with keys: {"qa": [...], "server_conversation_id": ...} if present.
+    """
+    manifest_path = _path_manifest_for_run(run_id)
+    logger.info(f"📥 Loading conversation_state from manifest: {manifest_path}")
+    try:
+        raw = read_supabase_file(manifest_path, binary=False) or ""
+        manifest = json.loads(raw)
+        return manifest.get("conversation_state", {}) or {}
+    except Exception as e:
+        logger.warning(f"⚠️ Could not load conversation_state: {e}")
+        return {}
+
+def format_conversation_block(convo: Dict[str, Any]) -> str:
+    """
+    Convert stored QA tail into a compact text block for the model.
+    """
+    qa_list = convo.get("qa") or []
+    if not qa_list:
+        return ""
+
+    # Last N only, then enforce char cap
+    qa_tail = qa_list[-MAX_QA_IN_CONTEXT:]
+    lines: List[str] = []
+    for i, qa in enumerate(qa_tail, 1):
+        q = (qa.get("q") or "").strip()
+        a = (qa.get("a") or "").strip()
+        # Keep block readable & compact
+        lines.append(f"Q{i}: {q}\nA{i}: {a}")
+    block = "\n\n".join(lines)
+    if len(block) > MAX_CONTEXT_CHARS:
+        block = block[-MAX_CONTEXT_CHARS:]
+    return block
+
+# ---------------- OpenAI (Responses API) ----------------
+
+def call_openai_responses(
+    prompt: str,
+    model: str = DEFAULT_MODEL,
+    temperature: float = TEMPERATURE,
+    *,
+    conversation_block: Optional[str] = None,
+    server_conversation_id: Optional[str] = None,
+) -> str:
+    """
+    Call OpenAI Responses API (GPT-5) with optional conversation continuity.
+    """
     client = OpenAI()
+
+    # Build input with optional prior Q/A preamble
+    if conversation_block:
+        preamble = (
+            "You are continuing the same case. Use the prior Q&A for consistency.\n"
+            "Avoid re-explaining shared setup unless needed.\n\n"
+            "=== Prior Q&A (most recent last) ===\n"
+            f"{conversation_block}\n"
+            "=== End prior Q&A ===\n\n"
+        )
+        final_input = f"{preamble}{prompt}"
+    else:
+        final_input = prompt
+
     for attempt in range(1, MAX_TRIES + 1):
         try:
-            resp = client.chat.completions.create(
+            kwargs = dict(
                 model=model,
+                input=final_input,
                 temperature=temperature,
-                messages=[{"role": "user", "content": prompt}],
+                verbosity="low",
+                reasoning_effort="minimal",
             )
-            return resp.choices[0].message.content.strip()
+            # Placeholder: if/when SDK exposes server-side conversation ids.
+            # if server_conversation_id:
+            #     kwargs["conversation_id"] = server_conversation_id
+
+            resp = client.responses.create(**kwargs)
+            return resp.output_text.strip()
         except Exception as e:
             if attempt == MAX_TRIES:
                 raise
@@ -195,7 +275,8 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
         "run_id": run_id, "first_name": first_name, "sur_name": sur_name,
         "condition": condition, "age": age, "gender": gender,
         "ethnicity": ethnicity, "region": region, "todays_date": todays_date,
-        "model": data.get("model", DEFAULT_MODEL)
+        "model": data.get("model", DEFAULT_MODEL),
+        "context_mode": CONTEXT_MODE
     }, ensure_ascii=False))
 
     # ---- Locate the merged file (there should be exactly one)
@@ -227,8 +308,24 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
         question_assets=safe_escape_braces(question_assets_text),
     )
 
-    # ---- Call OpenAI
-    ai_text = call_openai(prompt, model=data.get("model", DEFAULT_MODEL), temperature=TEMPERATURE)
+    # ---- Load conversation continuity from script #1
+    conversation_block = ""
+    server_conversation_id = None
+    if CONTEXT_MODE != "none":
+        convo = load_conversation_state(run_id)
+        conversation_block = format_conversation_block(convo)
+        if CONTEXT_MODE == "server":
+            server_conversation_id = convo.get("server_conversation_id") or None
+            # Until the SDK exposes conversation_id, we still include the client block.
+
+    # ---- Call OpenAI (Responses API, GPT-5)
+    ai_text = call_openai_responses(
+        prompt,
+        model=data.get("model", DEFAULT_MODEL),
+        temperature=TEMPERATURE,
+        conversation_block=conversation_block if conversation_block else None,
+        server_conversation_id=server_conversation_id,
+    )
 
     # ---- Clean to JSON text (no fences)
     json_text = clean_ai_output_to_json_text(ai_text)
