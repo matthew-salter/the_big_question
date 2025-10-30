@@ -27,7 +27,7 @@ PROMPT_PATH = "Prompts/Explainer_Report/prompt_1_question_assets.txt"
 SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
 
 # Models & generation controls
-DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5")  # or "gpt-5-mini"
+DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")  # or "gpt-5"
 # Keep env for observability only; not passed to Responses API due to model restrictions.
 TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
 
@@ -106,7 +106,7 @@ def call_openai_responses(
     server_conversation_id: Optional[str] = None,
 ) -> str:
     """
-    Call OpenAI Responses API with GPT-5.
+    Call OpenAI Responses API with GPT-5-mini.
     NOTE: Do NOT pass 'temperature' (some SDK/model combos reject it).
     """
     max_tries = 6
