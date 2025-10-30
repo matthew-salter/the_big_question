@@ -44,7 +44,7 @@ MAX_QA_IN_CONTEXT = int(os.getenv("EXPLAINER_MAX_QA_IN_CONTEXT", "3"))       # l
 MAX_CONTEXT_CHARS = int(os.getenv("EXPLAINER_MAX_CONTEXT_CHARS", "6000"))    # hard cap to avoid token bloat
 
 # Batching
-BATCH_SIZE = max(1, int(os.getenv("BATCH_SIZE", "5")))  # default 5 (12 calls for 60 questions)
+BATCH_SIZE = max(1, int(os.getenv("BATCH_SIZE", "10")))  # default 10 (6 calls for 60 questions)
 POLITENESS_DELAY = float(os.getenv("EXPLAINER_POLITENESS_DELAY", "0.05"))    # small delay between batches
 
 # =========================
