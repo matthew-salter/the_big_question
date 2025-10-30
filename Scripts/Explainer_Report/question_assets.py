@@ -38,8 +38,8 @@ TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
 CONTEXT_MODE = os.getenv("EXPLAINER_CONTEXT_MODE", "client").lower()
 
 # Rolling transcript limits (applies when CONTEXT_MODE != "none")
-MAX_QA_IN_CONTEXT = int(os.getenv("EXPLAINER_MAX_QA_IN_CONTEXT", "8"))       # keep last N Q/A pairs
-MAX_CONTEXT_CHARS = int(os.getenv("EXPLAINER_MAX_CONTEXT_CHARS", "24000"))   # hard cap to avoid token bloat
+MAX_QA_IN_CONTEXT = int(os.getenv("EXPLAINER_MAX_QA_IN_CONTEXT", "3"))       # keep last N Q/A pairs
+MAX_CONTEXT_CHARS = int(os.getenv("EXPLAINER_MAX_CONTEXT_CHARS", "6000"))   # hard cap to avoid token bloat
 
 # =========================
 # Helpers
