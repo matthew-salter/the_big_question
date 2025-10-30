@@ -26,20 +26,26 @@ PROMPT_PATH = "Prompts/Explainer_Report/prompt_1_question_assets.txt"
 # prepends SUPABASE_ROOT_FOLDER to the path.
 SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
 
-# Models & generation controls
-DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")  # or "gpt-5"
-# Keep env for observability only; not passed to Responses API due to model restrictions.
+# Model (env-driven). Recommend OPENAI_MODEL=gpt-5-mini for this stage.
+DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+
+# Temperature kept for observability only; NOT passed to Responses API.
 TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
 
 # Conversation continuity mode within a run:
-# "client" -> rolling transcript included in each request (recommended now)
-# "none"   -> each question is stateless
-# "server" -> placeholder for future server-side conversation id (falls back to "client" if unsupported)
+# "client" -> rolling transcript included in each request (recommended)
+# "none"   -> each batch is stateless
+# "server" -> placeholder for future server-side conversation id (falls back to "client")
 CONTEXT_MODE = os.getenv("EXPLAINER_CONTEXT_MODE", "client").lower()
 
 # Rolling transcript limits (applies when CONTEXT_MODE != "none")
-MAX_QA_IN_CONTEXT = int(os.getenv("EXPLAINER_MAX_QA_IN_CONTEXT", "3"))       # keep last N Q/A pairs
-MAX_CONTEXT_CHARS = int(os.getenv("EXPLAINER_MAX_CONTEXT_CHARS", "6000"))   # hard cap to avoid token bloat
+# Keep these tight for speed.
+MAX_QA_IN_CONTEXT = int(os.getenv("EXPLAINER_MAX_QA_IN_CONTEXT", "3"))       # last N Q/A pairs
+MAX_CONTEXT_CHARS = int(os.getenv("EXPLAINER_MAX_CONTEXT_CHARS", "6000"))    # hard cap to avoid token bloat
+
+# Batching
+BATCH_SIZE = max(1, int(os.getenv("BATCH_SIZE", "5")))  # default 5 (12 calls for 60 questions)
+POLITENESS_DELAY = float(os.getenv("EXPLAINER_POLITENESS_DELAY", "0.05"))    # small delay between batches
 
 # =========================
 # Helpers
@@ -71,8 +77,7 @@ def load_questions(path: str) -> List[str]:
 
 def format_question(q_template: str, ctx: Dict[str, Any]) -> str:
     """
-    1) Substitute {condition} (and any other vars) inside the question line itself.
-    2) Return the concrete question string to inject into the main prompt as {question}.
+    Substitute {condition} (and any other vars) inside the question line itself.
     """
     safe_ctx = {k: safe_escape_braces(str(v)) for k, v in ctx.items()}
     try:
@@ -93,72 +98,6 @@ def build_prompt(template: str, question: str, ctx: Dict[str, Any]) -> str:
         missing = str(e).strip("'")
         raise KeyError(f"Prompt template missing value for {{{missing}}}") from e
 
-# ---------------- OpenAI (Responses API) ----------------
-
-_client = OpenAI()
-
-def call_openai_responses(
-    prompt: str,
-    model: str = DEFAULT_MODEL,
-    temperature: float = TEMPERATURE,  # kept for signature compatibility; not used
-    *,
-    conversation_block: Optional[str] = None,
-    server_conversation_id: Optional[str] = None,
-) -> str:
-    """
-    Call OpenAI Responses API with GPT-5-mini.
-    NOTE: Do NOT pass 'temperature' (some SDK/model combos reject it).
-    """
-    max_tries = 6
-    base_sleep = 1.0
-
-    # Compose final input
-    if conversation_block:
-        preamble = (
-            "You are answering a series of related questions for the same patient/context.\n"
-            "Use the prior Q&A for consistency. Do not re-explain shared setup unless asked.\n\n"
-            "=== Prior Q&A (most recent last) ===\n"
-            f"{conversation_block}\n"
-            "=== End prior Q&A ===\n\n"
-        )
-        final_input = f"{preamble}{prompt}"
-    else:
-        final_input = prompt
-
-    for attempt in range(1, max_tries + 1):
-        try:
-            kwargs = dict(
-                model=model,
-                input=final_input,
-            )
-            # If/when the SDK exposes server-side conversation ids:
-            # if server_conversation_id:
-            #     kwargs["conversation_id"] = server_conversation_id
-
-            resp = _client.responses.create(**kwargs)
-            return resp.output_text.strip()
-
-        except TypeError as e:
-            # Defensive retry with bare minimum (in case any stray kwargs are added later)
-            if attempt == 1 and "unexpected keyword argument" in str(e):
-                try:
-                    resp = _client.responses.create(model=model, input=final_input)
-                    return resp.output_text.strip()
-                except Exception:
-                    pass
-            if attempt == max_tries:
-                raise
-            sleep = base_sleep * (2 ** (attempt - 1)) + (0.25 * (attempt - 1))
-            logger.warning(f"⚠️ OpenAI TypeError (attempt {attempt}/{max_tries}): {e}. Backing off {sleep:.2f}s")
-            time.sleep(sleep)
-
-        except Exception as e:
-            if attempt == max_tries:
-                raise
-            sleep = base_sleep * (2 ** (attempt - 1)) + (0.25 * (attempt - 1))
-            logger.warning(f"⚠️ OpenAI error (attempt {attempt}/{max_tries}): {e}. Backing off {sleep:.2f}s")
-            time.sleep(sleep)
-
 def clean_ai_output(ai_text: str) -> str:
     """
     Remove markdown code fences if present and pretty-print JSON if valid.
@@ -174,7 +113,6 @@ def clean_ai_output(ai_text: str) -> str:
         obj = json.loads(cleaned)
         return json.dumps(obj, ensure_ascii=False, indent=2)
     except json.JSONDecodeError:
-        # If it isn't valid JSON, just return the cleaned text
         return cleaned
 
 def supabase_write_txt(path: str, content: str):
@@ -191,7 +129,6 @@ def supabase_write_textjson(path: str, obj: Dict[str, Any]):
 
 # =========================
 # Checkpoint & Manifest
-# (stored alongside outputs)
 # =========================
 
 def supabase_paths(run_id: str) -> Dict[str, str]:
@@ -223,7 +160,7 @@ def upsert_manifest_item(manifest: Dict[str, Any], item: Dict[str, Any]) -> None
 def default_checkpoint() -> Dict[str, Any]:
     return {"last_completed_index": -1, "updated_at": now_iso()}
 
-def update_checkpoint(ckpt: Dict[str, Any], idx: int) -> Dict[str, Any]:
+def update_checkpoint_to_index(ckpt: Dict[str, Any], idx: int) -> Dict[str, Any]:
     ckpt["last_completed_index"] = idx
     ckpt["updated_at"] = now_iso()
     return ckpt
@@ -244,15 +181,15 @@ class ConversationState:
 
     def as_text_block(self) -> str:
         """
-        Format last N Q/A into a human readable block.
+        Format last N Q/A into a human readable block with strict caps.
         """
         if not self.qa:
             return ""
         subset = self.qa[-MAX_QA_IN_CONTEXT:]
         lines: List[str] = []
         for i, qa in enumerate(subset, 1):
-            q = qa.get("q", "").strip()
-            a = qa.get("a", "").strip()
+            q = (qa.get("q") or "").strip()
+            a = (qa.get("a") or "").strip()
             lines.append(f"Q{i}: {q}\nA{i}: {a}")
         block = "\n\n".join(lines)
         if len(block) > MAX_CONTEXT_CHARS:
@@ -267,6 +204,124 @@ class ConversationState:
             "qa": self.qa[-MAX_QA_IN_CONTEXT:],  # bounded tail only
             "server_conversation_id": self.server_conversation_id,
         }
+
+# =========================
+# OpenAI (Responses API)
+# =========================
+
+_client = OpenAI()
+
+def call_openai_responses(
+    prompt: str,
+    model: str = DEFAULT_MODEL,
+    *,
+    conversation_block: Optional[str] = None,
+    server_conversation_id: Optional[str] = None,
+) -> str:
+    """
+    Call OpenAI Responses API with GPT-5 / gpt-5-mini.
+    NOTE: Do NOT pass 'temperature' / 'verbosity' / 'reasoning_effort'.
+    """
+    max_tries = 6
+    base_sleep = 1.0
+
+    # Compose final input
+    if conversation_block:
+        preamble = (
+            "You are answering a series of related questions for the same patient/context.\n"
+            "Use the prior Q&A for consistency. Avoid re-explaining shared setup unless asked.\n\n"
+            "=== Prior Q&A (most recent last) ===\n"
+            f"{conversation_block}\n"
+            "=== End prior Q&A ===\n\n"
+        )
+        final_input = f"{preamble}{prompt}"
+    else:
+        final_input = prompt
+
+    for attempt in range(1, max_tries + 1):
+        try:
+            kwargs = dict(model=model, input=final_input)
+            # If/when the SDK exposes server-side conversation ids:
+            # if server_conversation_id:
+            #     kwargs["conversation_id"] = server_conversation_id
+
+            resp = _client.responses.create(**kwargs)
+            return resp.output_text.strip()
+
+        except Exception as e:
+            if attempt == max_tries:
+                raise
+            sleep = base_sleep * (2 ** (attempt - 1)) + (0.25 * (attempt - 1))
+            logger.warning(f"⚠️ OpenAI error (attempt {attempt}/{max_tries}): {e}. Backing off {sleep:.2f}s")
+            time.sleep(sleep)
+
+# =========================
+# Batching helpers
+# =========================
+
+def build_batch_prompt(
+    prompt_template: str,
+    batch_questions_filled: List[str],
+    ctx: Dict[str, Any],
+    conversation_block: str,
+) -> str:
+    """
+    Build a single prompt for a batch of N questions.
+    We *embed* the single-question template output for each question,
+    and instruct the model to return a JSON array (no extra prose).
+    """
+    header = ""
+    if conversation_block:
+        header = (
+            "You are continuing the same case. Use the prior Q&A for consistency.\n\n"
+            "=== Prior Q&A (most recent last) ===\n"
+            f"{conversation_block}\n"
+            "=== End prior Q&A ===\n\n"
+        )
+
+    # For each filled question, we still include the same per-question structure
+    # by applying the single-question template (done before this function),
+    # so the model sees identical framing per item.
+    numbered = []
+    for i, filled_question in enumerate(batch_questions_filled, 1):
+        # Build the *final* per-item prompt by injecting the per-question text
+        per_item_prompt = prompt_template.format(
+            condition=safe_escape_braces(ctx.get("condition", "")),
+            age=safe_escape_braces(ctx.get("age", "")),
+            gender=safe_escape_braces(ctx.get("gender", "")),
+            ethnicity=safe_escape_braces(ctx.get("ethnicity", "")),
+            region=safe_escape_braces(ctx.get("region", "")),
+            todays_date=safe_escape_braces(ctx.get("todays_date", "")),
+            question=safe_escape_braces(filled_question),
+        )
+        numbered.append(f"{i}. {per_item_prompt}")
+
+    instructions = (
+        "Return answers as a JSON array, where each item has exactly:\n"
+        '{ "index": <1-based integer matching the numbering>,\n'
+        '  "question_filled": "<the exact question string>",\n'
+        '  "answer_json_text": "<the answer as valid JSON or clean plain text>" }\n'
+        "Do not include any extra text before or after the JSON array."
+    )
+
+    return f"{header}Answer the following {len(batch_questions_filled)} questions.\n\n" + \
+           "\n\n".join(numbered) + "\n\n" + instructions
+
+def parse_batch_response(raw_text: str) -> List[Dict[str, Any]]:
+    """
+    Parse the model's batched JSON array and return list of items.
+    Raises ValueError if parsing fails.
+    """
+    cleaned = clean_ai_output(raw_text)
+    try:
+        arr = json.loads(cleaned)
+        if not isinstance(arr, list):
+            raise ValueError("Model did not return a JSON array.")
+        return arr
+    except Exception as e:
+        # Attach a short preview to help diagnose
+        preview = cleaned[:600]
+        raise ValueError(f"Batch parse failed: {e}\nPreview:\n{preview}")
 
 # =========================
 # Core worker (background)
@@ -302,13 +357,14 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             total,
             payload_meta={
                 "model": payload.get("model", DEFAULT_MODEL),
-                "temperature": TEMPERATURE,  # observed only
+                "temperature": TEMPERATURE,  # observed only; not sent
                 "ctx": ctx,
                 "questions_path": QUESTIONS_PATH,
                 "prompt_path": PROMPT_PATH,
                 "context_mode": CONTEXT_MODE,
                 "max_qa_in_context": MAX_QA_IN_CONTEXT,
                 "max_context_chars": MAX_CONTEXT_CHARS,
+                "batch_size": BATCH_SIZE,
             },
         )
         ckpt = default_checkpoint()
@@ -320,94 +376,143 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
         supabase_write_textjson(paths["manifest"], manifest)
         supabase_write_textjson(paths["checkpoint"], ckpt)
 
-        # Sequential loop — only advance after successful write
-        for idx, q_tmpl in enumerate(q_templates):
-            if idx <= ckpt["last_completed_index"]:
+        # BATCHED LOOP
+        idx = 0
+        while idx < total:
+            end = min(idx + BATCH_SIZE, total)
+
+            # Prepare filled questions for this batch
+            batch_qs_filled = [format_question(q_templates[j], ctx) for j in range(idx, end)]
+
+            # Pre-register manifest items with status "started"
+            for j, q_text in enumerate(batch_qs_filled):
+                gidx = idx + j
+                q_id = f"{gidx+1:02d}_{slugify(q_text)[:50]}_{sha8(q_text)}"
+                item = {
+                    "q_id": q_id,
+                    "index": gidx,
+                    "question_template": q_templates[gidx],
+                    "question_filled": q_text,
+                    "status": "started",
+                    "started_at": now_iso(),
+                    "output_path": f'{paths["base"]}/{q_id}.txt',
+                    "retries": 0,
+                    "error": None,
+                }
+                upsert_manifest_item(manifest, item)
+
+            # Continuity block (small tail)
+            conversation_block = ""
+            if CONTEXT_MODE != "none":
+                conversation_block = convo.as_text_block()
+
+            # Build single batch prompt
+            batch_prompt = build_batch_prompt(
+                prompt_template=prompt_template,
+                batch_questions_filled=batch_qs_filled,
+                ctx=ctx,
+                conversation_block=conversation_block,
+            )
+
+            # Call model once for this batch
+            t0 = time.time()
+            raw = call_openai_responses(
+                batch_prompt,
+                model=payload.get("model", DEFAULT_MODEL),
+                conversation_block=None,           # we already embedded continuity in the prompt
+                server_conversation_id=None,       # reserved; not used
+            )
+            elapsed = round(time.time() - t0, 3)
+
+            # Parse and write each item
+            try:
+                arr = parse_batch_response(raw)
+            except Exception as e:
+                # Mark entire batch as failed with one shared error; proceed to next batch
+                err_msg = {"type": type(e).__name__, "message": str(e)}
+                for j, q_text in enumerate(batch_qs_filled):
+                    gidx = idx + j
+                    q_id = f"{gidx+1:02d}_{slugify(q_text)[:50]}_{sha8(q_text)}"
+                    item = {
+                        "q_id": q_id,
+                        "index": gidx,
+                        "question_template": q_templates[gidx],
+                        "question_filled": q_text,
+                        "status": "failed",
+                        "failed_at": now_iso(),
+                        "output_path": f'{paths["base"]}/{q_id}.txt',
+                        "retries": 0,
+                        "error": err_msg,
+                    }
+                    upsert_manifest_item(manifest, item)
+
+                manifest["conversation_state"] = convo.to_dict()
+                supabase_write_textjson(paths["manifest"], manifest)
+                # Checkpoint moves to end-1 only if contiguous done; here none were done in this batch.
+                # Keep prior checkpoint unchanged.
+                # Move to next batch
+                idx = end
+                time.sleep(POLITENESS_DELAY)
                 continue
 
-            # 1) Fill {condition} (and any other ctx vars) inside the question itself
-            filled_q = format_question(q_tmpl, ctx)
+            # Write outputs and mark done
+            # Keep a small tail of the last few Q/As for continuity
+            tail_qa_to_push: List[Dict[str, str]] = []
 
-            # 2) Build full prompt with {question} + patient context
-            base_prompt = build_prompt(prompt_template, filled_q, ctx)
+            for item_obj in arr:
+                # Defensive pulls
+                try:
+                    i1 = int(item_obj.get("index", 0))
+                except Exception:
+                    i1 = 0
+                if i1 < 1 or i1 > len(batch_qs_filled):
+                    continue
 
-            # 3) Conversation continuity
-            conversation_block = ""
-            server_conversation_id = None
+                gidx = idx + (i1 - 1)
+                q_text = batch_qs_filled[i1 - 1]
+                q_id = f"{gidx+1:02d}_{slugify(q_text)[:50]}_{sha8(q_text)}"
+                outfile = f'{paths["base"]}/{q_id}.txt'
 
-            if CONTEXT_MODE == "client":
-                conversation_block = convo.as_text_block()
-            elif CONTEXT_MODE == "server":
-                # Placeholder if/when your SDK exposes conversation_id.
-                # server_conversation_id = convo.server_conversation_id
-                # Fallback to client continuity for now:
-                conversation_block = convo.as_text_block()
-
-            # 4) Prepare output paths and manifest entry
-            q_id = f"{idx+1:02d}_{slugify(filled_q)[:50]}_{sha8(filled_q)}"
-            outfile = f'{paths["base"]}/{q_id}.txt'
-
-            item = {
-                "q_id": q_id,
-                "index": idx,
-                "question_template": q_tmpl,
-                "question_filled": filled_q,
-                "status": "started",
-                "started_at": now_iso(),
-                "output_path": outfile,
-                "retries": 0,
-                "error": None,
-            }
-            upsert_manifest_item(manifest, item)
-            # Store convo snapshot for observability
-            manifest["conversation_state"] = convo.to_dict()
-            supabase_write_textjson(paths["manifest"], manifest)
-
-            try:
-                t0 = time.time()
-                ai_text = call_openai_responses(
-                    base_prompt,
-                    model=payload.get("model", DEFAULT_MODEL),
-                    temperature=TEMPERATURE,  # ignored by API
-                    conversation_block=conversation_block if conversation_block else None,
-                    server_conversation_id=server_conversation_id,
-                )
-                elapsed = round(time.time() - t0, 3)
-
-                # Clean to pure JSON string (no markdown fences)
-                final_output = clean_ai_output(ai_text)
+                # Model returns answer_json_text (JSON or text). Clean to strip fences.
+                answer_text = (item_obj.get("answer_json_text") or "").strip()
+                final_output = clean_ai_output(answer_text)
 
                 # Save as .txt but content is JSON/text
                 supabase_write_txt(outfile, final_output)
 
                 # Mark done
-                item.update({"status": "done", "completed_at": now_iso(), "latency_seconds": elapsed})
-                upsert_manifest_item(manifest, item)
+                item_rec = {
+                    "q_id": q_id,
+                    "index": gidx,
+                    "question_template": q_templates[gidx],
+                    "question_filled": q_text,
+                    "status": "done",
+                    "completed_at": now_iso(),
+                    "latency_seconds": elapsed,   # same elapsed for all items in this batch
+                    "output_path": outfile,
+                    "retries": 0,
+                    "error": None,
+                }
+                upsert_manifest_item(manifest, item_rec)
 
-                # Update conversation transcript (Q/A)
-                if CONTEXT_MODE != "none":
-                    convo.push(filled_q, final_output)
+                # Prepare tail push (we'll only push a couple to keep context lean)
+                tail_qa_to_push.append({"q": q_text, "a": final_output})
 
-                # Persist manifest + checkpoint + convo snapshot
-                manifest["conversation_state"] = convo.to_dict()
-                supabase_write_textjson(paths["manifest"], manifest)
+            # Update conversation with last 2 from this batch (keeps context lean)
+            if CONTEXT_MODE != "none" and tail_qa_to_push:
+                for qa in tail_qa_to_push[-2:]:
+                    convo.push(qa["q"], qa["a"])
 
-                ckpt = update_checkpoint(ckpt, idx)
-                supabase_write_textjson(paths["checkpoint"], ckpt)
+            # Persist manifest + checkpoint + convo
+            manifest["conversation_state"] = convo.to_dict()
+            ckpt = update_checkpoint_to_index(ckpt, end - 1)
+            supabase_write_textjson(paths["manifest"], manifest)
+            supabase_write_textjson(paths["checkpoint"], ckpt)
 
-                # Politeness delay (tune/remove as needed)
-                time.sleep(0.25)
-
-            except Exception as e:
-                item.update({
-                    "status": "failed",
-                    "failed_at": now_iso(),
-                    "error": {"type": type(e).__name__, "message": str(e)},
-                })
-                upsert_manifest_item(manifest, item)
-                manifest["conversation_state"] = convo.to_dict()
-                supabase_write_textjson(paths["manifest"], manifest)
-                # Continue to next question
+            # Next batch
+            idx = end
+            if POLITENESS_DELAY > 0:
+                time.sleep(POLITENESS_DELAY)
 
         logger.info(
             f"✅ [Explainer.Run] completed run_id={run_id} total={total} "
@@ -440,6 +545,7 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
         "todays_date": data.get("todays_date"),
         "model": data.get("model", DEFAULT_MODEL),
         "context_mode": CONTEXT_MODE,
+        "batch_size": BATCH_SIZE,
     }, ensure_ascii=False))
 
     # Spin off background thread — return immediately to Zapier
@@ -449,6 +555,6 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "status": "processing",
         "run_id": run_id,
-        "message": "Explainer report run started. Results will stream into Supabase.",
+        "message": "Explainer report run started. Batched results will stream into Supabase.",
         "supabase_base_dir": f"{SUPABASE_BASE_DIR}/{run_id}/Individual_Question_Outputs/"
     }
