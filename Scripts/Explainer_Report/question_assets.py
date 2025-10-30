@@ -8,7 +8,7 @@ import time
 import threading
 import hashlib
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from openai import OpenAI
 from logger import logger
@@ -26,8 +26,19 @@ PROMPT_PATH = "Prompts/Explainer_Report/prompt_1_question_assets.txt"
 # prepends SUPABASE_ROOT_FOLDER to the path.
 SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
 
-DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+# Models & generation controls
+DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5")  # or "gpt-5-mini"
 TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
+
+# Conversation continuity mode within a run:
+# "client" -> rolling transcript included in each request (recommended now)
+# "none"   -> each question is stateless
+# "server" -> placeholder for future server-side conversation id (falls back to "client" if unsupported)
+CONTEXT_MODE = os.getenv("EXPLAINER_CONTEXT_MODE", "client").lower()
+
+# Rolling transcript limits (applies when CONTEXT_MODE != "none")
+MAX_QA_IN_CONTEXT = int(os.getenv("EXPLAINER_MAX_QA_IN_CONTEXT", "8"))  # keep last N Q/A pairs
+MAX_CONTEXT_CHARS = int(os.getenv("EXPLAINER_MAX_CONTEXT_CHARS", "24000"))  # hard cap to avoid token bloat
 
 # =========================
 # Helpers
@@ -81,19 +92,63 @@ def build_prompt(template: str, question: str, ctx: Dict[str, Any]) -> str:
         missing = str(e).strip("'")
         raise KeyError(f"Prompt template missing value for {{{missing}}}") from e
 
-def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TEMPERATURE) -> str:
+def call_openai_responses(
+    prompt: str,
+    model: str = DEFAULT_MODEL,
+    temperature: float = TEMPERATURE,
+    *,
+    conversation_block: Optional[str] = None,
+    server_conversation_id: Optional[str] = None,
+) -> str:
+    """
+    Call OpenAI Responses API with GPT-5.
+    - Adds a lightweight preamble when conversation_block is provided,
+      so the model has continuity without re-sending entire history.
+    - server_conversation_id is reserved for future server-side conversation use;
+      if provided but unsupported by SDK, it is safely ignored.
+    """
     client = OpenAI()
     max_tries = 6
     base_sleep = 1.0
 
+    # Compose final input
+    if conversation_block:
+        preamble = (
+            "You are answering a series of related questions for the same patient/context.\n"
+            "Use the prior Q&A for consistency. Do not re-explain shared setup unless asked.\n\n"
+            "=== Prior Q&A (most recent last) ===\n"
+            f"{conversation_block}\n"
+            "=== End prior Q&A ===\n\n"
+        )
+        final_input = f"{preamble}{prompt}"
+    else:
+        final_input = prompt
+
     for attempt in range(1, max_tries + 1):
         try:
-            resp = client.chat.completions.create(
+            # NOTE: Responses API simple string input.
+            # Keep reasoning controls modest; you can env-gate these later.
+            kwargs = dict(
                 model=model,
+                input=final_input,
                 temperature=temperature,
-                messages=[{"role": "user", "content": prompt}],
+                verbosity="low",
+                reasoning_effort="minimal",
             )
-            return resp.choices[0].message.content.strip()
+
+            # Placeholder for future server-side conversation support.
+            # If an SDK exposes e.g. conversation_id, put it here:
+            # kwargs["conversation_id"] = server_conversation_id
+            # We'll keep it guarded to avoid breaking older SDKs.
+            if server_conversation_id:
+                # We don't know if the current SDK supports it; safe no-op.
+                # If unsupported, this block just doesn't modify kwargs.
+                pass
+
+            resp = client.responses.create(**kwargs)
+            # SDK helper for text:
+            return resp.output_text.strip()
+
         except Exception as e:
             if attempt == max_tries:
                 raise
@@ -171,6 +226,49 @@ def update_checkpoint(ckpt: Dict[str, Any], idx: int) -> Dict[str, Any]:
     return ckpt
 
 # =========================
+# Conversation state (client-side rolling transcript)
+# =========================
+
+class ConversationState:
+    """
+    Maintains a compact rolling Q/A transcript per run for continuity.
+    Serialized into the manifest on each step so you can audit/debug.
+    """
+
+    def __init__(self):
+        self.qa: List[Dict[str, str]] = []  # [{q: "...", a: "..."}]
+        self.server_conversation_id: Optional[str] = None  # reserved for future
+
+    def as_text_block(self) -> str:
+        """
+        Format last N Q/A into a human readable block.
+        """
+        if not self.qa:
+            return ""
+        # Keep the last N
+        subset = self.qa[-MAX_QA_IN_CONTEXT:]
+        # Compose
+        lines: List[str] = []
+        for i, qa in enumerate(subset, 1):
+            q = qa.get("q", "").strip()
+            a = qa.get("a", "").strip()
+            lines.append(f"Q{i}: {q}\nA{i}: {a}")
+        block = "\n\n".join(lines)
+        # Trim to max chars
+        if len(block) > MAX_CONTEXT_CHARS:
+            block = block[-MAX_CONTEXT_CHARS:]
+        return block
+
+    def push(self, question: str, answer: str) -> None:
+        self.qa.append({"q": question, "a": answer})
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "qa": self.qa[-MAX_QA_IN_CONTEXT:],  # store a bounded tail
+            "server_conversation_id": self.server_conversation_id,
+        }
+
+# =========================
 # Core worker (background)
 # =========================
 
@@ -208,9 +306,15 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                 "ctx": ctx,
                 "questions_path": QUESTIONS_PATH,
                 "prompt_path": PROMPT_PATH,
+                "context_mode": CONTEXT_MODE,
+                "max_qa_in_context": MAX_QA_IN_CONTEXT,
+                "max_context_chars": MAX_CONTEXT_CHARS,
             },
         )
         ckpt = default_checkpoint()
+
+        # Conversation state for this run
+        convo = ConversationState()
 
         # Persist initial metadata (in the same folder as outputs)
         supabase_write_textjson(paths["manifest"], manifest)
@@ -225,8 +329,22 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             filled_q = format_question(q_tmpl, ctx)
 
             # 2) Build full prompt with {question} + patient context
-            prompt = build_prompt(prompt_template, filled_q, ctx)
+            base_prompt = build_prompt(prompt_template, filled_q, ctx)
 
+            # 3) Decide conversation block based on mode
+            conversation_block = ""
+            server_conversation_id = None
+
+            if CONTEXT_MODE == "client":
+                conversation_block = convo.as_text_block()
+
+            elif CONTEXT_MODE == "server":
+                # Placeholder: if your SDK exposes a conversation_id, attach it here
+                # server_conversation_id = convo.server_conversation_id or "<create-new-on-first-call>"
+                # For now, fall back to client-side continuity for reliability.
+                conversation_block = convo.as_text_block()
+
+            # 4) Prepare output paths and manifest entry
             q_id = f"{idx+1:02d}_{slugify(filled_q)[:50]}_{sha8(filled_q)}"
             outfile = f'{paths["base"]}/{q_id}.txt'
 
@@ -242,29 +360,40 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                 "error": None,
             }
             upsert_manifest_item(manifest, item)
+            # Also store convo snapshot for observability
+            manifest["conversation_state"] = convo.to_dict()
             supabase_write_textjson(paths["manifest"], manifest)
 
             try:
                 t0 = time.time()
-                ai_text = call_openai(
-                    prompt,
+                ai_text = call_openai_responses(
+                    base_prompt,
                     model=payload.get("model", DEFAULT_MODEL),
-                    temperature=TEMPERATURE
+                    temperature=TEMPERATURE,
+                    conversation_block=conversation_block if conversation_block else None,
+                    server_conversation_id=server_conversation_id,
                 )
                 elapsed = round(time.time() - t0, 3)
 
                 # Clean to pure JSON string (no markdown fences)
                 final_output = clean_ai_output(ai_text)
 
-                # Save as .txt but content is JSON
+                # Save as .txt but content is JSON/text
                 supabase_write_txt(outfile, final_output)
 
                 # Mark done
                 item.update({"status": "done", "completed_at": now_iso(), "latency_seconds": elapsed})
                 upsert_manifest_item(manifest, item)
+
+                # Update conversation transcript (Q/A)
+                if CONTEXT_MODE != "none":
+                    # Use the *cleaned* output so the context stays parseable and compact
+                    convo.push(filled_q, final_output)
+
+                # Persist manifest + checkpoint + convo snapshot
+                manifest["conversation_state"] = convo.to_dict()
                 supabase_write_textjson(paths["manifest"], manifest)
 
-                # Checkpoint after successful write
                 ckpt = update_checkpoint(ckpt, idx)
                 supabase_write_textjson(paths["checkpoint"], ckpt)
 
@@ -278,6 +407,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     "error": {"type": type(e).__name__, "message": str(e)},
                 })
                 upsert_manifest_item(manifest, item)
+                manifest["conversation_state"] = convo.to_dict()
                 supabase_write_textjson(paths["manifest"], manifest)
                 # Continue to next question
 
@@ -311,6 +441,7 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
         "region": data.get("region"),
         "todays_date": data.get("todays_date"),
         "model": data.get("model", DEFAULT_MODEL),
+        "context_mode": CONTEXT_MODE,
     }, ensure_ascii=False))
 
     # Spin off background thread — return immediately to Zapier
