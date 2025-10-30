@@ -160,13 +160,11 @@ def format_conversation_block(convo: Dict[str, Any]) -> str:
     if not qa_list:
         return ""
 
-    # Last N only, then enforce char cap
     qa_tail = qa_list[-MAX_QA_IN_CONTEXT:]
     lines: List[str] = []
     for i, qa in enumerate(qa_tail, 1):
         q = (qa.get("q") or "").strip()
         a = (qa.get("a") or "").strip()
-        # Keep block readable & compact
         lines.append(f"Q{i}: {q}\nA{i}: {a}")
     block = "\n\n".join(lines)
     if len(block) > MAX_CONTEXT_CHARS:
@@ -174,6 +172,8 @@ def format_conversation_block(convo: Dict[str, Any]) -> str:
     return block
 
 # ---------------- OpenAI (Responses API) ----------------
+
+_client = OpenAI()
 
 def call_openai_responses(
     prompt: str,
@@ -185,9 +185,8 @@ def call_openai_responses(
 ) -> str:
     """
     Call OpenAI Responses API (GPT-5) with optional conversation continuity.
+    Keep args SDK-compatible (no 'verbosity', no 'reasoning_effort').
     """
-    client = OpenAI()
-
     # Build input with optional prior Q/A preamble
     if conversation_block:
         preamble = (
@@ -207,15 +206,26 @@ def call_openai_responses(
                 model=model,
                 input=final_input,
                 temperature=temperature,
-                verbosity="low",
-                reasoning_effort="minimal",
             )
-            # Placeholder: if/when SDK exposes server-side conversation ids.
+            # If/when your SDK supports a server-side conversation id:
             # if server_conversation_id:
             #     kwargs["conversation_id"] = server_conversation_id
 
-            resp = client.responses.create(**kwargs)
+            resp = _client.responses.create(**kwargs)
             return resp.output_text.strip()
+
+        except TypeError as e:
+            if attempt == 1 and "unexpected keyword argument" in str(e):
+                try:
+                    resp = _client.responses.create(model=model, input=final_input, temperature=temperature)
+                    return resp.output_text.strip()
+                except Exception:
+                    pass
+            if attempt == MAX_TRIES:
+                raise
+            sleep = BASE_BACKOFF * (2 ** (attempt - 1)) + 0.25 * (attempt - 1)
+            logger.warning(f"⚠️ OpenAI TypeError (attempt {attempt}/{MAX_TRIES}): {e}. Backing off {sleep:.2f}s")
+            time.sleep(sleep)
         except Exception as e:
             if attempt == MAX_TRIES:
                 raise
