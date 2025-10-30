@@ -25,13 +25,10 @@ Use your understanding of the profile context and the below section assets to he
 
 ## REPORT DELIVERY STYLE
 
-These two variables are critical. They define **how** your response should be written, regardless of medical content.
+The below Tone of Voice variable is critical. It defines **how** your response should be written, regardless of medical content.
 
 **Tone of Voice**: Formal (Professional)  
     - Your language and emotional tone must match this exactly.  
-
-**Report Use Case**: Personal Education
-    - Structure your recommendation and summary to serve this purpose explicitly.
 
 ---
 
@@ -55,7 +52,7 @@ Generate full-report-wide **report assets**.
 ### REPORT ASSETS
 - `Report Title`: A concise, punchy report label. (Max 40 characters)
 - `Report Sub-Title`: A one-line framing label. (Max 80 characters)
-- `Disclaimer`: “This report is not medical advice. It is not a diagnosis. It is not a treatment plan.\n\nThe purpose of this report is to provide a general, AI-generated overview of the condition you requested, tailored to the personal details you’ve shared. The report is designed to help you better understand the condition, potential treatments, and areas of research or interest — based on your preferences and inputs.\n\nThis report should never replace medical advice, diagnosis, or treatment provided by a licensed healthcare professional.\n\nYou should always consult your GP or other qualified medical professional before making any decisions about your health, treatment options, or care pathways — especially if you are considering stopping or changing medication or delaying treatment.”
+- `Disclaimer`: “This report was generated using advanced AI tools and expert-curated sources. It provides background information and potential areas for exploration.\n\nIt is not medical advice: It does not replace diagnosis, treatment, or clinical judgment.\n\nEvery patient’s health profile is unique.\n\nAlways confirm any changes to medication, therapy, or lifestyle with a qualified healthcare professional.\n\nThink of this document as a reliable companion - a guide to support your journey - while your healthcare team remains the ultimate authority on your care.”
 - `Executive Summary`: A narrative introductory summary of the report's key findings. Output a single string with exactly **two separate paragraphs**. **Separate each paragraph using \n\n** (x2 newline characters). Formatting must follow the **Paragraph 1.\n\nParagraph 2** structure exactly. (Paragraph 1 Min 350 - Max 500 characters / Paragraph 2 Min 350 - Max 500 characters / Total Overall Length Min 750 - Max 1000 characters)
 - `What it is Key Causes & Symptoms`: A narrative paragraph of the report's suggested summary of the condition ({condition}), it's key causes and symptoms. Output a single string with exactly **one paragraph**. (Min 200 - Max 300 characters)
 - `How its Diagnosed`: A narrative paragraph of the report's suggestion on how the condition ({condition}) is diagnosed. Output a single string with exactly **one paragraph**. (Min 150 - Max 250 characters)
