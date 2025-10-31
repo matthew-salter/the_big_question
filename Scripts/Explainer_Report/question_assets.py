@@ -81,19 +81,57 @@ def build_prompt(template: str, question: str, ctx: Dict[str, Any]) -> str:
         missing = str(e).strip("'")
         raise KeyError(f"Prompt template missing value for {{{missing}}}") from e
 
+# =========================
+# OpenAI call (Responses API + web_search)
+# =========================
+
 def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TEMPERATURE) -> str:
+    """
+    Calls the Responses API with the built-in web_search tool and requests a JSON object.
+    Returns a pretty-printed JSON string.
+    """
     client = OpenAI()
     max_tries = 6
     base_sleep = 1.0
 
     for attempt in range(1, max_tries + 1):
         try:
-            resp = client.chat.completions.create(
+            # Responses API with hosted tool: web_search
+            # response_format enforces valid JSON object output from the model.
+            resp = client.responses.create(
                 model=model,
                 temperature=temperature,
-                messages=[{"role": "user", "content": prompt}],
+                tools=[{"type": "web_search"}],
+                response_format={"type": "json_object"},
+                input=prompt
             )
-            return resp.choices[0].message.content.strip()
+
+            # Prefer structured parse if provided
+            # (SDKs expose either .output_parsed or .output_text, depending on version)
+            parsed = getattr(resp, "output_parsed", None)
+            if parsed:
+                return json.dumps(parsed, ensure_ascii=False, indent=2)
+
+            # Fallback: text output (still expected to be JSON string due to response_format)
+            text_out = getattr(resp, "output_text", None)
+            if not text_out:
+                # Last resort: extract from the first message content, if present
+                try:
+                    text_out = resp.output[0].content[0].text
+                except Exception:
+                    text_out = ""
+
+            if not text_out:
+                raise ValueError("Empty response from OpenAI Responses API")
+
+            # Validate and pretty print
+            try:
+                obj = json.loads(text_out)
+                return json.dumps(obj, ensure_ascii=False, indent=2)
+            except json.JSONDecodeError as je:
+                # If the model violated the contract, bubble up so the run records a failure
+                raise ValueError(f"Model did not return valid JSON: {je}") from je
+
         except Exception as e:
             if attempt == max_tries:
                 raise
@@ -101,22 +139,24 @@ def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TE
             logger.warning(f"⚠️ OpenAI error (attempt {attempt}/{max_tries}): {e}. Backing off {sleep:.2f}s")
             time.sleep(sleep)
 
+# =========================
+# Output cleaning (kept for safety if model wraps JSON in fences)
+# =========================
+
 def clean_ai_output(ai_text: str) -> str:
     """
     Remove markdown code fences if present and pretty-print JSON if valid.
-    Returns a JSON string (pretty-printed) if parseable; otherwise the cleaned raw text.
+    Under Responses API with response_format=json_object, this should generally be unnecessary,
+    but we keep it for robustness.
     """
     cleaned = ai_text.strip()
-    # Strip ```json ... ``` or ``` ... ```
     cleaned = re.sub(r"^\s*```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\s*```\s*$", "", cleaned)
 
-    # Try JSON parse -> pretty print
     try:
         obj = json.loads(cleaned)
         return json.dumps(obj, ensure_ascii=False, indent=2)
     except json.JSONDecodeError:
-        # If it isn't valid JSON, just return the cleaned text
         return cleaned
 
 def supabase_write_txt(path: str, content: str):
@@ -253,7 +293,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                 )
                 elapsed = round(time.time() - t0, 3)
 
-                # Clean to pure JSON string (no markdown fences)
+                # Clean to pure JSON string (usually already clean with Responses API)
                 final_output = clean_ai_output(ai_text)
 
                 # Save as .txt but content is JSON
