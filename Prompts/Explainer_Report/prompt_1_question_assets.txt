@@ -109,7 +109,7 @@ Additionally, include **one** illustrative **Related Article** that supports you
   - `Related Article Summary`: A narrative summary of the articles key findings. (Max 300 characters)  
   - `Related Article Relevance`: A narrative summary of the articles relevance. (Max 300 characters)
   - `Related Article Source`: The organisation/person of the source article.
-  - `Related Article URL`: The website URL of the Related Article. The URL must be an active working URL to the related article. Do not hallucinate a fictional URL.
+  - `Related Article URL`: The website URL of the Related Article. The URL must be an active working URL to the related article. Do not hallucinate a fictional URL. If you cannot verify a working URL, set to "Unavailable".
 
 ---
 
