@@ -24,7 +24,8 @@ Think of this document as a reliable companion - a guide to support your journey
 
 ## TOOLING REQUIRMENT - WEB SEARCH
 
-You have access to a web_search tool. You must use it whenever you select the “Related Article”. If web search is unavailable or fails to load a working article that meets the date rule, return "Unavailable" for all "Related Article" fields. Do not guess or fabricate Related Articles or URLs.
+You have access to a web_search tool. You must use it whenever you select the “Related Article”.
+Do not guess or fabricate Related Articles or URLs.
 
 ---
 
@@ -84,8 +85,8 @@ Additionally, include **one** illustrative **Related Article** that supports you
 - Search & Open: Use web_search to find and open the article.
 - Recency: Published within the last 6 months of {todays_date}.
 - Source Quality: Prefer NHS, NICE, BMJ, JAMA, NEJM, CDC, WHO, Cochrane, or comparable clinical publishers.
-- Copy Exact URL: Copy the final loaded URL exactly as shown in the address bar (exclude https://; no AMP/proxy/redirector links; avoid tracking params unless required).
-- No Guessing: If you cannot verify a working article that fits, set every field in "Related Article" to "Unavailable" and proceed.
+- Copy Exact URL: Copy the final loaded URL exactly as shown in the address bar (no AMP/proxy/redirector links; avoid tracking params unless required).
+- No Guessing: Do not guess or fabricate Related Articles or URLs. If you cannot verify a working URL, set the field "Related Article URL" to "Unavailable"
 
 ---
 
