@@ -25,7 +25,11 @@ Think of this document as a reliable companion - a guide to support your journey
 ## TOOLING REQUIRMENT - WEB SEARCH
 
 You have access to a web_search tool. You must use it whenever you select the “Related Article”.
-Do not guess or fabricate Related Articles or URLs.
+You must always include one Related Article.
+- First, use web_search to find an article directly related to the {question}.
+- If no suitable article is found, search for the closest credible article on the overall condition ({condition}) instead.
+- You may not return "Unavailable" for all Related Article fields unless both searches fail completely.
+- Do not fabricate or invent any article details.
 
 ---
 
@@ -86,7 +90,9 @@ Additionally, include **one** illustrative **Related Article** that supports you
 - Recency: Published within the last 6 months of {todays_date}.
 - Source Quality: Prefer NHS, NICE, BMJ, JAMA, NEJM, CDC, WHO, Cochrane, or comparable clinical publishers.
 - Copy Exact URL: Copy the final loaded URL exactly as shown in the address bar (no AMP/proxy/redirector links; avoid tracking params unless required).
-- No Guessing: Do not guess or fabricate Related Articles or URLs. If you cannot verify a working URL, set the field "Related Article URL" to "Unavailable"
+- No Guessing: Do not invent Related Articles or URLs.
+- If a relevant article for the {question} cannot be verified, perform a secondary search for a credible recent article on the overall {condition}.
+- Only if both searches fail, set the field "Related Article URL" to "Unavailable" and clearly note "Unavailable" in the Related Article fields.
 
 ---
 
