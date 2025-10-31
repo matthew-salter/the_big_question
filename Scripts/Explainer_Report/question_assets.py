@@ -96,40 +96,37 @@ def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TE
 
     for attempt in range(1, max_tries + 1):
         try:
-            # Responses API with hosted tool: web_search
-            # response_format enforces valid JSON object output from the model.
+            # NOTE: JSON mode for Responses API is set under the `text` block, not as a top-level response_format.
             resp = client.responses.create(
                 model=model,
                 temperature=temperature,
                 tools=[{"type": "web_search"}],
-                response_format={"type": "json_object"},
+                text={"format": {"type": "json_object"}},
                 input=prompt
             )
 
-            # Prefer structured parse if provided
-            # (SDKs expose either .output_parsed or .output_text, depending on version)
+            # Prefer structured parse if available (SDK 2.x)
             parsed = getattr(resp, "output_parsed", None)
-            if parsed:
+            if parsed is not None:
                 return json.dumps(parsed, ensure_ascii=False, indent=2)
 
-            # Fallback: text output (still expected to be JSON string due to response_format)
+            # Fallback to text output and try to parse
             text_out = getattr(resp, "output_text", None)
             if not text_out:
-                # Last resort: extract from the first message content, if present
+                # Extremely defensive: try pulling from resp.output array if present
                 try:
-                    text_out = resp.output[0].content[0].text
+                    text_out = resp.output[0].content[0].text  # may not exist on all SDKs
                 except Exception:
                     text_out = ""
 
             if not text_out:
                 raise ValueError("Empty response from OpenAI Responses API")
 
-            # Validate and pretty print
             try:
                 obj = json.loads(text_out)
                 return json.dumps(obj, ensure_ascii=False, indent=2)
             except json.JSONDecodeError as je:
-                # If the model violated the contract, bubble up so the run records a failure
+                # Bubble up so the run logs the failure and continues to next question
                 raise ValueError(f"Model did not return valid JSON: {je}") from je
 
         except Exception as e:
@@ -140,14 +137,13 @@ def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TE
             time.sleep(sleep)
 
 # =========================
-# Output cleaning (kept for safety if model wraps JSON in fences)
+# Output cleaning (belt & braces)
 # =========================
 
 def clean_ai_output(ai_text: str) -> str:
     """
-    Remove markdown code fences if present and pretty-print JSON if valid.
-    Under Responses API with response_format=json_object, this should generally be unnecessary,
-    but we keep it for robustness.
+    Strip code fences and pretty-print JSON if valid.
+    (With Responses JSON mode this is mostly unnecessary, but harmless.)
     """
     cleaned = ai_text.strip()
     cleaned = re.sub(r"^\s*```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
@@ -293,7 +289,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                 )
                 elapsed = round(time.time() - t0, 3)
 
-                # Clean to pure JSON string (usually already clean with Responses API)
+                # Clean to pure JSON string (usually clean already)
                 final_output = clean_ai_output(ai_text)
 
                 # Save as .txt but content is JSON
