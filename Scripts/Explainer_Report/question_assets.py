@@ -87,47 +87,34 @@ def build_prompt(template: str, question: str, ctx: Dict[str, Any]) -> str:
 
 def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TEMPERATURE) -> str:
     """
-    Calls the Responses API with the built-in web_search tool and requests a JSON object.
-    Returns a pretty-printed JSON string.
+    Use Responses API + web_search. The prompt enforces JSON; we just parse it.
     """
+    from openai import OpenAI
     client = OpenAI()
-    max_tries = 6
-    base_sleep = 1.0
+    max_tries, base_sleep = 6, 1.0
 
     for attempt in range(1, max_tries + 1):
         try:
-            # NOTE: JSON mode for Responses API is set under the `text` block, not as a top-level response_format.
             resp = client.responses.create(
                 model=model,
                 temperature=temperature,
-                tools=[{"type": "web_search"}],
-                text={"format": {"type": "json_object"}},
+                tools=[{"type": "web_search"}],   # <-- this gives browsing
                 input=prompt
             )
 
-            # Prefer structured parse if available (SDK 2.x)
-            parsed = getattr(resp, "output_parsed", None)
-            if parsed is not None:
-                return json.dumps(parsed, ensure_ascii=False, indent=2)
-
-            # Fallback to text output and try to parse
+            # Get text and parse to JSON (since prompt guarantees JSON)
             text_out = getattr(resp, "output_text", None)
             if not text_out:
-                # Extremely defensive: try pulling from resp.output array if present
                 try:
-                    text_out = resp.output[0].content[0].text  # may not exist on all SDKs
+                    text_out = resp.output[0].content[0].text
                 except Exception:
                     text_out = ""
 
             if not text_out:
                 raise ValueError("Empty response from OpenAI Responses API")
 
-            try:
-                obj = json.loads(text_out)
-                return json.dumps(obj, ensure_ascii=False, indent=2)
-            except json.JSONDecodeError as je:
-                # Bubble up so the run logs the failure and continues to next question
-                raise ValueError(f"Model did not return valid JSON: {je}") from je
+            obj = json.loads(text_out)  # will raise if model violated contract
+            return json.dumps(obj, ensure_ascii=False, indent=2)
 
         except Exception as e:
             if attempt == max_tries:
