@@ -21,12 +21,10 @@ from Engine.Files.write_supabase_file import write_supabase_file
 QUESTIONS_PATH = "Prompts/Explainer_Report/Questions/questions.txt"
 PROMPT_PATH = "Prompts/Explainer_Report/prompt_1_question_assets.txt"
 
-# IMPORTANT:
-# Do NOT include "The_Big_Question" here; write_supabase_file() already
-# prepends SUPABASE_ROOT_FOLDER to the path.
 SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
 
-DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+# Use GPT-5-mini with web_search
+DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
 
 # =========================
@@ -45,7 +43,6 @@ def sha8(s: str) -> str:
     return hashlib.sha256(s.encode("utf-8")).hexdigest()[:8]
 
 def safe_escape_braces(value: str) -> str:
-    # Protect accidental braces in user-provided values before .format()
     return str(value).replace("{", "{{").replace("}", "}}")
 
 def load_text(path: str) -> str:
@@ -58,10 +55,6 @@ def load_questions(path: str) -> List[str]:
     return [ln for ln in lines if ln]  # drop blank lines
 
 def format_question(q_template: str, ctx: Dict[str, Any]) -> str:
-    """
-    1) Substitute {condition} (and any other vars) inside the question line itself.
-    2) Return the concrete question string to inject into the main prompt as {question}.
-    """
     safe_ctx = {k: safe_escape_braces(str(v)) for k, v in ctx.items()}
     try:
         return q_template.format(**safe_ctx)
@@ -70,9 +63,6 @@ def format_question(q_template: str, ctx: Dict[str, Any]) -> str:
         raise KeyError(f"Question contained placeholder {{{missing}}} not provided in payload") from e
 
 def build_prompt(template: str, question: str, ctx: Dict[str, Any]) -> str:
-    """
-    Map patient/context vars + the fully-substituted question into the prompt template.
-    """
     mapping = {k: safe_escape_braces(str(v)) for k, v in ctx.items()}
     mapping["question"] = safe_escape_braces(question)
     try:
@@ -82,27 +72,42 @@ def build_prompt(template: str, question: str, ctx: Dict[str, Any]) -> str:
         raise KeyError(f"Prompt template missing value for {{{missing}}}") from e
 
 # =========================
-# OpenAI call (Responses API + web_search)
+# OpenAI call (GPT-5-mini + web_search + thread memory)
 # =========================
 
-def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TEMPERATURE) -> str:
+def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TEMPERATURE,
+                thread_id_path: str = None) -> str:
     """
-    Use Responses API + web_search. The prompt enforces JSON; we just parse it.
+    Call GPT-5-mini with persistent thread memory + web_search.
+    The same thread_id is reused so the model 'remembers' earlier outputs.
     """
-    from openai import OpenAI
     client = OpenAI()
     max_tries, base_sleep = 6, 1.0
+
+    # Read or create a thread id
+    thread_id = None
+    if thread_id_path and os.path.exists(thread_id_path):
+        with open(thread_id_path, "r", encoding="utf-8") as f:
+            thread_id = f.read().strip()
 
     for attempt in range(1, max_tries + 1):
         try:
             resp = client.responses.create(
                 model=model,
                 temperature=temperature,
-                tools=[{"type": "web_search"}],   # <-- this gives browsing
-                input=prompt
+                tools=[{"type": "web_search"}],
+                input=prompt,
+                thread_id=thread_id,      # ← memory continuity
             )
 
-            # Get text and parse to JSON (since prompt guarantees JSON)
+            # Save thread_id for reuse
+            if thread_id_path:
+                tid = getattr(resp, "thread_id", None)
+                if tid:
+                    with open(thread_id_path, "w", encoding="utf-8") as f:
+                        f.write(tid)
+
+            # Extract text output
             text_out = getattr(resp, "output_text", None)
             if not text_out:
                 try:
@@ -113,7 +118,8 @@ def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TE
             if not text_out:
                 raise ValueError("Empty response from OpenAI Responses API")
 
-            obj = json.loads(text_out)  # will raise if model violated contract
+            # Parse JSON
+            obj = json.loads(text_out)
             return json.dumps(obj, ensure_ascii=False, indent=2)
 
         except Exception as e:
@@ -124,18 +130,13 @@ def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TE
             time.sleep(sleep)
 
 # =========================
-# Output cleaning (belt & braces)
+# Output cleaning
 # =========================
 
 def clean_ai_output(ai_text: str) -> str:
-    """
-    Strip code fences and pretty-print JSON if valid.
-    (With Responses JSON mode this is mostly unnecessary, but harmless.)
-    """
     cleaned = ai_text.strip()
     cleaned = re.sub(r"^\s*```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\s*```\s*$", "", cleaned)
-
     try:
         obj = json.loads(cleaned)
         return json.dumps(obj, ensure_ascii=False, indent=2)
@@ -143,20 +144,13 @@ def clean_ai_output(ai_text: str) -> str:
         return cleaned
 
 def supabase_write_txt(path: str, content: str):
-    """
-    Write text content (JSON string inside, but saved as .txt).
-    """
     write_supabase_file(path, content, content_type="text/plain; charset=utf-8")
 
 def supabase_write_textjson(path: str, obj: Dict[str, Any]):
-    """
-    Convenience for writing JSON objects as text/plain.
-    """
     supabase_write_txt(path, json.dumps(obj, ensure_ascii=False, indent=2))
 
 # =========================
 # Checkpoint & Manifest
-# (stored alongside outputs)
 # =========================
 
 def supabase_paths(run_id: str) -> Dict[str, str]:
@@ -194,17 +188,16 @@ def update_checkpoint(ckpt: Dict[str, Any], idx: int) -> Dict[str, Any]:
     return ckpt
 
 # =========================
-# Core worker (background)
+# Core worker (sequential)
 # =========================
 
 def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
     """
-    Heavy worker that runs in a background thread.
+    Sequential loop (no batching) with GPT-5-mini + thread continuity.
     """
     try:
         logger.info(f"🚀 [Explainer.Run] start run_id={run_id}")
 
-        # Variables from Zapier/Typeform
         ctx = {
             "condition": payload.get("condition", ""),
             "age": payload.get("age", ""),
@@ -214,14 +207,11 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             "todays_date": payload.get("todays_date", ""),
         }
 
-        # Load template & questions from the repo
         prompt_template = load_text(PROMPT_PATH)
         q_templates = load_questions(QUESTIONS_PATH)
         total = len(q_templates)
-
         paths = supabase_paths(run_id)
 
-        # Initialize manifest & checkpoint
         manifest = init_manifest(
             run_id,
             total,
@@ -235,19 +225,17 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
         )
         ckpt = default_checkpoint()
 
-        # Persist initial metadata (in the same folder as outputs)
         supabase_write_textjson(paths["manifest"], manifest)
         supabase_write_textjson(paths["checkpoint"], ckpt)
 
-        # Sequential loop — only advance after successful write
+        # Thread memory persistence file
+        thread_id_path = f"/tmp/{run_id}_threadid.txt"
+
         for idx, q_tmpl in enumerate(q_templates):
             if idx <= ckpt["last_completed_index"]:
                 continue
 
-            # 1) Fill {condition} (and any other ctx vars) inside the question itself
             filled_q = format_question(q_tmpl, ctx)
-
-            # 2) Build full prompt with {question} + patient context
             prompt = build_prompt(prompt_template, filled_q, ctx)
 
             q_id = f"{idx+1:02d}_{slugify(filled_q)[:50]}_{sha8(filled_q)}"
@@ -272,26 +260,22 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                 ai_text = call_openai(
                     prompt,
                     model=payload.get("model", DEFAULT_MODEL),
-                    temperature=TEMPERATURE
+                    temperature=TEMPERATURE,
+                    thread_id_path=thread_id_path
                 )
                 elapsed = round(time.time() - t0, 3)
 
-                # Clean to pure JSON string (usually clean already)
                 final_output = clean_ai_output(ai_text)
-
-                # Save as .txt but content is JSON
                 supabase_write_txt(outfile, final_output)
 
-                # Mark done
                 item.update({"status": "done", "completed_at": now_iso(), "latency_seconds": elapsed})
                 upsert_manifest_item(manifest, item)
                 supabase_write_textjson(paths["manifest"], manifest)
 
-                # Checkpoint after successful write
                 ckpt = update_checkpoint(ckpt, idx)
                 supabase_write_textjson(paths["checkpoint"], ckpt)
 
-                # Politeness delay (tune/remove as needed)
+                # Politeness delay to avoid rate spikes
                 time.sleep(0.25)
 
             except Exception as e:
@@ -302,7 +286,6 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                 })
                 upsert_manifest_item(manifest, item)
                 supabase_write_textjson(paths["manifest"], manifest)
-                # Continue to next question
 
         logger.info(
             f"✅ [Explainer.Run] completed run_id={run_id} total={total} "
@@ -336,7 +319,7 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
         "model": data.get("model", DEFAULT_MODEL),
     }, ensure_ascii=False))
 
-    # Spin off background thread — return immediately to Zapier
+    # Background thread to avoid Zapier timeout
     t = threading.Thread(target=_process_run, args=(run_id, data), daemon=True)
     t.start()
 
