@@ -1,4 +1,5 @@
 # Scripts/Explainer_Report/question_assets.py
+# GPT-5-mini + Assistants API + per-run memory threads + Supabase write
 
 import os
 import re
@@ -20,10 +21,8 @@ from Engine.Files.write_supabase_file import write_supabase_file
 
 QUESTIONS_PATH = "Prompts/Explainer_Report/Questions/questions.txt"
 PROMPT_PATH = "Prompts/Explainer_Report/prompt_1_question_assets.txt"
-
 SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
 
-# Use GPT-5-mini with web_search
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
 
@@ -52,96 +51,16 @@ def load_text(path: str) -> str:
 def load_questions(path: str) -> List[str]:
     raw = load_text(path)
     lines = [ln.strip() for ln in raw.splitlines()]
-    return [ln for ln in lines if ln]  # drop blank lines
+    return [ln for ln in lines if ln]
 
 def format_question(q_template: str, ctx: Dict[str, Any]) -> str:
     safe_ctx = {k: safe_escape_braces(str(v)) for k, v in ctx.items()}
-    try:
-        return q_template.format(**safe_ctx)
-    except KeyError as e:
-        missing = str(e).strip("'")
-        raise KeyError(f"Question contained placeholder {{{missing}}} not provided in payload") from e
+    return q_template.format(**safe_ctx)
 
 def build_prompt(template: str, question: str, ctx: Dict[str, Any]) -> str:
     mapping = {k: safe_escape_braces(str(v)) for k, v in ctx.items()}
     mapping["question"] = safe_escape_braces(question)
-    try:
-        return template.format(**mapping)
-    except KeyError as e:
-        missing = str(e).strip("'")
-        raise KeyError(f"Prompt template missing value for {{{missing}}}") from e
-
-# =========================
-# OpenAI call (GPT-5-mini + web_search + thread memory)
-# =========================
-
-def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TEMPERATURE,
-                thread_id_path: str = None) -> str:
-    """
-    Call GPT-5-mini with persistent thread memory + web_search.
-    The same thread_id is reused so the model 'remembers' earlier outputs.
-    """
-    client = OpenAI()
-    max_tries, base_sleep = 6, 1.0
-
-    # Read or create a thread id
-    thread_id = None
-    if thread_id_path and os.path.exists(thread_id_path):
-        with open(thread_id_path, "r", encoding="utf-8") as f:
-            thread_id = f.read().strip()
-
-    for attempt in range(1, max_tries + 1):
-        try:
-            resp = client.responses.create(
-                model=model,
-                temperature=temperature,
-                tools=[{"type": "web_search"}],
-                input=prompt,
-                thread_id=thread_id,      # ← memory continuity
-            )
-
-            # Save thread_id for reuse
-            if thread_id_path:
-                tid = getattr(resp, "thread_id", None)
-                if tid:
-                    with open(thread_id_path, "w", encoding="utf-8") as f:
-                        f.write(tid)
-
-            # Extract text output
-            text_out = getattr(resp, "output_text", None)
-            if not text_out:
-                try:
-                    text_out = resp.output[0].content[0].text
-                except Exception:
-                    text_out = ""
-
-            if not text_out:
-                raise ValueError("Empty response from OpenAI Responses API")
-
-            # Parse JSON
-            obj = json.loads(text_out)
-            return json.dumps(obj, ensure_ascii=False, indent=2)
-
-        except Exception as e:
-            if attempt == max_tries:
-                raise
-            sleep = base_sleep * (2 ** (attempt - 1)) + (0.25 * (attempt - 1))
-            logger.warning(f"⚠️ OpenAI error (attempt {attempt}/{max_tries}): {e}. Backing off {sleep:.2f}s")
-            time.sleep(sleep)
-
-# =========================
-# Output cleaning
-# =========================
-
-def clean_ai_output(ai_text: str) -> str:
-    cleaned = ai_text.strip()
-    cleaned = re.sub(r"^\s*```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
-    cleaned = re.sub(r"\s*```\s*$", "", cleaned)
-    try:
-        obj = json.loads(cleaned)
-        return json.dumps(obj, ensure_ascii=False, indent=2)
-    except json.JSONDecodeError:
-        return cleaned
+    return template.format(**mapping)
 
 def supabase_write_txt(path: str, content: str):
     write_supabase_file(path, content, content_type="text/plain; charset=utf-8")
@@ -150,7 +69,7 @@ def supabase_write_textjson(path: str, obj: Dict[str, Any]):
     supabase_write_txt(path, json.dumps(obj, ensure_ascii=False, indent=2))
 
 # =========================
-# Checkpoint & Manifest
+# Manifest helpers
 # =========================
 
 def supabase_paths(run_id: str) -> Dict[str, str]:
@@ -188,13 +107,62 @@ def update_checkpoint(ckpt: Dict[str, Any], idx: int) -> Dict[str, Any]:
     return ckpt
 
 # =========================
-# Core worker (sequential)
+# Core OpenAI (Assistants API + per-run thread)
+# =========================
+
+def call_openai_thread(prompt: str, assistant_id: str, thread_id_path: str) -> str:
+    """
+    Use Assistants API with a persistent thread for this run.
+    """
+    client = OpenAI()
+    max_tries, base_sleep = 6, 1.0
+
+    # Load or create thread
+    if os.path.exists(thread_id_path):
+        thread_id = open(thread_id_path, "r", encoding="utf-8").read().strip()
+    else:
+        thread = client.beta.threads.create()
+        thread_id = thread.id
+        with open(thread_id_path, "w", encoding="utf-8") as f:
+            f.write(thread_id)
+
+    for attempt in range(1, max_tries + 1):
+        try:
+            run = client.beta.threads.runs.create(
+                thread_id=thread_id,
+                assistant_id=assistant_id,
+                instructions=prompt,
+            )
+
+            # Poll until done
+            while True:
+                status = client.beta.threads.runs.retrieve(
+                    thread_id=thread_id, run_id=run.id
+                )
+                if status.status in ("completed", "failed", "cancelled"):
+                    break
+                time.sleep(1.5)
+
+            if status.status != "completed":
+                raise RuntimeError(f"Run failed: {status.status}")
+
+            msgs = client.beta.threads.messages.list(
+                thread_id=thread_id, order="desc", limit=1
+            )
+            return msgs.data[0].content[0].text.value
+
+        except Exception as e:
+            if attempt == max_tries:
+                raise
+            sleep = base_sleep * (2 ** (attempt - 1))
+            logger.warning(f"⚠️ OpenAI error (attempt {attempt}/{max_tries}): {e}. Retrying in {sleep:.2f}s")
+            time.sleep(sleep)
+
+# =========================
+# Worker (Sequential per run)
 # =========================
 
 def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
-    """
-    Sequential loop (no batching) with GPT-5-mini + thread continuity.
-    """
     try:
         logger.info(f"🚀 [Explainer.Run] start run_id={run_id}")
 
@@ -212,23 +180,33 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
         total = len(q_templates)
         paths = supabase_paths(run_id)
 
+        client = OpenAI()
+        # 🔹 Create a fresh Assistant for this run
+        assistant = client.beta.assistants.create(
+            name=f"HealthReportAssistant_{run_id}",
+            model=DEFAULT_MODEL,
+            tools=[{"type": "web_search"}],
+            instructions="You are an expert medical explainer producing structured JSON answers for a health report.",
+        )
+        assistant_id = assistant.id
+        logger.info(f"🧠 Created new Assistant for run {run_id}: {assistant_id}")
+
         manifest = init_manifest(
             run_id,
             total,
             payload_meta={
-                "model": payload.get("model", DEFAULT_MODEL),
+                "model": DEFAULT_MODEL,
                 "temperature": TEMPERATURE,
                 "ctx": ctx,
+                "assistant_id": assistant_id,
                 "questions_path": QUESTIONS_PATH,
                 "prompt_path": PROMPT_PATH,
             },
         )
         ckpt = default_checkpoint()
-
         supabase_write_textjson(paths["manifest"], manifest)
         supabase_write_textjson(paths["checkpoint"], ckpt)
 
-        # Thread memory persistence file
         thread_id_path = f"/tmp/{run_id}_threadid.txt"
 
         for idx, q_tmpl in enumerate(q_templates):
@@ -257,26 +235,22 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
 
             try:
                 t0 = time.time()
-                ai_text = call_openai(
-                    prompt,
-                    model=payload.get("model", DEFAULT_MODEL),
-                    temperature=TEMPERATURE,
-                    thread_id_path=thread_id_path
-                )
+                ai_text = call_openai_thread(prompt, assistant_id, thread_id_path)
                 elapsed = round(time.time() - t0, 3)
 
-                final_output = clean_ai_output(ai_text)
-                supabase_write_txt(outfile, final_output)
+                supabase_write_txt(outfile, ai_text)
 
-                item.update({"status": "done", "completed_at": now_iso(), "latency_seconds": elapsed})
+                item.update({
+                    "status": "done",
+                    "completed_at": now_iso(),
+                    "latency_seconds": elapsed,
+                })
                 upsert_manifest_item(manifest, item)
                 supabase_write_textjson(paths["manifest"], manifest)
 
                 ckpt = update_checkpoint(ckpt, idx)
                 supabase_write_textjson(paths["checkpoint"], ckpt)
-
-                # Politeness delay to avoid rate spikes
-                time.sleep(0.25)
+                time.sleep(0.5)
 
             except Exception as e:
                 item.update({
@@ -286,6 +260,13 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                 })
                 upsert_manifest_item(manifest, item)
                 supabase_write_textjson(paths["manifest"], manifest)
+
+        # Optional cleanup of Assistant
+        try:
+            client.beta.assistants.delete(assistant_id)
+            logger.info(f"🧹 Deleted Assistant {assistant_id} after run completion.")
+        except Exception as cleanup_err:
+            logger.warning(f"Cleanup skipped: {cleanup_err}")
 
         logger.info(
             f"✅ [Explainer.Run] completed run_id={run_id} total={total} "
@@ -297,13 +278,10 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
         logger.exception(f"❌ [Explainer.Run] fatal for run_id={run_id}: {outer}")
 
 # =========================
-# Public entrypoint (non-blocking)
+# Public entrypoint
 # =========================
 
 def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Called by main.py. Returns immediately so Zapier isn’t held open.
-    """
     run_id = data.get("run_id") or f"{datetime.utcnow().strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex[:8]}"
     data["run_id"] = run_id
 
@@ -316,16 +294,15 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
         "ethnicity": data.get("ethnicity"),
         "region": data.get("region"),
         "todays_date": data.get("todays_date"),
-        "model": data.get("model", DEFAULT_MODEL),
+        "model": DEFAULT_MODEL,
     }, ensure_ascii=False))
 
-    # Background thread to avoid Zapier timeout
     t = threading.Thread(target=_process_run, args=(run_id, data), daemon=True)
     t.start()
 
     return {
         "status": "processing",
         "run_id": run_id,
-        "message": "Explainer report run started. Results will stream into Supabase.",
+        "message": "Explainer report run started with GPT-5-mini (per-run Assistant + thread continuity).",
         "supabase_base_dir": f"{SUPABASE_BASE_DIR}/{run_id}/Individual_Question_Outputs/"
     }
