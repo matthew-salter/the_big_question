@@ -98,13 +98,20 @@ Additionally, include **one** illustrative **Related Article** that supports you
 
 ## RELATED ARTICLE – VERIFICATION RULE
 
-- Use `web_search` to locate the article and confirm it loads successfully.  
-- **Recency:** Prefer ≤ 6 months old; if none exist, follow the fallback search ladder above.  
-- **Source Quality:** Prefer NHS, NICE, BMJ, JAMA, NEJM, CDC, WHO, Cochrane, or other major medical publishers.  
-- **Copy Exact URL:** Paste the **final loaded** URL exactly as shown (no AMP/proxy/redirector links).  
-- **Never guess:** If a URL 404s, redirects to a hub page, or cannot be verified, pick another article.  
-- **Date Format:** Output `Related Article Date` strictly as `DD/MM/YYYY`.  
-- **Fallback:** Only if no verified articles exist after all searches, set all `Related Article` fields to `"Unavailable"`.
+**Mandatory Search Loop:**  
+- You must always return a populated `Related Article` block with a working URL.  
+- Begin with a web search for an article **directly related to the {question}**.  
+- If no verified article is found, **immediately perform another web search** for a credible recent article on the overall **{condition}**.  
+- If still none, perform a **third and final search** for the most recent authoritative clinical guideline or overview from NHS, NICE, BMJ, JAMA, NEJM, CDC, WHO, or Cochrane.  
+- Continue searching until at least **one** valid article with a working `https://` URL is confirmed. Do not stop early.  
+
+**Verification Rules:**  
+- Open the page to ensure it loads successfully (no 404 or redirect to index).  
+- Prefer articles ≤ 6 months old; if none exist, the fallback guideline may be older.  
+- Copy the **final loaded** `https://` URL exactly as shown (no AMP/proxy/redirector links).  
+- Output the article’s exact publication date in `DD/MM/YYYY` format. If only “Month YYYY” is shown, infer the last day of that month (e.g., “May 2025” → “31/05/2025”).  
+- Never output “Not Applicable” or “Unavailable”. One verified article is always required.  
+- If the best available result is only tangentially related, clearly explain the connection in `Related Article Relevance`.  
 
 ---
 
