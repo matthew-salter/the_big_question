@@ -1,5 +1,5 @@
 Flask
-git+https://github.com/openai/openai-python.git@v3
+git+https://github.com/openai/openai-python.git@main
 python-dotenv
 gunicorn
 requests
