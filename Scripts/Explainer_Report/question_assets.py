@@ -105,31 +105,38 @@ def build_registry_block(
             continue
         if not isinstance(obj, dict):
             continue
+
         st = (obj.get("Statistic") or "").strip()
         if st and st not in seen_stats:
-            stats.append(st); seen_stats.add(st)
+            stats.append(st)
+            seen_stats.add(st)
+
         ins = (obj.get("Insight") or "").strip()
-        if ins and ins not in set(stats):  # minimal dedupe
-            if ins not in seen_ins:
-                insights.append(ins); seen_ins.add(ins)
+        # minimal dedupe; also ensure we don't duplicate a prior stat string
+        if ins and ins not in seen_ins and ins not in seen_stats:
+            insights.append(ins)
+            seen_ins.add(ins)
+
         ra = obj.get("Related Article") or {}
         if isinstance(ra, dict):
             url = (ra.get("Related Article URL") or ra.get("URL") or "").strip()
             if url and url not in seen_urls:
-                urls.append(url); seen_urls.add(url)
+                urls.append(url)
+                seen_urls.add(url)
+
         hd = (obj.get("Header") or "").strip()
         if hd:
             heads.append(hd)
 
     # Bound sizes
     stats = stats[:max_stats]
-    insights = insights[:max_ins]
+    insights = insights[:max_insights]   # <-- fixed here
     urls = urls[:max_urls]
     heads = heads[:max_heads]
 
     def clip_join(values: List[str], cap: int) -> str:
         s = " || ".join(values)
-        return (s if len(s) <= cap else s[: max(0, cap - 3)] + "...")
+        return s if len(s) <= cap else s[: max(0, cap - 3)] + "..."
 
     # split the budget across fields
     per_field_cap = max(200, EXPLAINER_MAX_CONTEXT_CHARS // 4)
