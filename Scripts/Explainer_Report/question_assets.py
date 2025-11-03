@@ -81,7 +81,6 @@ def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TE
         try:
             resp = client.responses.create(
                 model=model,
-                temperature=temperature,
                 tools=[{"type": "web_search"}],
                 input=prompt
             )
