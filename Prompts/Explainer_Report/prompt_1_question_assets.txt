@@ -132,9 +132,10 @@ Additionally, include **one** illustrative **Related Article** that supports you
 ## SUMMARY FORMAT GUARD
 
 - Do **not** include literal labels such as “Paragraph 1.” or “Paragraph 2.” in the Summary.
-- Write **3–5 short paragraphs** separated by exactly **two newline characters** (`\n\n`).
-- The **total length** must be **750–900 characters** (inclusive).
-- Each paragraph should be roughly **150–250 characters**.
+- The summary **must** be written as **3–5 short paragraphs**, separated by exactly **two newline characters** (`\n\n`) inside the JSON string.
+- Aim for **750–900 characters** total (this is a guideline, not a hard limit). It may go longer if necessary for clarity.
+- Ensure each paragraph is a complete thought and ends with a period.
+- The literal `\n\n` must appear between paragraphs, not replaced by spaces or single newlines.
 - No bullet points or numbered lists inside the Summary.
 - Do not express certainty or guarantee outcomes.
 
@@ -156,7 +157,7 @@ Additionally, include **one** illustrative **Related Article** that supports you
 - `Question`: Verbatim word-for-word of the original **Main Question**
 - `Header`: A headline-style label. (Max 40 characters)
 - `Sub-Header`: A one-line framing label. (Max 60 characters)
-- `Summary`: Write a concise narrative summary as a single string of plain text. The total length must be between **750 and 900 characters**. Structure into **3–5 short paragraphs**, separated by `\n\n`. Formatting must follow **Paragraph\n\nParagraph\n\nParagraph** (with 3–5 paragraphs). No “Paragraph 1/2” labels.
+- `Summary`: A single JSON string containing 3–5 short paragraphs separated by `\n\n` (escaped newlines). No “Paragraph 1/2” labels.
 - `Insight`: A single sentence giving a novel insight. (Max 200 characters)
 - `Statistic`: Provide a single, data-driven statistic relevant to the Question ({question}). One sentence only, using a percent, ratio, or count. Must relate to the **question topic**, not general prevalence. (Max 200 characters)
 - `Bullet Points`: Output a single string with exactly **four separate sentences**. **Separate each sentence using `\n`** (newline). No bullets, numbers, or extra breaks. Format exactly: `Sentence.\nSentence.\nSentence.\nSentence.`
@@ -175,7 +176,7 @@ Additionally, include **one** illustrative **Related Article** that supports you
 ## FINAL SELF-CHECK (do not print reasoning)
 
 Before output, verify silently:
-- Summary has **3–5 paragraphs**, separated by `\n\n`, and total length is **750–900** characters.
+- Summary has **3–5 paragraphs**, separated by `\n\n` (escaped newlines) inside the JSON string.
 - All acronyms are expanded on first use.
 - Related Article URL is publicly viewable HTML (HTTP 200), begins with `https://`, and points to an article page (not a download).
 - If no question-specific article is found, you provided a verified condition-level or guideline article.
