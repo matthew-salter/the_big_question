@@ -8,7 +8,7 @@ import time
 import threading
 import hashlib
 from datetime import datetime, timezone
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 from urllib.parse import urlparse
 
 import requests
@@ -27,7 +27,7 @@ SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
 
-# Continuity window for de-duplication pressure
+# Sliding window used for prompt context only (NOT for uniqueness)
 MAX_QA_IN_CONTEXT = int(os.getenv("EXPLAINER_MAX_QA_IN_CONTEXT", "12"))
 MAX_CONTEXT_CHARS = int(os.getenv("EXPLAINER_MAX_CONTEXT_CHARS", "16000"))
 
@@ -130,7 +130,6 @@ def is_http_html_ok(url: str) -> Tuple[bool, str]:
         ctype = (r.headers.get("Content-Type") or "").lower()
         if "text/html" not in ctype:
             return False, f"content_type={ctype or 'unknown'}"
-        # quick sanity on body
         head = (r.content[:4096] or b"").lower()
         if b"<html" not in head:
             return False, "no_html_marker"
@@ -161,68 +160,6 @@ def fingerprint(text: str) -> str:
     t = re.sub(r'\d+(\.\d+)?%?', 'X', t)
     t = re.sub(r'\s+', '', t)
     return t[:160]
-
-def build_seen_sets(history: List[str]) -> Tuple[set, set, set]:
-    seen_urls, seen_statfp, seen_insfp = set(), set(), set()
-    for s in history[-MAX_QA_IN_CONTEXT:]:
-        try:
-            obj = json.loads(s)
-        except Exception:
-            continue
-        if not isinstance(obj, dict):
-            continue
-        ra = obj.get("Related Article") or {}
-        u = (ra.get("Related Article URL") or "").strip()
-        if u:
-            seen_urls.add(u)
-        st = obj.get("Statistic") or ""
-        ins = obj.get("Insight") or ""
-        if st:
-            seen_statfp.add(fingerprint(st))
-        if ins:
-            seen_insfp.add(fingerprint(ins))
-    return seen_urls, seen_statfp, seen_insfp
-
-def sanitise_and_validate(obj: Dict[str, Any], history: List[str]) -> Dict[str, Any]:
-    # Strip any links from non-article fields
-    for fld in ("Summary", "Bullet Points", "Statistic", "Insight", "Header", "Sub-Header", "Question"):
-        if fld in obj:
-            obj[fld] = strip_links(obj[fld])
-
-    # Normalise bullets to exactly 4 sentences
-    if "Bullet Points" in obj:
-        obj["Bullet Points"] = normalise_bullets(obj["Bullet Points"])
-
-    seen_urls, seen_statfp, seen_insfp = build_seen_sets(history)
-
-    # Enforce uniqueness for Stat/Insight using near-dup fingerprints vs history
-    stp = fingerprint(obj.get("Statistic", ""))
-    inp = fingerprint(obj.get("Insight", ""))
-
-    if stp in seen_statfp:
-        raise ValueError("Statistic duplicates a previous item (near-duplicate fingerprint).")
-    if inp in seen_insfp:
-        raise ValueError("Insight duplicates a previous item (near-duplicate fingerprint).")
-
-    # Validate article URL
-    ra = obj.get("Related Article") or {}
-    url = (ra.get("Related Article URL") or "").strip()
-
-    # Shape check (https, not a download)
-    if is_bad_article_url(url):
-        raise ValueError(f"Related Article URL is a download or invalid: {url}")
-
-    # Duplicate URL vs history
-    if url in seen_urls:
-        raise ValueError(f"Related Article URL duplicates a previous item: {url}")
-
-    # Live HTTP check (must be HTML + 200)
-    ok, info = is_http_html_ok(url)
-    if not ok:
-        raise ValueError(f"Related Article URL failed live check ({info}): {url}")
-
-    obj["Related Article"] = ra
-    return obj
 
 # =========================
 # OpenAI call (Responses API + web_search)
@@ -272,6 +209,78 @@ def supabase_paths(run_id: str) -> Dict[str, str]:
     }
 
 # =========================
+# Validation pipeline
+# =========================
+
+def sanitise_and_validate(
+    obj: Dict[str, Any],
+    run_seen_urls: set,
+    run_seen_statfp: set,
+    run_seen_insfp: set
+) -> Tuple[Dict[str, Any], List[str]]:
+    """
+    Returns (clean_obj, warnings). Only *hard* failures raise.
+    Hard fail: bad/missing article URL (download), live check not HTML/200.
+    Soft warn: duplicate URL vs run, near-dup Statistic/Insight vs run.
+    """
+    warnings: List[str] = []
+
+    # Strip any links from non-article fields
+    for fld in ("Summary", "Bullet Points", "Statistic", "Insight", "Header", "Sub-Header", "Question"):
+        if fld in obj:
+            obj[fld] = strip_links(obj[fld])
+
+    # Normalise bullets to exactly 4 sentences
+    if "Bullet Points" in obj:
+        obj["Bullet Points"] = normalise_bullets(obj["Bullet Points"])
+
+    # Uniqueness (soft) across entire run
+    stp = fingerprint(obj.get("Statistic", ""))
+    inp = fingerprint(obj.get("Insight", ""))
+
+    if stp and stp in run_seen_statfp:
+        warnings.append("statistic_near_duplicate")
+    if inp and inp in run_seen_insfp:
+        warnings.append("insight_near_duplicate")
+
+    # Validate article URL (hard for broken, soft for duplicate)
+    ra = obj.get("Related Article") or {}
+    url = (ra.get("Related Article URL") or "").strip()
+
+    if is_bad_article_url(url):
+        raise ValueError(f"Related Article URL is a download or invalid: {url}")
+
+    ok, info = is_http_html_ok(url)
+    if not ok:
+        raise ValueError(f"Related Article URL failed live check ({info}): {url}")
+
+    if url in run_seen_urls:
+        warnings.append("related_article_url_duplicate")
+
+    obj["Related Article"] = ra
+    return obj, warnings
+
+def fallback_not_applicable(question_text: str) -> Dict[str, Any]:
+    """Produce a safe fallback JSON so no question is ever missing."""
+    return {
+        "Question": question_text,
+        "Header": "Not Applicable",
+        "Sub-Header": "Not Applicable",
+        "Summary": "Not Applicable",
+        "Bullet Points": "Not Applicable\nNot Applicable\nNot Applicable\nNot Applicable",
+        "Statistic": "Not Applicable",
+        "Insight": "Not Applicable",
+        "Related Article": {
+            "Related Article Title": "Not Applicable",
+            "Related Article Date": "Not Applicable",
+            "Related Article Summary": "Not Applicable",
+            "Related Article Relevance": "Not Applicable",
+            "Related Article Source": "Not Applicable",
+            "Related Article URL": "Not Applicable"
+        }
+    }
+
+# =========================
 # Core worker
 # =========================
 
@@ -304,7 +313,12 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
         supabase_write_textjson(paths["manifest"], manifest)
         supabase_write_textjson(paths["checkpoint"], ckpt)
 
-        history: List[str] = []
+        history_for_prompt: List[str] = []
+
+        # NEW: run-wide seen sets for stronger uniqueness
+        run_seen_urls: set = set()
+        run_seen_statfp: set = set()
+        run_seen_insfp: set = set()
 
         for idx, q_tmpl in enumerate(q_templates):
             if idx <= ckpt["last_completed_index"]:
@@ -314,11 +328,11 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             mapping = {k: safe_escape_braces(str(v)) for k, v in ctx.items()}
             mapping["question"] = safe_escape_braces(filled_q)
 
-            prior_block = build_prior_context(history)
+            prior_block = build_prior_context(history_for_prompt)
             prompt = prompt_template.format(**mapping) + prior_block
 
             q_id = f"{idx+1:02d}_{slugify(filled_q)[:50]}_{sha8(filled_q)}"
-            outfile = f'{paths["base']}/{q_id}.txt'
+            outfile = f'{paths["base"]}/{q_id}.txt'
             item_meta = {
                 "q_id": q_id,
                 "index": idx,
@@ -330,36 +344,72 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             manifest["items"].append(item_meta)
             supabase_write_textjson(paths["manifest"], manifest)
 
-            # Try up to 2 full generations for URL/uniqueness violations
+            # Retry once on hard validation errors; duplicates only warn.
             gen_attempts = 2
+            last_warnings: List[str] = []
+            hard_error: Optional[str] = None
+
             for attempt in range(1, gen_attempts + 1):
                 try:
                     t0 = time.time()
                     obj = call_openai(prompt, model=DEFAULT_MODEL, temperature=TEMPERATURE)
-                    obj = sanitise_and_validate(obj, history)
+                    obj, last_warnings = sanitise_and_validate(obj, run_seen_urls, run_seen_statfp, run_seen_insfp)
                     elapsed = round(time.time() - t0, 3)
+
+                    # Attach meta warnings
+                    meta = {"q_id": q_id, "generated_at": now_iso(), "warnings": last_warnings}
+                    obj.setdefault("_meta", meta)
 
                     # Persist output
                     supabase_write_txt(outfile, json.dumps(obj, ensure_ascii=False, indent=2))
 
-                    item_meta.update({"status": "done", "completed_at": now_iso(), "latency_seconds": elapsed})
+                    # Manifest status reflects warnings
+                    status_value = "done_with_warnings" if last_warnings else "done"
+                    item_meta.update({"status": status_value, "completed_at": now_iso(), "latency_seconds": elapsed, "warnings": last_warnings})
                     supabase_write_textjson(paths["manifest"], manifest)
 
-                    # Advance checkpoint and grow history
+                    # Advance checkpoint
                     ckpt.update({"last_completed_index": idx, "updated_at": now_iso()})
                     supabase_write_textjson(paths["checkpoint"], ckpt)
-                    history.append(json.dumps(obj, ensure_ascii=False))
+
+                    # Update run-wide seen sets
+                    ra = obj.get("Related Article") or {}
+                    url = (ra.get("Related Article URL") or "").strip()
+                    if url:
+                        run_seen_urls.add(url)
+
+                    st = obj.get("Statistic") or ""
+                    ins = obj.get("Insight") or ""
+                    if st:
+                        run_seen_statfp.add(fingerprint(st))
+                    if ins:
+                        run_seen_insfp.add(fingerprint(ins))
+
+                    # Grow prompt history
+                    history_for_prompt.append(json.dumps(obj, ensure_ascii=False))
 
                     time.sleep(0.25)
+                    hard_error = None
                     break
 
                 except Exception as e:
-                    if attempt >= gen_attempts:
-                        item_meta.update({"status": "failed", "failed_at": now_iso(), "error": str(e)})
-                        supabase_write_textjson(paths["manifest"], manifest)
-                        logger.error(f"❌ Generation failed for q_id={q_id}: {e}")
-                    else:
-                        logger.warning(f"🔁 Regenerating q_id={q_id} due to: {e}")
+                    hard_error = str(e)
+                    logger.warning(f"🔁 Attempt {attempt}/{gen_attempts} failed for q_id={q_id}: {hard_error}")
+
+            # If still failing after retries, write a fallback file so nothing is missing
+            if hard_error:
+                fb = fallback_not_applicable(filled_q)
+                fb["_meta"] = {"q_id": q_id, "generated_at": now_iso(), "warnings": ["fallback_not_applicable"], "error": hard_error}
+
+                supabase_write_txt(outfile, json.dumps(fb, ensure_ascii=False, indent=2))
+                item_meta.update({"status": "done_with_fallback", "completed_at": now_iso(), "warnings": ["fallback_not_applicable"], "error": hard_error})
+                supabase_write_textjson(paths["manifest"], manifest)
+
+                ckpt.update({"last_completed_index": idx, "updated_at": now_iso()})
+                supabase_write_textjson(paths["checkpoint"], ckpt)
+
+                # keep history minimal for fallback (do not add to run_seen to avoid poisoning uniqueness)
+                history_for_prompt.append(json.dumps(fb, ensure_ascii=False))
 
         logger.info(f"✅ [Explainer.Run] completed run_id={run_id} total={total}")
 
