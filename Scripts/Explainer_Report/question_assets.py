@@ -42,9 +42,6 @@ HTTP_UA = os.getenv(
 )
 HTTP_TIMEOUT = float(os.getenv("HTTP_VALIDATION_TIMEOUT", "8.0"))
 
-SUMMARY_MIN = 750
-SUMMARY_MAX = 900
-
 # =========================
 # Helpers
 # =========================
@@ -171,7 +168,6 @@ ALLOWED_RA_KEYS = {
 }
 
 def filter_extra_keys(obj: Dict[str, Any]) -> Dict[str, Any]:
-    # Remove any unexpected top-level keys (e.g., _meta)
     clean = {k: v for k, v in obj.items() if k in ALLOWED_TOP_KEYS}
     ra = clean.get("Related Article")
     if isinstance(ra, dict):
@@ -179,15 +175,13 @@ def filter_extra_keys(obj: Dict[str, Any]) -> Dict[str, Any]:
     return clean
 
 def validate_summary_format(summary: str) -> None:
+    """Require 3–5 paragraphs separated by \\n\\n. Do not enforce strict character count."""
     if not isinstance(summary, str):
         raise ValueError("Summary missing or not a string.")
-    total_len = len(summary)
-    if total_len < SUMMARY_MIN or total_len > SUMMARY_MAX:
-        raise ValueError(f"Summary length {total_len} outside {SUMMARY_MIN}-{SUMMARY_MAX} chars.")
-    parts = summary.split("\n\n")
+    # Accept either literal two-newline or the JSON-escaped \\n\\n
+    parts = summary.split("\\n\\n") if "\\n\\n" in summary else summary.split("\n\n")
     if not (3 <= len(parts) <= 5):
         raise ValueError("Summary must have 3–5 paragraphs separated by \\n\\n.")
-    # Light guard against bullet-like elements
     if any(p.strip().startswith(("-", "*", "•", "1.", "2.", "3.")) for p in parts):
         raise ValueError("Summary must be narrative paragraphs, not list-style.")
 
@@ -248,29 +242,27 @@ def sanitise_and_validate(
 ) -> Tuple[Dict[str, Any], List[str]]:
     """
     Returns (clean_obj, warnings).
-    Hard fail: bad/missing article URL (download), live check not HTML/200, summary format/length violation, missing required keys.
+    Hard fail: bad/missing article URL (download), live check not HTML/200, summary format violation, missing keys.
     Soft warn: duplicate URL vs run, near-dup Statistic/Insight vs run.
     """
     warnings: List[str] = []
 
-    # Remove extra keys early
     obj = filter_extra_keys(obj)
 
-    # Required keys quick check
     required = {"Question","Header","Sub-Header","Summary","Bullet Points","Statistic","Insight","Related Article"}
     if any(k not in obj for k in required):
         missing = [k for k in required if k not in obj]
         raise ValueError(f"Missing keys: {missing}")
 
-    # Strip any links from non-article fields
+    # Strip links from non-article fields
     for fld in ("Summary", "Bullet Points", "Statistic", "Insight", "Header", "Sub-Header", "Question"):
         if fld in obj:
             obj[fld] = strip_links(obj[fld])
 
-    # Summary strict validation
+    # Summary structure (3–5 paragraphs with \n\n)
     validate_summary_format(obj["Summary"])
 
-    # Bullet normalization to exactly 4 sentences / 3 newlines
+    # Bullet normalization; ensure exactly 3 newlines (4 sentences)
     if "Bullet Points" in obj:
         obj["Bullet Points"] = normalise_bullets(obj["Bullet Points"])
         if obj["Bullet Points"].count("\n") != 3:
@@ -284,17 +276,20 @@ def sanitise_and_validate(
     if inp and inp in run_seen_insfp:
         warnings.append("insight_near_duplicate")
 
-    # Validate article URL (hard for broken, soft for duplicate)
+    # Related article URL checks
     ra = obj.get("Related Article") or {}
     if not isinstance(ra, dict):
         raise ValueError("Related Article must be an object.")
     ra = {k: v for k, v in ra.items() if k in ALLOWED_RA_KEYS}
+
     url = (ra.get("Related Article URL") or "").strip()
     if is_bad_article_url(url):
         raise ValueError(f"Related Article URL is a download or invalid: {url}")
+
     ok, info = is_http_html_ok(url)
     if not ok:
         raise ValueError(f"Related Article URL failed live check ({info}): {url}")
+
     if url in run_seen_urls:
         warnings.append("related_article_url_duplicate")
 
@@ -355,7 +350,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
 
         history_for_prompt: List[str] = []
 
-        # Run-wide seen sets
+        # Run-wide seen sets (for true cross-run uniqueness within this run)
         run_seen_urls: set = set()
         run_seen_statfp: set = set()
         run_seen_insfp: set = set()
@@ -395,11 +390,10 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     obj, last_warnings = sanitise_and_validate(obj, run_seen_urls, run_seen_statfp, run_seen_insfp)
                     elapsed = round(time.time() - t0, 3)
 
-                    # Persist output WITHOUT extra keys
+                    # Persist output (no extra keys)
                     supabase_write_txt(outfile, json.dumps(obj, ensure_ascii=False, indent=2))
 
-                    status_value = "done_with_warnings" if last_warnings else "done"
-                    # Update seen sets after successful write
+                    # Update seen sets only after successful write
                     ra = obj["Related Article"]
                     url = (ra.get("Related Article URL") or "").strip()
                     st = obj.get("Statistic") or ""
@@ -410,6 +404,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     if stat_fp: run_seen_statfp.add(stat_fp)
                     if ins_fp: run_seen_insfp.add(ins_fp)
 
+                    status_value = "done_with_warnings" if last_warnings else "done"
                     item_meta.update({
                         "status": status_value,
                         "completed_at": now_iso(),
