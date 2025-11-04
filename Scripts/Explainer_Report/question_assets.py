@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Tuple
 from urllib.parse import urlparse
 
+import requests
 from openai import OpenAI
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
@@ -30,17 +31,16 @@ TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
 MAX_QA_IN_CONTEXT = int(os.getenv("EXPLAINER_MAX_QA_IN_CONTEXT", "12"))
 MAX_CONTEXT_CHARS = int(os.getenv("EXPLAINER_MAX_CONTEXT_CHARS", "16000"))
 
-# Preferred medical domains (soft allow-list; we still accept others if valid)
-ALLOWED_DOMAINS = {
-    "www.nhs.uk", "nhs.uk", "www.nice.org.uk", "nice.org.uk",
-    "www.bmj.com", "bmj.com", "www.jamanetwork.com", "jamanetwork.com",
-    "www.nejm.org", "nejm.org", "www.cdc.gov", "cdc.gov",
-    "www.who.int", "who.int", "www.cochranelibrary.com", "cochranelibrary.com"
-}
-
 # Disallowed URL signatures (to block downloads)
 BAD_URL_HINTS = (".pdf", ".doc", ".docx", ".xls", ".xlsx", ".zip")
 BAD_URL_SNIPPETS = ("/pdf/", "/download", "?download=")
+
+HTTP_UA = os.getenv(
+    "HTTP_VALIDATION_UA",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+)
+HTTP_TIMEOUT = float(os.getenv("HTTP_VALIDATION_TIMEOUT", "8.0"))
 
 # =========================
 # Helpers
@@ -92,13 +92,10 @@ def strip_links(text: str) -> str:
     # Remove markdown links first (keep visible anchor text)
     def _strip_md(m):
         inner = m.group(0)
-        # remove the (url) part
         inner = re.sub(r'\(\s*https?://[^)]+\)', '', inner)
         return inner.replace("[]", "").strip()
     text = MD_LINK_RE.sub(_strip_md, text)
-    # Remove raw URLs
     text = URL_RE.sub('', text)
-    # Normalize spaces
     return re.sub(r'\s{2,}', ' ', text).strip()
 
 def hostname(url: str) -> str:
@@ -117,12 +114,34 @@ def is_bad_article_url(url: str) -> bool:
         return True
     return False
 
+def is_http_html_ok(url: str) -> Tuple[bool, str]:
+    """
+    Returns (ok, info). ok=True only if we get HTTP 200 and HTML content.
+    """
+    try:
+        r = requests.get(
+            url,
+            headers={"User-Agent": HTTP_UA, "Accept": "text/html,application/xhtml+xml"},
+            timeout=HTTP_TIMEOUT,
+            allow_redirects=True,
+        )
+        if r.status_code != 200:
+            return False, f"status={r.status_code}"
+        ctype = (r.headers.get("Content-Type") or "").lower()
+        if "text/html" not in ctype:
+            return False, f"content_type={ctype or 'unknown'}"
+        # quick sanity on body
+        head = (r.content[:4096] or b"").lower()
+        if b"<html" not in head:
+            return False, "no_html_marker"
+        return True, "ok"
+    except Exception as exc:
+        return False, f"exception={type(exc).__name__}"
+
 def normalise_bullets(s: str) -> str:
     if not isinstance(s, str):
         return s
-    # Split by sentence endings into fragments
     parts = [p.strip() for p in re.split(r'(?<=[.!?])\s+', s) if p.strip()]
-    # Expand by splitting on ';' or ':' if needed
     while len(parts) < 4 and any((';' in x or ':' in x) for x in parts):
         idx = next(i for i,x in enumerate(parts) if (';' in x or ':' in x))
         frag = parts.pop(idx)
@@ -131,11 +150,9 @@ def normalise_bullets(s: str) -> str:
         else:
             a, b = frag.split(':', 1)
         parts[idx:idx] = [a.strip() + '.', b.strip() + '.']
-    # Pad with empties if still short
     while len(parts) < 4:
         parts.append('')
     parts = parts[:4]
-    # Ensure punctuation and join with newlines
     parts = [p if p.endswith(('.', '!', '?')) else (p + '.') for p in parts]
     return "\n".join(parts)
 
@@ -154,12 +171,10 @@ def build_seen_sets(history: List[str]) -> Tuple[set, set, set]:
             continue
         if not isinstance(obj, dict):
             continue
-        # URLs
         ra = obj.get("Related Article") or {}
         u = (ra.get("Related Article URL") or "").strip()
         if u:
             seen_urls.add(u)
-        # Stat/Insight fingerprints
         st = obj.get("Statistic") or ""
         ins = obj.get("Insight") or ""
         if st:
@@ -178,9 +193,9 @@ def sanitise_and_validate(obj: Dict[str, Any], history: List[str]) -> Dict[str, 
     if "Bullet Points" in obj:
         obj["Bullet Points"] = normalise_bullets(obj["Bullet Points"])
 
-    # Enforce uniqueness for Stat/Insight using near-dup fingerprints vs history
     seen_urls, seen_statfp, seen_insfp = build_seen_sets(history)
 
+    # Enforce uniqueness for Stat/Insight using near-dup fingerprints vs history
     stp = fingerprint(obj.get("Statistic", ""))
     inp = fingerprint(obj.get("Insight", ""))
 
@@ -192,15 +207,19 @@ def sanitise_and_validate(obj: Dict[str, Any], history: List[str]) -> Dict[str, 
     # Validate article URL
     ra = obj.get("Related Article") or {}
     url = (ra.get("Related Article URL") or "").strip()
+
+    # Shape check (https, not a download)
     if is_bad_article_url(url):
         raise ValueError(f"Related Article URL is a download or invalid: {url}")
+
+    # Duplicate URL vs history
     if url in seen_urls:
         raise ValueError(f"Related Article URL duplicates a previous item: {url}")
 
-    # Soft preference for allowed domains (do not fail; just annotate)
-    host = hostname(url)
-    if host and ALLOWED_DOMAINS and host not in ALLOWED_DOMAINS:
-        ra["_note"] = f"Non-preferred domain ({host}); verify credibility."
+    # Live HTTP check (must be HTML + 200)
+    ok, info = is_http_html_ok(url)
+    if not ok:
+        raise ValueError(f"Related Article URL failed live check ({info}): {url}")
 
     obj["Related Article"] = ra
     return obj
@@ -299,7 +318,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             prompt = prompt_template.format(**mapping) + prior_block
 
             q_id = f"{idx+1:02d}_{slugify(filled_q)[:50]}_{sha8(filled_q)}"
-            outfile = f'{paths["base"]}/{q_id}.txt'
+            outfile = f'{paths["base']}/{q_id}.txt'
             item_meta = {
                 "q_id": q_id,
                 "index": idx,
