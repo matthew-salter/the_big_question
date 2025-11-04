@@ -32,19 +32,24 @@ Think of this document as a reliable companion - a guide to support your journey
 ## TOOLING REQUIREMENT – WEB SEARCH
 
 You have access to `web_search` and **must** use it to select the “Related Article”.  
-**You must always include one Related Article.**
+**Always include exactly one Related Article.**
 
-Search ladder:
-Only include sources from reputable medical or scientific organisations (e.g. NHS, NICE, BMJ, WHO). If no credible article is found, state ‘Not Applicable’ for Related Article fields rather than citing unreliable material.
-1. Article **directly related to the {question}**, published within 6 months of `{todays_date}`.  
-2. If none found, choose a **credible article on the overall {condition}**, published within 6 months.  
-3. If still none, select the **most recent authoritative guideline or overview** from NHS, NICE, BMJ, JAMA, NEJM, CDC, WHO, or Cochrane (date may exceed 6 months).
+Allowed sources (prefer in this order): NHS, NICE, BMJ, JAMA, NEJM, CDC, WHO, Cochrane. If none fit the question within 6 months of `{todays_date}`, choose the **most recent authoritative guideline** from that list (may be older).
 
-**URL Rule:**
-- Open the article and copy the **final loaded** `https://` URL exactly as shown in the address bar.  
-- Avoid AMP/proxy/redirector links and tracking parameters unless required for the page to load.  
-- If a candidate URL fails to load, choose another.  
-- Do **not** output "Unavailable" unless both searches and fallback attempts fail completely.
+**URL & Page Type Rules (hard constraints):**
+- The URL must be a normal **HTML web page** (no direct file downloads).
+- **Disallowed**: URLs that end with or clearly resolve to `.pdf`, `.doc`, `.docx`, `.xls`, `.zip`, or that contain `/pdf/`, `/download`, or `?download=`.
+- Copy the **final loaded** `https://` URL exactly (no AMP/proxy/redirector links).
+- If a candidate violates the above or fails to load, **pick a different article**.
+
+**Uniqueness Rules:**
+- Do **not** reuse a `Related Article URL` that appears in `URLS_USED` (see REGISTRY at the end).
+- Within this batch, no two items may share the same `Related Article URL`.
+
+**Search ladder (stop at the first valid hit that satisfies all rules):**
+1) Article directly answering the **{question}** (≤ 6 months old).
+2) If none, a credible, recent article on the **{condition}** (≤ 6 months old).
+3) If none, the most recent **authoritative guideline** (may be older).
 
 ---
 
@@ -131,9 +136,18 @@ Additionally, include **one** illustrative **Related Article** that supports you
 - No bullet points or numbered lists inside the Summary.
 - Do not express certainty or guarantee outcomes.
 
+### Link Placement Guard (hard constraint)
+- **Only** `Related Article URL` may contain a URL. 
+- All other fields (Summary, Bullet Points, Statistic, Insight, Header, Sub-Header, Question) must contain **no URLs** and **no markdown links** (e.g., `[text](https://...)`). 
+- If you find yourself writing a URL outside the Related Article block, **remove it** and keep the sentence as plain text.
+
 ---
 
 ## OUTPUT REQUIREMENTS
+
+### Cross-Run Uniqueness (use REGISTRY)
+- Do **not** repeat any value listed in `STATS_USED`, `INSIGHTS_USED`, or `URLS_USED` from the REGISTRY.
+- If your draft would collide with the REGISTRY, choose a **different** statistic, insight, or article that is still valid.
 
 - `Question`: Verbatim word-for-word of the original **Main Question**
 - `Header`: A headline-style label. (Max 40 characters)
