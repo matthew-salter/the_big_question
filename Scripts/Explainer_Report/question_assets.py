@@ -27,7 +27,7 @@ SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
 
-# Sliding window used for prompt context only
+# Sliding window used for prompt context only (NOT for uniqueness)
 MAX_QA_IN_CONTEXT = int(os.getenv("EXPLAINER_MAX_QA_IN_CONTEXT", "12"))
 MAX_CONTEXT_CHARS = int(os.getenv("EXPLAINER_MAX_CONTEXT_CHARS", "16000"))
 
@@ -89,6 +89,7 @@ MD_LINK_RE = re.compile(r'\[[^\]]+\]\(\s*https?://[^)]+\)', re.IGNORECASE)
 def strip_links(text: str) -> str:
     if not isinstance(text, str):
         return text
+    # Remove markdown links first (keep visible anchor text)
     def _strip_md(m):
         inner = m.group(0)
         inner = re.sub(r'\(\s*https?://[^)]+\)', '', inner)
@@ -114,6 +115,9 @@ def is_bad_article_url(url: str) -> bool:
     return False
 
 def is_http_html_ok(url: str) -> Tuple[bool, str]:
+    """
+    Returns (ok, info). ok=True only if we get HTTP 200 and HTML content.
+    """
     try:
         r = requests.get(
             url,
@@ -138,8 +142,7 @@ def normalise_bullets(s: str) -> str:
         return s
     parts = [p.strip() for p in re.split(r'(?<=[.!?])\s+', s) if p.strip()]
     while len(parts) < 4 and any((';' in x or ':' in x) for x in parts):
-        idx = next((i for i,x in enumerate(parts) if (';' in x or ':' in x)), None)
-        if idx is None: break
+        idx = next(i for i,x in enumerate(parts) if (';' in x or ':' in x))
         frag = parts.pop(idx)
         if ';' in frag:
             a, b = frag.split(';', 1)
@@ -158,40 +161,14 @@ def fingerprint(text: str) -> str:
     t = re.sub(r'\s+', '', t)
     return t[:160]
 
-ALLOWED_TOP_KEYS = {
-    "Question", "Header", "Sub-Header", "Summary",
-    "Bullet Points", "Statistic", "Insight", "Related Article"
-}
-ALLOWED_RA_KEYS = {
-    "Related Article Title", "Related Article Date", "Related Article Summary",
-    "Related Article Relevance", "Related Article Source", "Related Article URL"
-}
-
-def filter_extra_keys(obj: Dict[str, Any]) -> Dict[str, Any]:
-    clean = {k: v for k, v in obj.items() if k in ALLOWED_TOP_KEYS}
-    ra = clean.get("Related Article")
-    if isinstance(ra, dict):
-        clean["Related Article"] = {k: v for k, v in ra.items() if k in ALLOWED_RA_KEYS}
-    return clean
-
-def validate_summary_format(summary: str) -> None:
-    """Require 3–5 paragraphs separated by \\n\\n. Do not enforce strict character count."""
-    if not isinstance(summary, str):
-        raise ValueError("Summary missing or not a string.")
-    # Accept either literal two-newline or the JSON-escaped \\n\\n
-    parts = summary.split("\\n\\n") if "\\n\\n" in summary else summary.split("\n\n")
-    if not (3 <= len(parts) <= 5):
-        raise ValueError("Summary must have 3–5 paragraphs separated by \\n\\n.")
-    if any(p.strip().startswith(("-", "*", "•", "1.", "2.", "3.")) for p in parts):
-        raise ValueError("Summary must be narrative paragraphs, not list-style.")
-
 # =========================
-# OpenAI call
+# OpenAI call (Responses API + web_search)
 # =========================
 
 def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TEMPERATURE) -> Dict[str, Any]:
     client = OpenAI()
     max_tries, base_sleep = 6, 1.0
+
     for attempt in range(1, max_tries + 1):
         try:
             resp = client.responses.create(
@@ -205,6 +182,7 @@ def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TE
             if not text_out:
                 raise ValueError("Empty response from model")
             return json.loads(text_out)
+
         except Exception as e:
             if attempt == max_tries:
                 raise
@@ -241,48 +219,34 @@ def sanitise_and_validate(
     run_seen_insfp: set
 ) -> Tuple[Dict[str, Any], List[str]]:
     """
-    Returns (clean_obj, warnings).
-    Hard fail: bad/missing article URL (download), live check not HTML/200, summary format violation, missing keys.
+    Returns (clean_obj, warnings). Only *hard* failures raise.
+    Hard fail: bad/missing article URL (download), live check not HTML/200.
     Soft warn: duplicate URL vs run, near-dup Statistic/Insight vs run.
     """
     warnings: List[str] = []
 
-    obj = filter_extra_keys(obj)
-
-    required = {"Question","Header","Sub-Header","Summary","Bullet Points","Statistic","Insight","Related Article"}
-    if any(k not in obj for k in required):
-        missing = [k for k in required if k not in obj]
-        raise ValueError(f"Missing keys: {missing}")
-
-    # Strip links from non-article fields
+    # Strip any links from non-article fields
     for fld in ("Summary", "Bullet Points", "Statistic", "Insight", "Header", "Sub-Header", "Question"):
         if fld in obj:
             obj[fld] = strip_links(obj[fld])
 
-    # Summary structure (3–5 paragraphs with \n\n)
-    validate_summary_format(obj["Summary"])
-
-    # Bullet normalization; ensure exactly 3 newlines (4 sentences)
+    # Normalise bullets to exactly 4 sentences
     if "Bullet Points" in obj:
         obj["Bullet Points"] = normalise_bullets(obj["Bullet Points"])
-        if obj["Bullet Points"].count("\n") != 3:
-            raise ValueError("Bullet Points must contain exactly four sentences separated by three \\n characters.")
 
     # Uniqueness (soft) across entire run
     stp = fingerprint(obj.get("Statistic", ""))
     inp = fingerprint(obj.get("Insight", ""))
+
     if stp and stp in run_seen_statfp:
         warnings.append("statistic_near_duplicate")
     if inp and inp in run_seen_insfp:
         warnings.append("insight_near_duplicate")
 
-    # Related article URL checks
+    # Validate article URL (hard for broken, soft for duplicate)
     ra = obj.get("Related Article") or {}
-    if not isinstance(ra, dict):
-        raise ValueError("Related Article must be an object.")
-    ra = {k: v for k, v in ra.items() if k in ALLOWED_RA_KEYS}
-
     url = (ra.get("Related Article URL") or "").strip()
+
     if is_bad_article_url(url):
         raise ValueError(f"Related Article URL is a download or invalid: {url}")
 
@@ -297,6 +261,7 @@ def sanitise_and_validate(
     return obj, warnings
 
 def fallback_not_applicable(question_text: str) -> Dict[str, Any]:
+    """Produce a safe fallback JSON so no question is ever missing."""
     return {
         "Question": question_text,
         "Header": "Not Applicable",
@@ -350,7 +315,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
 
         history_for_prompt: List[str] = []
 
-        # Run-wide seen sets (for true cross-run uniqueness within this run)
+        # NEW: run-wide seen sets for stronger uniqueness
         run_seen_urls: set = set()
         run_seen_statfp: set = set()
         run_seen_insfp: set = set()
@@ -379,6 +344,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             manifest["items"].append(item_meta)
             supabase_write_textjson(paths["manifest"], manifest)
 
+            # Retry once on hard validation errors; duplicates only warn.
             gen_attempts = 2
             last_warnings: List[str] = []
             hard_error: Optional[str] = None
@@ -390,36 +356,38 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     obj, last_warnings = sanitise_and_validate(obj, run_seen_urls, run_seen_statfp, run_seen_insfp)
                     elapsed = round(time.time() - t0, 3)
 
-                    # Persist output (no extra keys)
+                    # Attach meta warnings
+                    meta = {"q_id": q_id, "generated_at": now_iso(), "warnings": last_warnings}
+                    obj.setdefault("_meta", meta)
+
+                    # Persist output
                     supabase_write_txt(outfile, json.dumps(obj, ensure_ascii=False, indent=2))
 
-                    # Update seen sets only after successful write
-                    ra = obj["Related Article"]
-                    url = (ra.get("Related Article URL") or "").strip()
-                    st = obj.get("Statistic") or ""
-                    ins = obj.get("Insight") or ""
-                    stat_fp = fingerprint(st) if st else ""
-                    ins_fp  = fingerprint(ins) if ins else ""
-                    if url: run_seen_urls.add(url)
-                    if stat_fp: run_seen_statfp.add(stat_fp)
-                    if ins_fp: run_seen_insfp.add(ins_fp)
-
+                    # Manifest status reflects warnings
                     status_value = "done_with_warnings" if last_warnings else "done"
-                    item_meta.update({
-                        "status": status_value,
-                        "completed_at": now_iso(),
-                        "latency_seconds": elapsed,
-                        "warnings": last_warnings,
-                        "related_article_url": url,
-                        "stat_fp": stat_fp,
-                        "ins_fp": ins_fp
-                    })
+                    item_meta.update({"status": status_value, "completed_at": now_iso(), "latency_seconds": elapsed, "warnings": last_warnings})
                     supabase_write_textjson(paths["manifest"], manifest)
 
+                    # Advance checkpoint
                     ckpt.update({"last_completed_index": idx, "updated_at": now_iso()})
                     supabase_write_textjson(paths["checkpoint"], ckpt)
 
+                    # Update run-wide seen sets
+                    ra = obj.get("Related Article") or {}
+                    url = (ra.get("Related Article URL") or "").strip()
+                    if url:
+                        run_seen_urls.add(url)
+
+                    st = obj.get("Statistic") or ""
+                    ins = obj.get("Insight") or ""
+                    if st:
+                        run_seen_statfp.add(fingerprint(st))
+                    if ins:
+                        run_seen_insfp.add(fingerprint(ins))
+
+                    # Grow prompt history
                     history_for_prompt.append(json.dumps(obj, ensure_ascii=False))
+
                     time.sleep(0.25)
                     hard_error = None
                     break
@@ -428,21 +396,19 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     hard_error = str(e)
                     logger.warning(f"🔁 Attempt {attempt}/{gen_attempts} failed for q_id={q_id}: {hard_error}")
 
+            # If still failing after retries, write a fallback file so nothing is missing
             if hard_error:
                 fb = fallback_not_applicable(filled_q)
-                supabase_write_txt(outfile, json.dumps(fb, ensure_ascii=False, indent=2))
+                fb["_meta"] = {"q_id": q_id, "generated_at": now_iso(), "warnings": ["fallback_not_applicable"], "error": hard_error}
 
-                item_meta.update({
-                    "status": "done_with_fallback",
-                    "completed_at": now_iso(),
-                    "warnings": ["fallback_not_applicable"],
-                    "error": hard_error
-                })
+                supabase_write_txt(outfile, json.dumps(fb, ensure_ascii=False, indent=2))
+                item_meta.update({"status": "done_with_fallback", "completed_at": now_iso(), "warnings": ["fallback_not_applicable"], "error": hard_error})
                 supabase_write_textjson(paths["manifest"], manifest)
 
                 ckpt.update({"last_completed_index": idx, "updated_at": now_iso()})
                 supabase_write_textjson(paths["checkpoint"], ckpt)
 
+                # keep history minimal for fallback (do not add to run_seen to avoid poisoning uniqueness)
                 history_for_prompt.append(json.dumps(fb, ensure_ascii=False))
 
         logger.info(f"✅ [Explainer.Run] completed run_id={run_id} total={total}")
