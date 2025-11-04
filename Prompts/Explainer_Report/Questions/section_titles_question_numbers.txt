@@ -1,26 +1,32 @@
 Understanding the Condition
-Q1 - 5
+Q1 - 6
 
 Diagnosis
-Q6 - 8
+Q7 - 9
 
 Current Standard Treatments
-Q9 - 13
+Q10 - 13
 
 Lifestyle & Self-Management
-Q14 - 18
+Q14 - 21
 
-Doctor & Specialist Interactions
-Q19 - 25
+Doctor Interactions
+Q22 - 26
 
-Emotional & Social Support
-Q26 - 28
+Emotional Support
+Q27 - 29
 
-Healthcare Systems & Access
-Q29 - 35
+UK Focused
+Q30 - 33
+
+International Care
+Q34 - 38
 
 Alternative & Complementary Approaches
-Q36 - 50
+Q39 - 49
 
-Future Outlook & Innovation
-Q51 - 57
+Emerging Treatments
+Q50 - 55
+
+Trials and Innovation
+Q56 - 57
