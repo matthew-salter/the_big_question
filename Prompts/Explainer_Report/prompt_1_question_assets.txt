@@ -133,6 +133,8 @@ Additionally, include **one** illustrative **Related Article** that supports you
 
 - Do **not** include literal labels such as “Paragraph 1.” or “Paragraph 2.” in the Summary.
 - Write **3–5 short paragraphs** separated by exactly **two newline characters** (`\n\n`).
+- The **total length** must be **750–900 characters** (inclusive).
+- Each paragraph should be roughly **150–250 characters**.
 - No bullet points or numbered lists inside the Summary.
 - Do not express certainty or guarantee outcomes.
 
@@ -154,32 +156,30 @@ Additionally, include **one** illustrative **Related Article** that supports you
 - `Question`: Verbatim word-for-word of the original **Main Question**
 - `Header`: A headline-style label. (Max 40 characters)
 - `Sub-Header`: A one-line framing label. (Max 60 characters)
-- `Summary`: Write a concise narrative summary as a single string of plain text. The total length must be between 750 and 900 characters. The summary should be structured into 3–5 short paragraphs, separated by two newline characters (\n\n). Formatting should follow the **Paragraph\n\nParagraph\n\nParagraph\n\nParagraph** structure exactly. Each paragraph should contain approximately 150–250 characters and present information in a logical, flowing manner. Your response MUST reflect the **tone of voice** preference yet accessible, suitable for public communication of research or reports. Avoid bullet points, lists, or excessive jargon — aim for clarity, professionalism, and ease of reading. No “Paragraph 1/2” labels.
+- `Summary`: Write a concise narrative summary as a single string of plain text. The total length must be between **750 and 900 characters**. Structure into **3–5 short paragraphs**, separated by `\n\n`. Formatting must follow **Paragraph\n\nParagraph\n\nParagraph** (with 3–5 paragraphs). No “Paragraph 1/2” labels.
 - `Insight`: A single sentence giving a novel insight. (Max 200 characters)
-- `Statistic`: Provide a single, data-driven statistic relevant to the Question ({question}). Provide the statistic as a single sentence with a percent, ratio, or count format only (e.g., “10% of people have {condition}”). The statistic MUST relate directly to the topic of the question ({question}), not to the overall condition ({condition}) or its general prevalence. Always avoid broad or background statistics . Instead, choose a situational or contextual data point, for example:
-  - If the question is about treatment, quote treatment-related outcomes, adherence, or success rates,
-  - If about innovation, quote technology adoption, clinical trial results, or investment growth,
-  - If about diagnosis, quote diagnostic delay, accuracy, or screening rates.
-(Max 200 characters)
-- `Bullet Points`: Output a single string with exactly **four separate sentences**. **Separate each sentence using \n** (newline character). **Do not** use bullet points, numbers, paragraph breaks, or list formatting. Each sentence should be concise. This string will be parsed as one line-delimited block. formatting must follow the **Sentence.\nSentence.\nSentence.\nSentence.** structure exactly.
+- `Statistic`: Provide a single, data-driven statistic relevant to the Question ({question}). One sentence only, using a percent, ratio, or count. Must relate to the **question topic**, not general prevalence. (Max 200 characters)
+- `Bullet Points`: Output a single string with exactly **four separate sentences**. **Separate each sentence using `\n`** (newline). No bullets, numbers, or extra breaks. Format exactly: `Sentence.\nSentence.\nSentence.\nSentence.`
 - `Related Article`:
-  - `Related Article Title`: The title of the source article. (Max 40 characters)
+  - `Related Article Title`: (Max 40 characters)
   - `Related Article Date`: (DD/MM/YYYY)
-  - `Related Article Summary`: A narrative summary of the articles key findings. (Max 300 characters)  
-  - `Related Article Relevance`: A narrative summary of the articles relevance. (Max 300 characters)
-  - `Related Article Source`: The publisher or organisation responsible for the article.
-  - `Related Article URL`: Must be a live, working `https://` link to the **article page** (not a homepage, index, paywalled login page, or download). Do not invent or fabricate URLs.
+  - `Related Article Summary`: (Max 300 characters)
+  - `Related Article Relevance`: (Max 300 characters)
+  - `Related Article Source`: Publisher/organisation
+  - `Related Article URL`: Live `https://` link to the **article page** (not a homepage, index, paywalled login page, or download). Do not invent URLs.
+
+**Do not include any keys other than those listed above.** Do not include `_meta`, debug notes, or auxiliary fields.
 
 ---
 
 ## FINAL SELF-CHECK (do not print reasoning)
 
 Before output, verify silently:
-- Summary does **not** contain “Paragraph 1/2/3” labels and uses correct `\n\n` spacing.
-- All acronyms are expanded with a plain-English explanation.
+- Summary has **3–5 paragraphs**, separated by `\n\n`, and total length is **750–900** characters.
+- All acronyms are expanded on first use.
 - Related Article URL is publicly viewable HTML (HTTP 200), begins with `https://`, and points to an article page (not a download).
 - If no question-specific article is found, you provided a verified condition-level or guideline article.
-- All fields comply with output formatting rules.
+- All fields comply with output formatting rules and **no extra keys** are present.
 - Ensure no statements imply personalised outcomes, treatment recommendations, or endorsement.
 
 ---
