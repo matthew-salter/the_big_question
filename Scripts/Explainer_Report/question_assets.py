@@ -116,7 +116,9 @@ def is_bad_article_url(url: str) -> bool:
 
 def is_http_html_ok(url: str) -> Tuple[bool, str]:
     """
-    Returns (ok, info). ok=True only if we get HTTP 200 and HTML content.
+    Returns (ok, info). ok=True only if we get HTTP 200, HTML content,
+    and the body does NOT look like an access-denied/bot wall/interstitial.
+    (Detects common Akamai/Cloudflare "Access denied" pages that return 200.)
     """
     try:
         r = requests.get(
@@ -127,13 +129,36 @@ def is_http_html_ok(url: str) -> Tuple[bool, str]:
         )
         if r.status_code != 200:
             return False, f"status={r.status_code}"
+
         ctype = (r.headers.get("Content-Type") or "").lower()
         if "text/html" not in ctype:
             return False, f"content_type={ctype or 'unknown'}"
-        head = (r.content[:4096] or b"").lower()
+
+        # Inspect initial HTML chunk for denial markers
+        head = (r.content[:16384] or b"").lower()
+        deny_markers = (
+            b"access denied",
+            b"request blocked",
+            b"you don't have permission to access",
+            b"you do not have permission to access",
+            b"to protect our site",
+            b"are you human",
+            b"enable cookies to continue",
+            b"unusual traffic",
+            b"attention required!",
+            b"captcha",
+            b"akamai",
+            b"cloudflare",
+            b"reference #",  # common Akamai fingerprint
+        )
+        if any(m in head for m in deny_markers):
+            return False, "access_denied_interstitial"
+
         if b"<html" not in head:
             return False, "no_html_marker"
+
         return True, "ok"
+
     except Exception as exc:
         return False, f"exception={type(exc).__name__}"
 
@@ -220,7 +245,7 @@ def sanitise_and_validate(
 ) -> Tuple[Dict[str, Any], List[str]]:
     """
     Returns (clean_obj, warnings). Only *hard* failures raise.
-    Hard fail: bad/missing article URL (download), live check not HTML/200.
+    Hard fail: bad/missing article URL (download), live check not HTML/200 or access-denied interstitial.
     Soft warn: duplicate URL vs run, near-dup Statistic/Insight vs run.
     """
     warnings: List[str] = []
@@ -237,13 +262,12 @@ def sanitise_and_validate(
     # Uniqueness (soft) across entire run
     stp = fingerprint(obj.get("Statistic", ""))
     inp = fingerprint(obj.get("Insight", ""))
-
     if stp and stp in run_seen_statfp:
         warnings.append("statistic_near_duplicate")
     if inp and inp in run_seen_insfp:
         warnings.append("insight_near_duplicate")
 
-    # Validate article URL (hard for broken, soft for duplicate)
+    # Validate article URL (shape + live HTML + not an interstitial)
     ra = obj.get("Related Article") or {}
     url = (ra.get("Related Article URL") or "").strip()
 
@@ -315,7 +339,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
 
         history_for_prompt: List[str] = []
 
-        # NEW: run-wide seen sets for stronger uniqueness
+        # Run-wide seen sets for stronger uniqueness
         run_seen_urls: set = set()
         run_seen_statfp: set = set()
         run_seen_insfp: set = set()
@@ -356,11 +380,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     obj, last_warnings = sanitise_and_validate(obj, run_seen_urls, run_seen_statfp, run_seen_insfp)
                     elapsed = round(time.time() - t0, 3)
 
-                    # Attach meta warnings
-                    meta = {"q_id": q_id, "generated_at": now_iso(), "warnings": last_warnings}
-                    obj.setdefault("_meta", meta)
-
-                    # Persist output
+                    # Persist output (no extra keys)
                     supabase_write_txt(outfile, json.dumps(obj, ensure_ascii=False, indent=2))
 
                     # Manifest status reflects warnings
@@ -399,9 +419,8 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             # If still failing after retries, write a fallback file so nothing is missing
             if hard_error:
                 fb = fallback_not_applicable(filled_q)
-                fb["_meta"] = {"q_id": q_id, "generated_at": now_iso(), "warnings": ["fallback_not_applicable"], "error": hard_error}
-
                 supabase_write_txt(outfile, json.dumps(fb, ensure_ascii=False, indent=2))
+
                 item_meta.update({"status": "done_with_fallback", "completed_at": now_iso(), "warnings": ["fallback_not_applicable"], "error": hard_error})
                 supabase_write_textjson(paths["manifest"], manifest)
 
