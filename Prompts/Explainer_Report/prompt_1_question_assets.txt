@@ -158,7 +158,11 @@ Additionally, include **one** illustrative **Related Article** that supports you
 - `Sub-Header`: A one-line framing label. (Max 60 characters)
 - `Summary`: Write a concise narrative summary as a single string of plain text. The total length must be between **750 and 900 characters**. Structure into **3–5 short paragraphs**, separated by `\n\n`. Formatting must follow **Paragraph\n\nParagraph\n\nParagraph** (with 3–5 paragraphs). No “Paragraph 1/2” labels.
 - `Insight`: A single sentence giving a novel insight. (Max 200 characters)
-- `Statistic`: Provide a single, data-driven statistic relevant to the Question ({question}). One sentence only, using a percent, ratio, or count. Must relate to the **question topic**, not general prevalence. (Max 200 characters)
+- `Statistic`: Provide a single, data-driven statistic relevant to the Question ({question}). Provide the statistic as a single sentence with a percent, ratio, or count format only (e.g., “10% of people have {condition}”). The statistic MUST relate directly to the topic of the question ({question}), not to the overall condition ({condition}) or its general prevalence. Always avoid broad or background statistics . Instead, choose a situational or contextual data point, for example:
+  - If the question is about treatment, quote treatment-related outcomes, adherence, or success rates,
+  - If about innovation, quote technology adoption, clinical trial results, or investment growth,
+  - If about diagnosis, quote diagnostic delay, accuracy, or screening rates.
+(Max 200 characters)
 - `Bullet Points`: Output a single string with exactly **four separate sentences**. **Separate each sentence using `\n`** (newline). No bullets, numbers, or extra breaks. Format exactly: `Sentence.\nSentence.\nSentence.\nSentence.`
 - `Related Article`:
   - `Related Article Title`: (Max 40 characters)
