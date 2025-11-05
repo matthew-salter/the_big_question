@@ -121,21 +121,30 @@ def is_bad_article_url(url: str) -> bool:
 
 def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
     """
-    Returns (ok, info, final_url). ok=True only if:
-      - Final response is 200
-      - Content-Type includes text/html
-      - Not an interstitial/deny/challenge page
-      - Looks like a real article (title/h1 + body length threshold or <article>)
-      - Not AMP/proxy URL
+    (ok, info, final_url) for public HTML article pages.
+
+    Key behaviours:
+    - Canonicalise to final URL.
+    - Only treat 'deny' as blocking if NO article signals are present.
+    - Article signals (any one passes):
+        * <article> tag, OR
+        * <h1> + >=2 <p> + body len >= 1500, OR
+        * >=3 'citation_*' meta tags, OR
+        * JSON-LD type "ScholarlyArticle".
+    - Reject AMP/proxy and non-HTML.
     """
     try:
         r = requests.get(
             url,
-            headers={"User-Agent": HTTP_UA, "Accept": "text/html,application/xhtml+xml"},
+            headers={
+                "User-Agent": HTTP_UA,
+                "Accept": "text/html,application/xhtml+xml",
+                "Accept-Language": "en",
+            },
             timeout=HTTP_TIMEOUT,
             allow_redirects=True,
         )
-        final_url = r.url  # canonicalise
+        final_url = r.url
 
         if r.status_code != 200:
             return False, f"status={r.status_code}", final_url
@@ -147,33 +156,45 @@ def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
         body = r.text or ""
         bl = body.lower()
 
+        if "<html" not in bl:
+            return False, "no_html_marker", final_url
+
+        # ---- Article signals (broadened) ----
+        has_article_tag = "<article" in bl
+        has_h1 = "<h1" in bl
+        p_count = bl.count("<p")
+        long_enough = len(body) >= 1500
+        citation_meta_count = body.count('name="citation_') + body.count("name='citation_")
+        has_scholarly_jsonld = '"ScholarlyArticle"' in bl
+
+        article_signals = (
+            has_article_tag
+            or (has_h1 and p_count >= 2 and long_enough)
+            or (citation_meta_count >= 3)
+            or has_scholarly_jsonld
+        )
+
+        # ---- Deny/interstitial markers (block ONLY if no article signals) ----
         deny_markers = (
             "access denied", "permission denied", "request blocked",
             "enable cookies", "unusual traffic", "captcha",
             "attention required!", "blocked your request", "reference #",
             "to protect our site"
         )
-        if any(m in bl for m in deny_markers):
+        has_deny = any(m in bl for m in deny_markers)
+        if has_deny and not article_signals:
             return False, "access_denied_interstitial", final_url
 
-        # Must look like HTML
-        if "<html" not in bl:
-            return False, "no_html_marker", final_url
-
-        # Article heuristics
-        has_article_tag = "<article" in bl
-        has_h1 = "<h1" in bl
-        p_count = bl.count("<p")
-        long_enough = len(body) >= 2500
-        if not (has_article_tag or (has_h1 and p_count >= 3 and long_enough)):
+        if not article_signals:
             return False, "insufficient_article_signals", final_url
 
-        # Reject AMP/proxy
+        # ---- Reject AMP/proxy variants ----
         ful = final_url.lower()
         if "/amp" in ful or ful.startswith("https://amp.") or "amp." in hostname(final_url):
             return False, "amp_or_proxy_url", final_url
 
         return True, "ok", final_url
+
     except Exception as exc:
         return False, f"exception={type(exc).__name__}", url
 
