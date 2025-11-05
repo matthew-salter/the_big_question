@@ -43,14 +43,21 @@ Source quality: Prefer established, reputable medical/scientific organisations (
 - **Disallowed**: links that end with or resolve to `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.zip`, or that contain `/pdf/`, `/download`, or `?download=`.
 - Copy the **final loaded** `https://` URL exactly (no AMP/proxy/redirector links). If a candidate violates these rules or fails to load, **pick a different article**.
 
-**Uniqueness Rules:**
-- Do **not** reuse a `Related Article URL` that appears in `URLS_USED` (see REGISTRY at the end).
-- Within this run, no two questions may share the same `Related Article URL`.
-
 **Search ladder (stop at the first valid hit that satisfies all rules):**
-1) Article directly answering the **{question}** (≤ 6 months old).
-2) If none, a credible, recent article on the **{condition}** (≤ 6 months old).
-3) If none, the most recent **authoritative guideline/overview** (may be older).
+1) Article directly answering the **{question}** (prefer **≤ 6 months** old).
+2) If none, a credible, recent article on the **{condition}** (prefer **≤ 6 months** old).
+3) If none, the most recent **authoritative guideline/overview** (may be older; see recency rules below).
+
+**Recency rules:**
+- Prefer articles **≤ 6 months** old.
+- If none satisfy all rules, you may use a source **≤ 12 months** old as a fallback.
+
+**Uniqueness preference (uses REGISTRY):**
+- Prefer a **unique** `Related Article URL` not in `URLS_USED`.
+- If **no suitable unique URL** exists that satisfies page-type and recency rules, you **may reuse** a prior URL (ensure it is still relevant to the {question} or, if necessary, the {condition}).
+
+**Retry context:**
+- If a previous attempt for this question failed, you will receive a `RETRY CONTEXT` indicating the failure reason and listing already-used items. Choose a **different** URL/statistic/insight when possible; otherwise follow the fallback rules above.
 
 ---
 
@@ -70,6 +77,36 @@ Before answering, first assess whether the question is **relevant to the conditi
 **Ethnicity**: {ethnicity}
 **Region**: {region}
 **Todays Date**: {todays_date}
+
+---
+
+## REGISTRY (Prior outputs in this run)
+
+Use the following lists to avoid duplication and ensure novelty across all questions in this run.
+
+URLS_USED:
+{urls_used_each_on_new_line}
+
+STATS_USED:
+{stats_used_each_on_new_line}
+
+INSIGHTS_USED:
+{insights_used_each_on_new_line}
+
+STATS_FINGERPRINTS_USED:
+{stats_fps_each_on_new_line}
+
+INSIGHTS_FINGERPRINTS_USED:
+{insights_fps_each_on_new_line}
+
+ACRONYMS_SEEN:
+{acronyms_each_on_new_line}
+
+**Registry rules:**
+- Do **not** repeat any value in `STATS_USED` or `INSIGHTS_USED`.
+- Treat any collision with `STATS_FINGERPRINTS_USED` or `INSIGHTS_FINGERPRINTS_USED` as a duplicate — provide a **substantively different** statistic/insight (different numerator/denominator, timeframe, population, or metric).
+- Prefer a `Related Article URL` **not** in `URLS_USED`. If no valid unique URL is available under the page-type and recency rules, you **may reuse** a URL from `URLS_USED`.
+- If you use an acronym, **expand it on first use within this page**, even if it appeared previously.
 
 ---
 
@@ -106,7 +143,7 @@ Your response MUST reflect their **tone of voice** preference.
 Additionally, include **one** illustrative **Related Article** that supports your response:
 - Do not rely on a single article when forming reasoning — use multiple credible sources to inform your explanation.
 - Choose the most **representative and credible** related article to include as reference for the user.
-- The article must be **clearly relevant**, written within the last six months of `{todays_date}`, and drawn from a credible medical/health source, including the Related Article source URL.
+- The article must be **clearly relevant**, written within the last six months of `{todays_date}` (or **≤ 12 months** if none ≤ 6 months are available), and drawn from a credible medical/health source, including the Related Article source URL.
 - If no relevant or credible source exists after full search, use the fallback guideline rule above. Do not fabricate or infer.
 
 ---
@@ -117,11 +154,11 @@ Additionally, include **one** illustrative **Related Article** that supports you
 - Begin with a web search for an article **directly related to the {question}**.
 - If no verified article is found, **immediately search** for a credible recent article on the overall **{condition}**.
 - If still none, search for the most recent **authoritative guideline/overview**.
-- Continue until at least **one** valid article with a working `https://` URL is confirmed. Do not stop early.
+- Continue until at least **one** valid article with a working `https://` URL is confirmed, following the **recency** and **uniqueness preference** rules.
 
 **Verification Rules:**
-- Open the page to ensure it loads successfully (no 404/403 or redirect to index).
-- Prefer articles ≤ 6 months old; if none exist, the fallback guideline may be older.
+- Open the page to ensure it loads successfully (no 404/403, no interstitial/captcha).
+- Prefer articles **≤ 6 months** old; if none exist, you may use **≤ 12 months** old.
 - Copy the **final loaded** `https://` URL exactly (no AMP/proxy/redirector links).
 - Output the article’s exact publication date in `DD/MM/YYYY` format. If only “Month YYYY” is shown, infer the last day of that month (e.g., “May 2025” → “31/05/2025”).
 - **Never** return a direct download link or PDF; pick a different article page instead.
@@ -146,8 +183,9 @@ Additionally, include **one** illustrative **Related Article** that supports you
 
 ## CROSS-RUN UNIQUENESS (use REGISTRY if provided)
 
-- Do **not** repeat any value listed in `STATS_USED`, `INSIGHTS_USED`, or `URLS_USED`.
+- Do **not** repeat any value listed in `STATS_USED`, `INSIGHTS_USED`, or `URLS_USED` (preference).
 - Treat `STATS_FINGERPRINTS_USED` and `INSIGHTS_FINGERPRINTS_USED` as collisions; provide a **substantively different** statistic/insight (different numerator/denominator, timeframe, population, or metric).
+- Prefer a **unique** `Related Article URL` not in `URLS_USED`. If none satisfy page-type and recency rules, reusing a prior URL is acceptable as a **fallback**.
 
 ---
 
@@ -180,9 +218,10 @@ Additionally, include **one** illustrative **Related Article** that supports you
 
 Before output, verify silently:
 - Summary has **3–5 paragraphs**, separated by `\n\n`, and total length is **750–900** characters.
-- All acronyms are expanded on first use.
-- Related Article URL is publicly viewable HTML (HTTP 200), begins with `https://`, and points to an article page (not a download).
-- If no question-specific article is found, you provided a verified condition-level or guideline article.
+- All acronyms are expanded on first use **within this page**.
+- Related Article URL is publicly viewable HTML (HTTP 200), begins with `https://`, and points to an article page (not a download, AMP, proxy, or interstitial).
+- If no question-specific article is found, you provided a verified condition-level or guideline article that meets the recency rule.
+- You used **exactly one** Related Article and followed the uniqueness preference and fallback rules.
 - All fields comply with output formatting rules and **no extra keys** are present.
 - Ensure no statements imply personalised outcomes, treatment recommendations, or endorsement.
 
