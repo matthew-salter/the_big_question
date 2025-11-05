@@ -594,13 +594,16 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     is_last_attempt = (attempt == gen_attempts)
                     url_failure_signals = (
                         "Related Article URL failed live check" in hard_error
-                        or "Related Article URL is a download or invalid" in hard_error
-                        or "amp_or_proxy_url" in hard_error
-                        or "no_html_marker" in hard_error
-                        or "insufficient_article_signals" in hard_error
-                        or "content_type=" in hard_error
-                        or "status=" in hard_error
+                            or "Related Article URL is a download or invalid" in hard_error
+                            or "amp_or_proxy_url" in hard_error
+                            or "no_html_marker" in hard_error
+                            or "insufficient_article_signals" in hard_error
+                            or "too_short_or_placeholder" in hard_error
+                            or "access_or_error_interstitial" in hard_error
+                            or "content_type=" in hard_error
+                            or "status=" in hard_error
                     )
+                    logger.info(f"[VALIDATION] hard_error='{hard_error}'  matched_url_failure={url_failure_signals}")
 
                     if is_last_attempt and url_failure_signals:
                         # Try to get the model's raw JSON if obj isn't available yet
