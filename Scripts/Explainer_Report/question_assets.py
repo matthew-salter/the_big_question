@@ -27,7 +27,7 @@ SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
 
-# Sliding window used for prompt context only (NOT for uniqueness)
+# Sliding window used for prompt tone/context only (NOT for uniqueness)
 MAX_QA_IN_CONTEXT = int(os.getenv("EXPLAINER_MAX_QA_IN_CONTEXT", "12"))
 MAX_CONTEXT_CHARS = int(os.getenv("EXPLAINER_MAX_CONTEXT_CHARS", "16000"))
 
@@ -85,18 +85,23 @@ def build_prior_context(history: List[str]) -> str:
 
 URL_RE = re.compile(r'https?://\S+', re.IGNORECASE)
 MD_LINK_RE = re.compile(r'\[[^\]]+\]\(\s*https?://[^)]+\)', re.IGNORECASE)
+ACRO_RE = re.compile(r"\b[A-Z]{2,}\b")
 
 def strip_links(text: str) -> str:
+    """Remove any URLs/markdown links but preserve all original whitespace/newlines."""
     if not isinstance(text, str):
         return text
-    # Remove markdown links first (keep visible anchor text)
+
+    # Remove markdown links but keep anchor text
     def _strip_md(m):
         inner = m.group(0)
         inner = re.sub(r'\(\s*https?://[^)]+\)', '', inner)
-        return inner.replace("[]", "").strip()
+        # drop surrounding [ and ] only
+        return re.sub(r'^\[|\]$', '', inner)
+
     text = MD_LINK_RE.sub(_strip_md, text)
-    text = URL_RE.sub('', text)
-    return re.sub(r'\s{2,}', ' ', text).strip()
+    # Remove raw URLs, leave whitespace untouched
+    return URL_RE.sub('', text)
 
 def hostname(url: str) -> str:
     try:
@@ -114,11 +119,14 @@ def is_bad_article_url(url: str) -> bool:
         return True
     return False
 
-def is_http_html_ok(url: str) -> Tuple[bool, str]:
+def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
     """
-    Returns (ok, info). ok=True only if we get HTTP 200, HTML content,
-    and the body does NOT look like an access-denied/bot wall/interstitial.
-    (Detects common Akamai/Cloudflare "Access denied" pages that return 200.)
+    Returns (ok, info, final_url). ok=True only if:
+      - Final response is 200
+      - Content-Type includes text/html
+      - Not an interstitial/deny/challenge page
+      - Looks like a real article (title/h1 + body length threshold or <article>)
+      - Not AMP/proxy URL
     """
     try:
         r = requests.get(
@@ -127,64 +135,63 @@ def is_http_html_ok(url: str) -> Tuple[bool, str]:
             timeout=HTTP_TIMEOUT,
             allow_redirects=True,
         )
+        final_url = r.url  # canonicalise
+
         if r.status_code != 200:
-            return False, f"status={r.status_code}"
+            return False, f"status={r.status_code}", final_url
 
         ctype = (r.headers.get("Content-Type") or "").lower()
         if "text/html" not in ctype:
-            return False, f"content_type={ctype or 'unknown'}"
+            return False, f"content_type={ctype or 'unknown'}", final_url
 
-        # Inspect initial HTML chunk for denial markers
-        head = (r.content[:16384] or b"").lower()
+        body = r.text or ""
+        bl = body.lower()
+
         deny_markers = (
-            b"access denied",
-            b"request blocked",
-            b"you don't have permission to access",
-            b"you do not have permission to access",
-            b"to protect our site",
-            b"are you human",
-            b"enable cookies to continue",
-            b"unusual traffic",
-            b"attention required!",
-            b"captcha",
-            b"akamai",
-            b"cloudflare",
-            b"reference #",  # common Akamai fingerprint
+            "access denied", "permission denied", "request blocked",
+            "enable cookies", "unusual traffic", "captcha",
+            "attention required!", "blocked your request", "reference #",
+            "to protect our site"
         )
-        if any(m in head for m in deny_markers):
-            return False, "access_denied_interstitial"
+        if any(m in bl for m in deny_markers):
+            return False, "access_denied_interstitial", final_url
 
-        if b"<html" not in head:
-            return False, "no_html_marker"
+        # Must look like HTML
+        if "<html" not in bl:
+            return False, "no_html_marker", final_url
 
-        return True, "ok"
+        # Article heuristics
+        has_article_tag = "<article" in bl
+        has_h1 = "<h1" in bl
+        p_count = bl.count("<p")
+        long_enough = len(body) >= 2500
+        if not (has_article_tag or (has_h1 and p_count >= 3 and long_enough)):
+            return False, "insufficient_article_signals", final_url
 
+        # Reject AMP/proxy
+        ful = final_url.lower()
+        if "/amp" in ful or ful.startswith("https://amp.") or "amp." in hostname(final_url):
+            return False, "amp_or_proxy_url", final_url
+
+        return True, "ok", final_url
     except Exception as exc:
-        return False, f"exception={type(exc).__name__}"
-
-def normalise_bullets(s: str) -> str:
-    if not isinstance(s, str):
-        return s
-    parts = [p.strip() for p in re.split(r'(?<=[.!?])\s+', s) if p.strip()]
-    while len(parts) < 4 and any((';' in x or ':' in x) for x in parts):
-        idx = next(i for i,x in enumerate(parts) if (';' in x or ':' in x))
-        frag = parts.pop(idx)
-        if ';' in frag:
-            a, b = frag.split(';', 1)
-        else:
-            a, b = frag.split(':', 1)
-        parts[idx:idx] = [a.strip() + '.', b.strip() + '.']
-    while len(parts) < 4:
-        parts.append('')
-    parts = parts[:4]
-    parts = [p if p.endswith(('.', '!', '?')) else (p + '.') for p in parts]
-    return "\n".join(parts)
+        return False, f"exception={type(exc).__name__}", url
 
 def fingerprint(text: str) -> str:
     t = (text or '').lower()
     t = re.sub(r'\d+(\.\d+)?%?', 'X', t)
     t = re.sub(r'\s+', '', t)
     return t[:160]
+
+def is_recent_ddmmyyyy(ddmmyyyy: str, months_primary=6, months_max=12) -> Tuple[bool, bool]:
+    """Return (within_primary, within_max) for DD/MM/YYYY."""
+    try:
+        d = datetime.strptime(ddmmyyyy, "%d/%m/%Y").date()
+    except Exception:
+        return False, False
+    today = datetime.utcnow().date()
+    delta_days = (today - d).days
+    return (delta_days <= months_primary * 30), (delta_days <= months_max * 30)
 
 # =========================
 # OpenAI call (Responses API + web_search)
@@ -241,45 +248,66 @@ def sanitise_and_validate(
     obj: Dict[str, Any],
     run_seen_urls: set,
     run_seen_statfp: set,
-    run_seen_insfp: set
+    run_seen_insfp: set,
+    policy: Dict[str, Any]
 ) -> Tuple[Dict[str, Any], List[str]]:
     """
-    Returns (clean_obj, warnings). Only *hard* failures raise.
-    Hard fail: bad/missing article URL (download), live check not HTML/200 or access-denied interstitial.
-    Soft warn: duplicate URL vs run, near-dup Statistic/Insight vs run.
+    Returns (clean_obj, warnings). Hard failures raise to trigger retry.
+    Hard fail conditions depend on policy:
+      - bad/missing article URL (download or invalid)
+      - live check not HTML/200, interstitial/AMP/proxy, or not article-like
+      - recency beyond policy['max_months']
+      - duplicate URL if policy['require_unique'] is True
+      - duplicate Statistic/Insight fingerprints (always hard fail)
     """
     warnings: List[str] = []
 
-    # Strip any links from non-article fields
+    # Strip any links from non-article fields (preserve whitespace/newlines)
     for fld in ("Summary", "Bullet Points", "Statistic", "Insight", "Header", "Sub-Header", "Question"):
         if fld in obj:
             obj[fld] = strip_links(obj[fld])
 
-    # Normalise bullets to exactly 4 sentences
-    if "Bullet Points" in obj:
-        obj["Bullet Points"] = normalise_bullets(obj["Bullet Points"])
-
-    # Uniqueness (soft) across entire run
-    stp = fingerprint(obj.get("Statistic", ""))
-    inp = fingerprint(obj.get("Insight", ""))
+    # Uniqueness (fingerprints) across entire run: enforce as hard fail
+    st_text = obj.get("Statistic", "") or ""
+    in_text = obj.get("Insight", "") or ""
+    stp = fingerprint(st_text)
+    inp = fingerprint(in_text)
     if stp and stp in run_seen_statfp:
-        warnings.append("statistic_near_duplicate")
+        raise ValueError("statistic_near_duplicate")
     if inp and inp in run_seen_insfp:
-        warnings.append("insight_near_duplicate")
+        raise ValueError("insight_near_duplicate")
 
-    # Validate article URL (shape + live HTML + not an interstitial)
+    # Validate article URL (shape + live HTML + not an interstitial/AMP + canonical final URL)
     ra = obj.get("Related Article") or {}
     url = (ra.get("Related Article URL") or "").strip()
 
     if is_bad_article_url(url):
         raise ValueError(f"Related Article URL is a download or invalid: {url}")
 
-    ok, info = is_http_html_ok(url)
+    ok, info, final_url = is_http_html_ok(url)
     if not ok:
         raise ValueError(f"Related Article URL failed live check ({info}): {url}")
 
-    if url in run_seen_urls:
-        warnings.append("related_article_url_duplicate")
+    # Canonicalise to final URL
+    url = final_url
+    ra["Related Article URL"] = url
+
+    # Recency policy
+    within_6, within_12 = is_recent_ddmmyyyy(ra.get("Related Article Date", ""))
+    max_months = int(policy.get("max_months", 6))
+    if max_months <= 6 and not within_6:
+        raise ValueError("related_article_older_than_6m")
+    if max_months > 6 and not within_12:
+        raise ValueError("related_article_older_than_12m")
+    if within_12 and not within_6 and max_months > 6:
+        warnings.append("related_article_between_6_and_12_months")
+
+    # URL uniqueness policy
+    require_unique = bool(policy.get("require_unique", True))
+    if require_unique and url in run_seen_urls:
+        raise ValueError("related_article_url_duplicate")
+    if (not require_unique) and url in run_seen_urls:
+        warnings.append("related_article_url_duplicate_allowed")
 
     obj["Related Article"] = ra
     return obj, warnings
@@ -325,13 +353,34 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
         total = len(q_templates)
         paths = supabase_paths(run_id)
 
+        # Seed REGISTRY memory from payload (cross-run)
+        registry = payload.get("REGISTRY", {}) or {}
+        run_seen_urls: set = set(registry.get("URLS_USED", []) or [])
+        run_seen_statfp: set = set(registry.get("STATS_FINGERPRINTS_USED", []) or [])
+        run_seen_insfp: set = set(registry.get("INSIGHTS_FINGERPRINTS_USED", []) or [])
+        run_seen_stats_exact: set = set(registry.get("STATS_USED", []) or [])
+        run_seen_ins_exact: set = set(registry.get("INSIGHTS_USED", []) or [])
+        run_seen_acros: set = set(registry.get("ACRONYMS_SEEN", []) or [])
+
         manifest = {
             "run_id": run_id,
             "created_at": now_iso(),
             "updated_at": now_iso(),
             "total": total,
             "items": [],
-            "payload_meta": {"model": DEFAULT_MODEL, "temperature": TEMPERATURE, "ctx": ctx},
+            "payload_meta": {
+                "model": DEFAULT_MODEL,
+                "temperature": TEMPERATURE,
+                "ctx": ctx,
+                "seed_registry_counts": {
+                    "URLS_USED": len(run_seen_urls),
+                    "STATS_FINGERPRINTS_USED": len(run_seen_statfp),
+                    "INSIGHTS_FINGERPRINTS_USED": len(run_seen_insfp),
+                    "STATS_USED": len(run_seen_stats_exact),
+                    "INSIGHTS_USED": len(run_seen_ins_exact),
+                    "ACRONYMS_SEEN": len(run_seen_acros),
+                }
+            },
         }
         ckpt = {"last_completed_index": -1, "updated_at": now_iso()}
         supabase_write_textjson(paths["manifest"], manifest)
@@ -339,10 +388,17 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
 
         history_for_prompt: List[str] = []
 
-        # Run-wide seen sets for stronger uniqueness
-        run_seen_urls: set = set()
-        run_seen_statfp: set = set()
-        run_seen_insfp: set = set()
+        def render_registry_block() -> str:
+            def _lines(xs): return "\n".join(sorted(xs)) if xs else ""
+            return (
+                "\n\n## REGISTRY (Prior outputs in this run)\n"
+                "URLS_USED:\n" + _lines(run_seen_urls) + "\n\n"
+                "STATS_USED:\n" + _lines(run_seen_stats_exact) + "\n\n"
+                "INSIGHTS_USED:\n" + _lines(run_seen_ins_exact) + "\n\n"
+                "STATS_FINGERPRINTS_USED:\n" + _lines(run_seen_statfp) + "\n\n"
+                "INSIGHTS_FINGERPRINTS_USED:\n" + _lines(run_seen_insfp) + "\n\n"
+                "ACRONYMS_SEEN:\n" + _lines(run_seen_acros) + "\n"
+            )
 
         for idx, q_tmpl in enumerate(q_templates):
             if idx <= ckpt["last_completed_index"]:
@@ -352,8 +408,9 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             mapping = {k: safe_escape_braces(str(v)) for k, v in ctx.items()}
             mapping["question"] = safe_escape_braces(filled_q)
 
+            # Assemble prompt with REGISTRY and optional prior JSONs for tone continuity
             prior_block = build_prior_context(history_for_prompt)
-            prompt = prompt_template.format(**mapping) + prior_block
+            base_prompt = prompt_template.format(**mapping) + render_registry_block() + prior_block
 
             q_id = f"{idx+1:02d}_{slugify(filled_q)[:50]}_{sha8(filled_q)}"
             outfile = f'{paths["base"]}/{q_id}.txt'
@@ -368,16 +425,45 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             manifest["items"].append(item_meta)
             supabase_write_textjson(paths["manifest"], manifest)
 
-            # Retry once on hard validation errors; duplicates only warn.
+            # Two attempts per ladder:
+            # Attempt 1 (strict): ≤6m and unique URL required
+            # Attempt 2 (fallback): ≤12m and duplicate URL allowed
             gen_attempts = 2
             last_warnings: List[str] = []
             hard_error: Optional[str] = None
+            last_fail_reason: Optional[str] = None
 
             for attempt in range(1, gen_attempts + 1):
                 try:
+                    policy = {
+                        "max_months": 6 if attempt == 1 else 12,
+                        "require_unique": True if attempt == 1 else False,
+                    }
+
+                    retry_hint = ""
+                    if attempt > 1 and last_fail_reason:
+                        # Give the model a concise, actionable retry context
+                        retry_hint = (
+                            "\n\n---\n## RETRY CONTEXT\n"
+                            f"Previous attempt failed: {last_fail_reason}\n"
+                            "Choose a different Related Article URL that:\n"
+                            "• loads as public HTML (HTTP 200), not AMP/proxy/download/interstitial;\n"
+                            f"• is ≤{policy['max_months']} months old;\n"
+                            f"• {'is NOT in URLS_USED (preferred, but allowed if none available)' if not policy['require_unique'] else 'is NOT in URLS_USED'}.\n"
+                            "Avoid reusing Statistic/Insight fingerprints from REGISTRY.\n---\n"
+                        )
+
+                    prompt = base_prompt + retry_hint
+
                     t0 = time.time()
                     obj = call_openai(prompt, model=DEFAULT_MODEL, temperature=TEMPERATURE)
-                    obj, last_warnings = sanitise_and_validate(obj, run_seen_urls, run_seen_statfp, run_seen_insfp)
+                    obj, last_warnings = sanitise_and_validate(
+                        obj,
+                        run_seen_urls,
+                        run_seen_statfp,
+                        run_seen_insfp,
+                        policy
+                    )
                     elapsed = round(time.time() - t0, 3)
 
                     # Persist output (no extra keys)
@@ -392,7 +478,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     ckpt.update({"last_completed_index": idx, "updated_at": now_iso()})
                     supabase_write_textjson(paths["checkpoint"], ckpt)
 
-                    # Update run-wide seen sets
+                    # Update run-wide seen sets AFTER successful validation
                     ra = obj.get("Related Article") or {}
                     url = (ra.get("Related Article URL") or "").strip()
                     if url:
@@ -402,18 +488,34 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     ins = obj.get("Insight") or ""
                     if st:
                         run_seen_statfp.add(fingerprint(st))
+                        run_seen_stats_exact.add(st.strip())
                     if ins:
                         run_seen_insfp.add(fingerprint(ins))
+                        run_seen_ins_exact.add(ins.strip())
 
-                    # Grow prompt history
+                    # naive acronym scrape from main narrative fields
+                    fields_to_scan = [
+                        obj.get("Header",""), obj.get("Sub-Header",""),
+                        obj.get("Summary",""), obj.get("Bullet Points",""),
+                        obj.get("Statistic",""), obj.get("Insight","")
+                    ]
+                    found_acros = set()
+                    for f in fields_to_scan:
+                        found_acros.update(ACRO_RE.findall(f or ""))
+                    for a in found_acros:
+                        run_seen_acros.add(a)
+
+                    # Grow prompt history (optional, tone continuity)
                     history_for_prompt.append(json.dumps(obj, ensure_ascii=False))
 
                     time.sleep(0.25)
                     hard_error = None
+                    last_fail_reason = None
                     break
 
                 except Exception as e:
                     hard_error = str(e)
+                    last_fail_reason = hard_error
                     logger.warning(f"🔁 Attempt {attempt}/{gen_attempts} failed for q_id={q_id}: {hard_error}")
 
             # If still failing after retries, write a fallback file so nothing is missing
@@ -429,6 +531,18 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
 
                 # keep history minimal for fallback (do not add to run_seen to avoid poisoning uniqueness)
                 history_for_prompt.append(json.dumps(fb, ensure_ascii=False))
+
+        # Optionally persist final REGISTRY snapshot for cross-run seeding
+        manifest["final_registry"] = {
+            "URLS_USED": sorted(run_seen_urls),
+            "STATS_USED": sorted(run_seen_stats_exact),
+            "INSIGHTS_USED": sorted(run_seen_ins_exact),
+            "STATS_FINGERPRINTS_USED": sorted(run_seen_statfp),
+            "INSIGHTS_FINGERPRINTS_USED": sorted(run_seen_insfp),
+            "ACRONYMS_SEEN": sorted(run_seen_acros),
+        }
+        manifest["updated_at"] = now_iso()
+        supabase_write_textjson(paths["manifest"], manifest)
 
         logger.info(f"✅ [Explainer.Run] completed run_id={run_id} total={total}")
 
