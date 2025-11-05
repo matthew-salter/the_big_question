@@ -277,7 +277,7 @@ def sanitise_and_validate(
     Hard fail conditions depend on policy:
       - bad/missing article URL (download or invalid)
       - live check not HTML/200, interstitial/AMP/proxy, or not article-like
-      - recency beyond policy['max_months']
+      - recency beyond policy['max_months'] (if provided)
       - duplicate URL if policy['require_unique'] is True
       - duplicate Statistic/Insight fingerprints (always hard fail)
     """
@@ -314,14 +314,16 @@ def sanitise_and_validate(
     ra["Related Article URL"] = url
 
     # Recency policy
-    within_6, within_12 = is_recent_ddmmyyyy(ra.get("Related Article Date", ""))
-    max_months = int(policy.get("max_months", 6))
-    if max_months <= 6 and not within_6:
-        raise ValueError("related_article_older_than_6m")
-    if max_months > 6 and not within_12:
-        raise ValueError("related_article_older_than_12m")
-    if within_12 and not within_6 and max_months > 6:
-        warnings.append("related_article_between_6_and_12_months")
+    max_months = policy.get("max_months", 6)
+    if max_months is not None:
+        within_6, within_12 = is_recent_ddmmyyyy(ra.get("Related Article Date", ""))
+        if max_months <= 6 and not within_6:
+            raise ValueError("related_article_older_than_6m")
+        if max_months > 6 and not within_12:
+            raise ValueError("related_article_older_than_12m")
+        if within_12 and not within_6 and max_months > 6:
+            warnings.append("related_article_between_6_and_12_months")
+    # Attempt 3 uses max_months=None -> skip recency entirely
 
     # URL uniqueness policy
     require_unique = bool(policy.get("require_unique", True))
@@ -409,18 +411,6 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
 
         history_for_prompt: List[str] = []
 
-        def render_registry_block() -> str:
-            def _lines(xs): return "\n".join(sorted(xs)) if xs else ""
-            return (
-                "\n\n## REGISTRY (Prior outputs in this run)\n"
-                "URLS_USED:\n" + _lines(run_seen_urls) + "\n\n"
-                "STATS_USED:\n" + _lines(run_seen_stats_exact) + "\n\n"
-                "INSIGHTS_USED:\n" + _lines(run_seen_ins_exact) + "\n\n"
-                "STATS_FINGERPRINTS_USED:\n" + _lines(run_seen_statfp) + "\n\n"
-                "INSIGHTS_FINGERPRINTS_USED:\n" + _lines(run_seen_insfp) + "\n\n"
-                "ACRONYMS_SEEN:\n" + _lines(run_seen_acros) + "\n"
-            )
-
         for idx, q_tmpl in enumerate(q_templates):
             if idx <= ckpt["last_completed_index"]:
                 continue
@@ -460,10 +450,11 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             manifest["items"].append(item_meta)
             supabase_write_textjson(paths["manifest"], manifest)
 
-            # Two attempts per ladder:
-            # Attempt 1 (strict): ≤6m and unique URL required
-            # Attempt 2 (fallback): ≤12m and duplicate URL allowed
-            gen_attempts = 2
+            # Three attempts:
+            # 1) strict: ≤6m, unique URL, live HTML required
+            # 2) lenient: ≤12m, duplicates allowed, live HTML required
+            # 3) salvage: no date limit, duplicates allowed; if live HTML fails, write with URL="Unavailable"
+            gen_attempts = 3
             last_warnings: List[str] = []
             hard_error: Optional[str] = None
             last_fail_reason: Optional[str] = None
@@ -471,21 +462,21 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             for attempt in range(1, gen_attempts + 1):
                 try:
                     policy = {
-                        "max_months": 6 if attempt == 1 else 12,
-                        "require_unique": True if attempt == 1 else False,
+                        # max_months=None => skip recency check
+                        "max_months": 6 if attempt == 1 else (12 if attempt == 2 else None),
+                        "require_unique": True if attempt == 1 else False,  # attempt 2 & 3 allow duplicates
                     }
 
                     retry_hint = ""
                     if attempt > 1 and last_fail_reason:
-                        # Give the model a concise, actionable retry context
                         retry_hint = (
                             "\n\n---\n## RETRY CONTEXT\n"
                             f"Previous attempt failed: {last_fail_reason}\n"
-                            "Choose a different Related Article URL that:\n"
+                            "Choose a Related Article URL that:\n"
                             "• loads as public HTML (HTTP 200), not AMP/proxy/download/interstitial;\n"
-                            f"• is ≤{policy['max_months']} months old;\n"
-                            f"• {'is NOT in URLS_USED (preferred, but allowed if none available)' if not policy['require_unique'] else 'is NOT in URLS_USED'}.\n"
-                            "Avoid reusing Statistic/Insight fingerprints from REGISTRY.\n---\n"
+                            f"• {'is ≤ 6 months old' if attempt == 1 else ('is ≤ 12 months old' if attempt == 2 else 'may be any date (no limit)')};\n"
+                            f"• {'is NOT in URLS_USED' if attempt == 1 else 'may reuse a URL if necessary'}.\n"
+                            "Avoid reusing Statistic/Insight fingerprints when possible.\n---\n"
                         )
 
                     prompt = base_prompt + retry_hint
@@ -501,10 +492,8 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     )
                     elapsed = round(time.time() - t0, 3)
 
-                    # Persist output (no extra keys)
+                    # Persist output
                     supabase_write_txt(outfile, json.dumps(obj, ensure_ascii=False, indent=2))
-
-                    # Manifest status reflects warnings
                     status_value = "done_with_warnings" if last_warnings else "done"
                     item_meta.update({"status": status_value, "completed_at": now_iso(), "latency_seconds": elapsed, "warnings": last_warnings})
                     supabase_write_textjson(paths["manifest"], manifest)
@@ -516,7 +505,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     # Update run-wide seen sets AFTER successful validation
                     ra = obj.get("Related Article") or {}
                     url = (ra.get("Related Article URL") or "").strip()
-                    if url:
+                    if url and url != "Unavailable":
                         run_seen_urls.add(url)
 
                     st = obj.get("Statistic") or ""
@@ -528,7 +517,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                         run_seen_insfp.add(fingerprint(ins))
                         run_seen_ins_exact.add(ins.strip())
 
-                    # naive acronym scrape from main narrative fields
+                    # naive acronym scrape
                     fields_to_scan = [
                         obj.get("Header",""), obj.get("Sub-Header",""),
                         obj.get("Summary",""), obj.get("Bullet Points",""),
@@ -540,9 +529,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     for a in found_acros:
                         run_seen_acros.add(a)
 
-                    # Grow prompt history (optional, tone continuity)
                     history_for_prompt.append(json.dumps(obj, ensure_ascii=False))
-
                     time.sleep(0.25)
                     hard_error = None
                     last_fail_reason = None
@@ -553,7 +540,65 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     last_fail_reason = hard_error
                     logger.warning(f"🔁 Attempt {attempt}/{gen_attempts} failed for q_id={q_id}: {hard_error}")
 
-            # If still failing after retries, write a fallback file so nothing is missing
+                    # ---- Attempt 3 salvage: if live HTML/URL shape failed, accept output but blank the URL ----
+                    is_last_attempt = (attempt == gen_attempts)
+                    url_failure_signals = (
+                        "Related Article URL failed live check" in hard_error
+                        or "Related Article URL is a download or invalid" in hard_error
+                        or "amp_or_proxy_url" in hard_error
+                        or "no_html_marker" in hard_error
+                        or "insufficient_article_signals" in hard_error
+                        or "content_type=" in hard_error
+                        or "status=" in hard_error
+                    )
+
+                    if is_last_attempt and url_failure_signals:
+                        # Try to get the model's raw JSON if obj isn't available yet
+                        try:
+                            if 'obj' not in locals() or obj is None:
+                                obj = call_openai(prompt, model=DEFAULT_MODEL, temperature=TEMPERATURE)
+                        except Exception:
+                            obj = fallback_not_applicable(filled_q)
+
+                        # Strip links from non-article fields (preserve newlines)
+                        for fld in ("Summary", "Bullet Points", "Statistic", "Insight", "Header", "Sub-Header", "Question"):
+                            if fld in obj:
+                                obj[fld] = strip_links(obj[fld])
+
+                        # Force URL to "Unavailable", keep every other field as generated
+                        ra = obj.get("Related Article") or {}
+                        ra["Related Article URL"] = "Unavailable"
+                        obj["Related Article"] = ra
+
+                        # Persist salvaged output
+                        supabase_write_txt(outfile, json.dumps(obj, ensure_ascii=False, indent=2))
+                        item_meta.update({
+                            "status": "done_with_warnings",
+                            "completed_at": now_iso(),
+                            "warnings": ["related_article_unavailable_salvaged"],
+                            "error": hard_error
+                        })
+                        supabase_write_textjson(paths["manifest"], manifest)
+
+                        ckpt.update({"last_completed_index": idx, "updated_at": now_iso()})
+                        supabase_write_textjson(paths["checkpoint"], ckpt)
+
+                        # Update seen sets from non-URL assets only
+                        st = obj.get("Statistic") or ""
+                        ins = obj.get("Insight") or ""
+                        if st:
+                            run_seen_statfp.add(fingerprint(st))
+                            run_seen_stats_exact.add(st.strip())
+                        if ins:
+                            run_seen_insfp.add(fingerprint(ins))
+                            run_seen_ins_exact.add(ins.strip())
+
+                        history_for_prompt.append(json.dumps(obj, ensure_ascii=False))
+                        time.sleep(0.25)
+                        hard_error = None  # treat as success-with-warnings
+                        break
+
+            # If still failing after retries (and not salvageable), write a "Not Applicable" fallback
             if hard_error:
                 fb = fallback_not_applicable(filled_q)
                 supabase_write_txt(outfile, json.dumps(fb, ensure_ascii=False, indent=2))
