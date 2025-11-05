@@ -38,10 +38,16 @@ You have access to `web_search` and **must** use it to select the “Related Art
 Source quality: Prefer established, reputable medical/scientific organisations (e.g., NHS, NICE, BMJ, WHO, JAMA, NEJM, CDC, Cochrane), but any credible source is acceptable if it meets the rules below and is relevant.
 
 **URL & Page Type Rules (hard constraints):**
-- The page must be publicly viewable in a normal browser.
-- It must return **HTTP 200** and load as an **HTML page** (not a direct download).
+- The page must be **freely viewable in a normal browser** without login, subscription, or geographic restrictions.
+- It must return **HTTP 200** and load as an **HTML page** (not a direct download or dynamically blocked page).
+- Reject any URL whose title, snippet, or preview text includes any of the following terms:
+  “Access Denied”, “Forbidden”, “Login”, “Sign In”, “Subscription”, “Paywall”, “Region”, “Country”, “Restricted”, “Blocked”, “Not Available”, “Error”.
+- Reject any URL whose path contains `/login`, `/error`, `/region`, `/access`, `/denied`, or `/blocked`.
+- Avoid URLs with long query strings or tracking parameters such as `?ref=`, `?id=`, `?session=`, `?token=`, or `?utm_`.
 - **Disallowed**: links that end with or resolve to `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.zip`, or that contain `/pdf/`, `/download`, or `?download=`.
-- Copy the **final loaded** `https://` URL exactly (no AMP/proxy/redirector links). If a candidate violates these rules or fails to load, **pick a different article**.
+- Avoid pages that display interstitials, blank content, or file downloads instead of an article.
+- Prefer URLs that are clearly open and informational (for example: NHS, NICE, WHO, BMJ, CDC, Mayo Clinic, Cleveland Clinic, Healthline, WebMD, etc.).
+- Copy the **final loaded** `https://` URL exactly (no AMP, proxy, redirector, login, or session links). If a candidate violates these rules or fails to load, **select a different**
 
 **Search ladder (stop at the first valid hit that satisfies all rules):**
 1) Article directly answering the **{question}** (prefer **≤ 6 months** old).
