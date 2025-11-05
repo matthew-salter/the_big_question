@@ -12,6 +12,7 @@ from typing import Dict, Any, List, Tuple, Optional
 from urllib.parse import urlparse
 
 import requests
+from requests.adapters import HTTPAdapter  # (1) persistent HTTP session: adapter for pooling
 from openai import OpenAI
 from logger import logger
 from Engine.Files.write_supabase_file import write_supabase_file
@@ -41,6 +42,18 @@ HTTP_UA = os.getenv(
     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
 HTTP_TIMEOUT = float(os.getenv("HTTP_VALIDATION_TIMEOUT", "8.0"))
+
+# (1) persistent HTTP session & connection pool
+HTTP_POOL_CONNS = int(os.getenv("HTTP_POOL_CONNS", "50"))
+HTTP_POOL_MAXSIZE = int(os.getenv("HTTP_POOL_MAXSIZE", "50"))
+
+_HTTP_SESSION = requests.Session()
+_HTTP_ADAPTER = HTTPAdapter(pool_connections=HTTP_POOL_CONNS, pool_maxsize=HTTP_POOL_MAXSIZE, max_retries=0)
+_HTTP_SESSION.mount("http://", _HTTP_ADAPTER)
+_HTTP_SESSION.mount("https://", _HTTP_ADAPTER)
+
+# (7) reuse a single OpenAI client
+_OPENAI_CLIENT = OpenAI()
 
 # =========================
 # Helpers
@@ -134,7 +147,7 @@ def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
     - Reject AMP/proxy and non-HTML.
     """
     try:
-        r = requests.get(
+        r = _HTTP_SESSION.get(  # (1) use pooled session
             url,
             headers={
                 "User-Agent": HTTP_UA,
@@ -219,7 +232,7 @@ def is_recent_ddmmyyyy(ddmmyyyy: str, months_primary=6, months_max=12) -> Tuple[
 # =========================
 
 def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TEMPERATURE) -> Dict[str, Any]:
-    client = OpenAI()
+    client = _OPENAI_CLIENT  # (7) reuse single client
     max_tries, base_sleep = 6, 1.0
 
     for attempt in range(1, max_tries + 1):
@@ -442,7 +455,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             item_meta = {
                 "q_id": q_id,
                 "index": idx,
-                "question_filled": filled_q,
+                "question_filled": filled_q,  # kept for debug/trace; remove if you want an even lighter manifest
                 "status": "started",
                 "started_at": now_iso(),
                 "output_path": outfile
