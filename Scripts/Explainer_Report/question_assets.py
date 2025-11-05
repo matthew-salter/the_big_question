@@ -134,25 +134,27 @@ def is_bad_article_url(url: str) -> bool:
 
 def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
     """
-    Structural validator for public HTML article pages.
+    Structural + reachability validator for public HTML article pages.
     Returns (ok, reason, final_url).
 
-    Passes only if ALL required structural gates succeed:
+    Required gates (ALL must pass):
       1) HTTP OK (200)
-      2) HTML OK (Content-Type + <html>)
+      2) HTML OK (Content-Type has text/html AND <html> present)
       3) Not AMP/Proxy
-      4) Article-Structure  (basic readability)
-      5) Structural-Minimum (anti-interstitial)
-      6) No Access/Interstitial/Error text
+      4) Header/CDN block not detected
+      5) Article-Structure  (basic readability)
+      6) Structural-Minimum (anti-interstitial)
+      7) No Access/Interstitial/Error text (only blocks when structure is weak)
+      8) Link-density sanity (filters long-but-inert error skins)
+      9) Public reachability probe (HEAD with common consumer UAs must be 200)
     """
-
     try:
         r = _HTTP_SESSION.get(
             url,
             headers={
                 "User-Agent": HTTP_UA,
                 "Accept": "text/html,application/xhtml+xml",
-                "Accept-Language": "en",
+                "Accept-Language": "en-GB,en;q=0.9",
             },
             timeout=HTTP_TIMEOUT,
             allow_redirects=True,
@@ -160,57 +162,52 @@ def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
         final_url = r.url
         bl = (r.text or "").lower()
 
-        # -----------------------------
-        # 1. HTTP OK
-        # -----------------------------
+        # 1) HTTP OK
         if r.status_code != 200:
             return False, f"status={r.status_code}", final_url
 
-        # -----------------------------
-        # 2. HTML OK
-        # -----------------------------
+        # 2) HTML OK
         ctype = (r.headers.get("Content-Type") or "").lower()
         if "text/html" not in ctype or "<html" not in bl:
             return False, f"content_type={ctype or 'unknown'}", final_url
 
-        # -----------------------------
-        # 3. Not AMP / Proxy
-        # -----------------------------
+        # 3) Not AMP/Proxy
         ful = final_url.lower()
         if "/amp" in ful or ful.startswith("https://amp.") or "amp." in hostname(final_url):
             return False, "amp_or_proxy_url", final_url
 
-        # -----------------------------
-        # Structural signals
-        # -----------------------------
+        # Structural/shape signals
         has_article_tag = "<article" in bl
         has_h1 = "<h1" in bl
         p_count = bl.count("<p")
         body_len = len(bl)
+        link_count = bl.count("<a ")
 
-        # -----------------------------
-        # 4. Article-Structure (basic readability)
-        # -----------------------------
-        article_structure = (
-            has_article_tag
-            or (has_h1 and p_count >= 2 and body_len >= 1500)
-        )
+        # 4) Header/CDN block detection (Akamai/CloudFront style)
+        server_header = (r.headers.get("Server") or "").lower()
+        via_header = (r.headers.get("Via") or "").lower()
+        x_ak_err = (r.headers.get("X-Akamai-Error") or "").lower()
+        if (
+            ("akamai" in server_header or "cloudfront" in server_header or "cloudfront" in via_header)
+            and any(t in (server_header + via_header + x_ak_err) for t in ("error", "deny", "denied", "blocked"))
+        ):
+            return False, "header_block_server", final_url
+
+        # Meta-refresh block pages
+        if 'http-equiv="refresh"' in bl and any(tag in bl for tag in ("accessdenied", "denied", "forbidden")):
+            return False, "meta_refresh_blockpage", final_url
+
+        # 5) Article-Structure (basic readability)
+        article_structure = has_article_tag or (has_h1 and p_count >= 2 and body_len >= 1500)
         if not article_structure:
             return False, "insufficient_article_signals", final_url
 
-        # -----------------------------
-        # 5. Structural-Minimum (anti-interstitial)
-        # -----------------------------
-        structural_minimum = (
-            has_article_tag
-            or (p_count >= 2 and body_len >= 5000)
-        )
+        # 6) Structural-Minimum (anti-interstitial)
+        structural_minimum = has_article_tag or (p_count >= 2 and body_len >= 5000)
         if not structural_minimum:
             return False, "too_short_or_placeholder", final_url
 
-        # -----------------------------
-        # 6. No Access / Interstitial / Error Text
-        # -----------------------------
+        # 7) No Access / Interstitial / Error Text (only blocks when structure is weak)
         deny_phrases = (
             "access denied",
             "forbidden",
@@ -233,16 +230,40 @@ def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
             "can't find",
             "does not exist",
             "error 404",
+            "regional restrictions",
+            "your location or country",
+            "not available in your region",
+            "geographic restrictions",
         )
-
         if any(phrase in bl for phrase in deny_phrases):
-            # only reject if page also fails structure (to avoid false positives)
             if not has_article_tag and (p_count < 2 or body_len < 5000):
                 return False, "access_or_error_interstitial", final_url
 
-        # -----------------------------
+        # 8) Link-density sanity (interstitials are often long but inert)
+        if link_count < 3 and p_count < 3:
+            return False, "no_links_low_content", final_url
+
+        # 9) Public reachability probe: common consumer UAs must also get 200
+        def _head_ok(u: str, ua: str) -> bool:
+            try:
+                rr = _HTTP_SESSION.head(
+                    u,
+                    headers={"User-Agent": ua, "Accept-Language": "en-GB,en;q=0.9"},
+                    timeout=HTTP_TIMEOUT,
+                    allow_redirects=True,
+                )
+                return rr.status_code == 200
+            except Exception:
+                return False
+
+        ua_desktop_chrome = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        ua_desktop_safari = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+        ua_mobile_safari  = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
+
+        if not (_head_ok(final_url, ua_desktop_chrome) and _head_ok(final_url, ua_desktop_safari) and _head_ok(final_url, ua_mobile_safari)):
+            return False, "unreachable_for_common_UA", final_url
+
         # All checks passed
-        # -----------------------------
         return True, "ok", final_url
 
     except Exception as exc:
