@@ -408,9 +408,23 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             mapping = {k: safe_escape_braces(str(v)) for k, v in ctx.items()}
             mapping["question"] = safe_escape_braces(filled_q)
 
-            # Assemble prompt with REGISTRY and optional prior JSONs for tone continuity
+            # --- Inject REGISTRY placeholders into mapping before formatting the prompt ---
+            def _lines(xs):
+                """Return sorted newline-joined string or empty string."""
+                return "\n".join(sorted(xs)) if xs else ""
+
+            mapping.update({
+                "urls_used_each_on_new_line": _lines(run_seen_urls),
+                "stats_used_each_on_new_line": _lines(run_seen_stats_exact),
+                "insights_used_each_on_new_line": _lines(run_seen_ins_exact),
+                "stats_fps_each_on_new_line": _lines(run_seen_statfp),
+                "insights_fps_each_on_new_line": _lines(run_seen_insfp),
+                "acronyms_each_on_new_line": _lines(run_seen_acros),
+            })
+
+            # Build prompt (REGISTRY placeholders now populated)
             prior_block = build_prior_context(history_for_prompt)
-            base_prompt = prompt_template.format(**mapping) + render_registry_block() + prior_block
+            base_prompt = prompt_template.format(**mapping) + prior_block
 
             q_id = f"{idx+1:02d}_{slugify(filled_q)[:50]}_{sha8(filled_q)}"
             outfile = f'{paths["base"]}/{q_id}.txt'
