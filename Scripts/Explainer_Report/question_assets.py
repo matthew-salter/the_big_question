@@ -241,23 +241,63 @@ def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
         if len(bl2) < 0.5 * body_len:  # >50% shrink = likely interstitial/error for consumer UA
             return False, "ua_inconsistent_body_shrink", r2.url
 
-        # 8) Public reachability HEAD probes (Chrome, Safari desktop, Safari iPhone) must also be 200
-        def _head_ok(u: str, ua: str) -> bool:
+        # 8) Public reachability probes (robust: HEAD first, tiny GET fallback; majority wins)
+        def _probe_ok(u: str, ua: str) -> bool:
+            def _is_html_ctype(ct: str) -> bool:
+                ct = (ct or "").lower()
+                return ("text/html" in ct) or ("application/xhtml+xml" in ct)
+
             try:
+                # First try HEAD (cheap)
                 rr = _HTTP_SESSION.head(
                     u,
                     headers={"User-Agent": ua, "Accept-Language": "en-GB,en;q=0.9"},
                     timeout=HTTP_TIMEOUT,
                     allow_redirects=True,
                 )
-                return rr.status_code == 200 and "text/html" in (rr.headers.get("Content-Type") or "").lower()
+                if rr.status_code == 200 and _is_html_ctype(rr.headers.get("Content-Type")):
+                    return True
+
+                # HEAD often fails on good sites (403/405/406/429 or no useful headers) → tiny GET fallback
+                if rr.status_code in (403, 405, 406, 429) or not _is_html_ctype(rr.headers.get("Content-Type")):
+                    rg = _HTTP_SESSION.get(
+                        u,
+                        headers={
+                            "User-Agent": ua,
+                            "Accept": "text/html,application/xhtml+xml",
+                            "Accept-Language": "en-GB,en;q=0.9",
+                            "Range": "bytes=0-4095",  # first 4 KB only
+                            "Cache-Control": "no-cache",
+                            "Pragma": "no-cache",
+                        },
+                        timeout=HTTP_TIMEOUT,
+                        allow_redirects=True,
+                    )
+                    # Accept small GET if it looks like HTML
+                    if rg.status_code == 200:
+                        ctg = (rg.headers.get("Content-Type") or "").lower()
+                        body_start = (rg.text or "")[:4096].lower()
+                        if _is_html_ctype(ctg) or "<html" in body_start:
+                            return True
+
+                # Other 2xx without HTML ctype is still suspicious → fail
+                return False
+
             except Exception:
                 return False
 
         ua_desktop_chrome = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        ua_desktop_safari = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
         ua_mobile_safari  = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
 
-        if not (_head_ok(final_url, HTTP_UA) and _head_ok(final_url, ua_desktop_chrome) and _head_ok(final_url, ua_desktop_safari) and _head_ok(final_url, ua_mobile_safari)):
+        probes = [
+            _probe_ok(final_url, ua_desktop_chrome),
+            _probe_ok(final_url, ua_desktop_safari),
+            _probe_ok(final_url, ua_mobile_safari),
+        ]
+
+        # Majority pass (≥ 2 of 3) instead of "all must pass"
+        if sum(1 for ok in probes if ok) < 2:
             return False, "unreachable_for_common_UA", final_url
 
         # All checks passed
