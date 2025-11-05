@@ -134,20 +134,20 @@ def is_bad_article_url(url: str) -> bool:
 
 def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
     """
-    (ok, info, final_url) for public HTML article pages.
+    Structural validator for public HTML article pages.
+    Returns (ok, reason, final_url).
 
-    Key behaviours:
-    - Canonicalise to final URL.
-    - Only treat 'deny' as blocking if NO article signals are present.
-    - Article signals (any one passes):
-        * <article> tag, OR
-        * <h1> + >=2 <p> + body len >= 1500, OR
-        * >=3 'citation_*' meta tags, OR
-        * JSON-LD type "ScholarlyArticle".
-    - Reject AMP/proxy and non-HTML.
+    Passes only if ALL required structural gates succeed:
+      1) HTTP OK (200)
+      2) HTML OK (Content-Type + <html>)
+      3) Not AMP/Proxy
+      4) Article-Structure  (basic readability)
+      5) Structural-Minimum (anti-interstitial)
+      6) No Access/Interstitial/Error text
     """
+
     try:
-        r = _HTTP_SESSION.get(  # (1) use pooled session
+        r = _HTTP_SESSION.get(
             url,
             headers={
                 "User-Agent": HTTP_UA,
@@ -158,54 +158,91 @@ def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
             allow_redirects=True,
         )
         final_url = r.url
+        bl = (r.text or "").lower()
 
+        # -----------------------------
+        # 1. HTTP OK
+        # -----------------------------
         if r.status_code != 200:
             return False, f"status={r.status_code}", final_url
 
+        # -----------------------------
+        # 2. HTML OK
+        # -----------------------------
         ctype = (r.headers.get("Content-Type") or "").lower()
-        if "text/html" not in ctype:
+        if "text/html" not in ctype or "<html" not in bl:
             return False, f"content_type={ctype or 'unknown'}", final_url
 
-        body = r.text or ""
-        bl = body.lower()
-
-        if "<html" not in bl:
-            return False, "no_html_marker", final_url
-
-        # ---- Article signals (broadened) ----
-        has_article_tag = "<article" in bl
-        has_h1 = "<h1" in bl
-        p_count = bl.count("<p")
-        long_enough = len(body) >= 1500
-        citation_meta_count = body.count('name="citation_') + body.count("name='citation_")
-        has_scholarly_jsonld = '"ScholarlyArticle"' in bl
-
-        article_signals = (
-            has_article_tag
-            or (has_h1 and p_count >= 2 and long_enough)
-            or (citation_meta_count >= 3)
-            or has_scholarly_jsonld
-        )
-
-        # ---- Deny/interstitial markers (block ONLY if no article signals) ----
-        deny_markers = (
-            "access denied", "permission denied", "request blocked",
-            "enable cookies", "unusual traffic", "captcha",
-            "attention required!", "blocked your request", "reference #",
-            "to protect our site"
-        )
-        has_deny = any(m in bl for m in deny_markers)
-        if has_deny and not article_signals:
-            return False, "access_denied_interstitial", final_url
-
-        if not article_signals:
-            return False, "insufficient_article_signals", final_url
-
-        # ---- Reject AMP/proxy variants ----
+        # -----------------------------
+        # 3. Not AMP / Proxy
+        # -----------------------------
         ful = final_url.lower()
         if "/amp" in ful or ful.startswith("https://amp.") or "amp." in hostname(final_url):
             return False, "amp_or_proxy_url", final_url
 
+        # -----------------------------
+        # Structural signals
+        # -----------------------------
+        has_article_tag = "<article" in bl
+        has_h1 = "<h1" in bl
+        p_count = bl.count("<p")
+        body_len = len(bl)
+
+        # -----------------------------
+        # 4. Article-Structure (basic readability)
+        # -----------------------------
+        article_structure = (
+            has_article_tag
+            or (has_h1 and p_count >= 2 and body_len >= 1500)
+        )
+        if not article_structure:
+            return False, "insufficient_article_signals", final_url
+
+        # -----------------------------
+        # 5. Structural-Minimum (anti-interstitial)
+        # -----------------------------
+        structural_minimum = (
+            has_article_tag
+            or (p_count >= 2 and body_len >= 5000)
+        )
+        if not structural_minimum:
+            return False, "too_short_or_placeholder", final_url
+
+        # -----------------------------
+        # 6. No Access / Interstitial / Error Text
+        # -----------------------------
+        deny_phrases = (
+            "access denied",
+            "forbidden",
+            "not authorized",
+            "not authorised",
+            "authorization required",
+            "authorisation required",
+            "you don't have permission",
+            "you do not have permission",
+            "you don't have authorization",
+            "you do not have authorization",
+            "was denied",
+            "enable cookies",
+            "captcha",
+            "unusual traffic",
+            "reference #",
+            "page not found",
+            "404 not found",
+            "cannot be found",
+            "can't find",
+            "does not exist",
+            "error 404",
+        )
+
+        if any(phrase in bl for phrase in deny_phrases):
+            # only reject if page also fails structure (to avoid false positives)
+            if not has_article_tag and (p_count < 2 or body_len < 5000):
+                return False, "access_or_error_interstitial", final_url
+
+        # -----------------------------
+        # All checks passed
+        # -----------------------------
         return True, "ok", final_url
 
     except Exception as exc:
