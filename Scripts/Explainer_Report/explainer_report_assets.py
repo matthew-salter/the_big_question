@@ -24,7 +24,8 @@ PARENT_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
 MERGED_SUBDIR = "Merged_Question_Outputs"
 REPORT_SUBDIR = "Report_Assets"
 
-DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+# ⬇️ default to gpt-5-mini (was gpt-4o)
+DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
 
 # Supabase env
@@ -36,6 +37,8 @@ SUPABASE_ROOT_FOLDER = os.getenv("SUPABASE_ROOT_FOLDER", "The_Big_Question")
 MAX_TRIES = 6
 BASE_BACKOFF = 1.0  # seconds
 
+# Reuse a single OpenAI client (parity with question_assets.py)
+_OPENAI_CLIENT = OpenAI()
 
 # =============================================================================
 # Helpers
@@ -84,7 +87,6 @@ def list_supabase_folder(prefix: str) -> List[Dict[str, Any]]:
     resp.raise_for_status()
     return resp.json() or []
 
-
 # ---------------- AE → BE conversion ----------------
 
 _PAIR_RE = re.compile(r'"([^"]+)"\s*:\s*"([^"]+)"')
@@ -123,19 +125,46 @@ def american_to_british(text: str, compiled) -> str:
     pattern, mapping = compiled
     return pattern.sub(lambda m: mapping.get(m.group(1), m.group(1)), text)
 
+# ---------------- OpenAI (Responses API; gpt-5-mini) ----------------
 
-# ---------------- OpenAI ----------------
+def _extract_output_text(resp) -> str:
+    """
+    Robustly extract output text from Responses API response.
+    """
+    # Newer SDKs expose .output_text
+    text_out = getattr(resp, "output_text", None)
+    if text_out:
+        return text_out.strip()
+
+    # Fallback traversal (older SDK shims)
+    try:
+        if hasattr(resp, "output") and resp.output:
+            # output is a list of message blocks; get first text node
+            first = resp.output[0]
+            if hasattr(first, "content") and first.content:
+                node = first.content[0]
+                if hasattr(node, "text") and node.text:
+                    return node.text.strip()
+    except Exception:
+        pass
+
+    raise ValueError("Empty response from model")
 
 def call_openai(prompt: str, model: str = DEFAULT_MODEL, temperature: float = TEMPERATURE) -> str:
-    client = OpenAI()
+    """
+    Use Responses API (parity with question_assets.py style).
+    No web_search tool here (not needed for this stage).
+    """
+    client = _OPENAI_CLIENT
     for attempt in range(1, MAX_TRIES + 1):
         try:
-            resp = client.chat.completions.create(
+            resp = client.responses.create(
                 model=model,
+                input=prompt,
                 temperature=temperature,
-                messages=[{"role": "user", "content": prompt}],
             )
-            return resp.choices[0].message.content.strip()
+            return _extract_output_text(resp)
+
         except Exception as e:
             if attempt == MAX_TRIES:
                 raise
@@ -155,7 +184,6 @@ def clean_ai_output_to_json_text(ai_text: str) -> str:
         return json.dumps(obj, ensure_ascii=False, indent=2)
     except json.JSONDecodeError:
         return cleaned
-
 
 # =============================================================================
 # Core
@@ -227,7 +255,7 @@ def run_prompt(data: Dict[str, Any]) -> Dict[str, Any]:
         question_assets=safe_escape_braces(question_assets_text),
     )
 
-    # ---- Call OpenAI
+    # ---- Call OpenAI (gpt-5-mini via Responses API)
     ai_text = call_openai(prompt, model=data.get("model", DEFAULT_MODEL), temperature=TEMPERATURE)
 
     # ---- Clean to JSON text (no fences)
