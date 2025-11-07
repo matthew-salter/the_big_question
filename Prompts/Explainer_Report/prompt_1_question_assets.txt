@@ -121,6 +121,15 @@ ACRONYMS_SEEN:
 
 ---
 
+## DOMAIN BLACKLIST (hard constraint)
+
+Do NOT use any URL whose domain matches any line below (exact or any subdomain). If a search result lands on any of these domains, you MUST choose a different source.
+
+BLACKLISTED_DOMAINS:
+{blacklisted_domains_each_on_new_line}
+
+---
+
 ## REPORT DELIVERY STYLE
 
 The below Tone of Voice variable is critical. It defines **how** your response should be written, regardless of medical content.
