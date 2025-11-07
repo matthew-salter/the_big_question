@@ -10,6 +10,7 @@ import hashlib
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Tuple, Optional
 from urllib.parse import urlparse
+from copy import deepcopy
 
 import requests
 from requests.adapters import HTTPAdapter  # (1) persistent HTTP session: adapter for pooling
@@ -57,6 +58,10 @@ _HTTP_SESSION.mount("https://", _HTTP_ADAPTER)
 
 # (7) reuse a single OpenAI client
 _OPENAI_CLIENT = OpenAI()
+
+# --- Free URL Shortening (is.gd) ---
+URL_SHORTENING = os.getenv("URL_SHORTENING", "off").strip().lower()  # "off" | "isgd"
+URL_SHORTENING_MODE = os.getenv("URL_SHORTENING_MODE", "replace").strip().lower()  # "replace" | "sidecar"
 
 # =========================
 # Helpers
@@ -333,6 +338,28 @@ def is_recent_ddmmyyyy(ddmmyyyy: str, months_primary=6, months_max=12) -> Tuple[
     today = datetime.utcnow().date()
     delta_days = (today - d).days
     return (delta_days <= months_primary * 30), (delta_days <= months_max * 30)
+
+# --- URL Shortening helpers (is.gd) ---
+
+def shorten_url_isgd(long_url: str) -> Optional[str]:
+    try:
+        r = _HTTP_SESSION.get(
+            "https://is.gd/create.php",
+            params={"format": "simple", "url": long_url},
+            timeout=8.0,
+        )
+        if r.status_code == 200 and r.text.startswith("http"):
+            return r.text.strip()
+    except Exception:
+        pass
+    return None
+
+def maybe_shorten(long_url: str) -> Optional[str]:
+    if not long_url or not long_url.startswith("https://"):
+        return None
+    if URL_SHORTENING == "isgd":
+        return shorten_url_isgd(long_url)
+    return None
 
 # =========================
 # OpenAI call (Responses API + web_search)
@@ -627,36 +654,64 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     )
                     elapsed = round(time.time() - t0, 3)
 
-                    # Persist output
-                    supabase_write_txt(outfile, json.dumps(obj, ensure_ascii=False, indent=2))
+                    # =========================
+                    # Persist output (with optional URL shortening)
+                    # =========================
+                    obj_canonical = deepcopy(obj)
+                    obj_out = deepcopy(obj)
+
                     status_value = "done_with_warnings" if last_warnings else "done"
-                    item_meta.update({"status": status_value, "completed_at": now_iso(), "latency_seconds": elapsed, "warnings": last_warnings})
+                    item_meta.update({
+                        "status": status_value,
+                        "completed_at": now_iso(),
+                        "latency_seconds": elapsed,
+                        "warnings": last_warnings
+                    })
+
+                    # Registry/uniqueness uses the CANONICAL URL
+                    ra_can = obj_canonical.get("Related Article") or {}
+                    canonical_url = (ra_can.get("Related Article URL") or "").strip()
+                    if canonical_url and canonical_url != "Unavailable":
+                        run_seen_urls.add(canonical_url)
+
+                    # Optional: shorten for output
+                    short_url = None
+                    if canonical_url and canonical_url != "Unavailable":
+                        short_url = maybe_shorten(canonical_url)
+
+                    if short_url and URL_SHORTENING_MODE == "replace":
+                        # Replace in the OUTPUT JSON, keep canonical sidecar for audit
+                        ra_out = obj_out.get("Related Article") or {}
+                        ra_out["Related Article URL"] = short_url
+                        obj_out["Related Article"] = ra_out
+                        supabase_write_txt(outfile.replace(".txt", "_longurl.txt"), canonical_url)
+                        item_meta["short_url"] = short_url
+                    elif short_url and URL_SHORTENING_MODE == "sidecar":
+                        # Keep canonical in JSON; write short link sidecar
+                        supabase_write_txt(outfile.replace(".txt", "_shorturl.txt"), short_url)
+                        item_meta["short_url"] = short_url
+
+                    # Write the final (possibly shortened) output JSON
+                    supabase_write_txt(outfile, json.dumps(obj_out, ensure_ascii=False, indent=2))
                     supabase_write_textjson(paths["manifest"], manifest)
 
                     # Advance checkpoint
                     ckpt.update({"last_completed_index": idx, "updated_at": now_iso()})
                     supabase_write_textjson(paths["checkpoint"], ckpt)
 
-                    # Update run-wide seen sets AFTER successful validation
-                    ra = obj.get("Related Article") or {}
-                    url = (ra.get("Related Article URL") or "").strip()
-                    if url and url != "Unavailable":
-                        run_seen_urls.add(url)
-
-                    st = obj.get("Statistic") or ""
-                    ins = obj.get("Insight") or ""
+                    # Update stat/insight registries (from canonical copy)
+                    st = obj_canonical.get("Statistic") or ""
+                    ins = obj_canonical.get("Insight") or ""
                     if st:
-                        run_seen_statfp.add(fingerprint(st))
-                        run_seen_stats_exact.add(st.strip())
+                        run_seen_statfp.add(fingerprint(st)); run_seen_stats_exact.add(st.strip())
                     if ins:
-                        run_seen_insfp.add(fingerprint(ins))
-                        run_seen_ins_exact.add(ins.strip())
+                        run_seen_insfp.add(fingerprint(ins)); run_seen_ins_exact.add(ins.strip())
 
-                    # naive acronym scrape
+                    # Acronyms (canonical is fine)
                     fields_to_scan = [
-                        obj.get("Header",""), obj.get("Sub-Header",""),
-                        obj.get("Summary",""), obj.get("Bullet Points",""),
-                        obj.get("Statistic",""), obj.get("Insight","")
+                        obj_canonical.get("Header",""), obj_canonical.get("Sub-Header",""),
+                        obj_canonical.get("Summary",""), obj_canonical.get("Bullet Points",""),
+                        obj_canonical.get("Statistic",""), obj_canonical.get("Insight","")
                     ]
                     found_acros = set()
                     for f in fields_to_scan:
@@ -664,7 +719,9 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     for a in found_acros:
                         run_seen_acros.add(a)
 
-                    history_for_prompt.append(json.dumps(obj, ensure_ascii=False))
+                    # History fed back to the model stays CANONICAL (never the short domain)
+                    history_for_prompt.append(json.dumps(obj_canonical, ensure_ascii=False))
+
                     time.sleep(0.25)
                     hard_error = None
                     last_fail_reason = None
@@ -716,7 +773,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                         ra["Related Article URL"] = "Unavailable"
                         obj["Related Article"] = ra
 
-                        # Persist salvaged output
+                        # Persist salvaged output (no shortening attempted for 'Unavailable')
                         supabase_write_txt(outfile, json.dumps(obj, ensure_ascii=False, indent=2))
                         item_meta.update({
                             "status": "done_with_warnings",
