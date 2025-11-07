@@ -34,6 +34,7 @@ Think of this document as a reliable companion - a guide to support your journey
 
 You have access to `web_search` and **must** use it to select the “Related Article”.
 **Always include exactly one Related Article.**
+**Assume this is Attempt-1 (strict): obey all MUST rules below. If a `RETRY CONTEXT` appears, follow its modified rules.**
 
 Source quality: Prefer established, reputable medical/scientific organisations (e.g., NHS, NICE, BMJ, WHO, JAMA, NEJM, CDC, Cochrane), but any credible source is acceptable if it meets the rules below and is relevant.
 
@@ -47,20 +48,24 @@ Source quality: Prefer established, reputable medical/scientific organisations (
 - **Disallowed**: links that end with or resolve to `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.zip`, or that contain `/pdf/`, `/download`, or `?download=`.
 - Avoid pages that display interstitials, blank content, or file downloads instead of an article.
 - Prefer URLs that are clearly open and informational (for example: NHS, NICE, WHO, BMJ, CDC, Mayo Clinic, Cleveland Clinic, Healthline, WebMD, etc.).
-- Copy the **final loaded** `https://` URL exactly (no AMP, proxy, redirector, login, or session links). If a candidate violates these rules or fails to load, **select a different**
+- Copy the **final loaded** `https://` URL exactly (no AMP, proxy, redirector, login, or session links). If a candidate violates these rules or fails to load, **select a different**.
+- **Reject abstract-only / access-controlled paths** such as:
+  `*/article-abstract/*`, `*/advance-article-abstract/*`, `*/abs/*`, `*/amp/*`, `amp.*/*`, `*/drc-*` (Mayo treatment interstitials), `*/pure.com/*` (Elsevier Pure profile pages).
+- **Avoid pages likely to trigger live-check failures** such as `status=403`, `waf_cookie_present`, `amp_or_proxy_url`, `ua_inconsistent_blocked`, or `ua_inconsistent_body_shrink`. If a candidate looks likely to cause these, pick a different page.
 
 **Search ladder (stop at the first valid hit that satisfies all rules):**
-1) Article directly answering the **{question}** (prefer **≤ 6 months** old).
-2) If none, a credible, recent article on the **{condition}** (prefer **≤ 6 months** old).
-3) If none, the most recent **authoritative guideline/overview** (may be older; see recency rules below).
+1) Article directly answering the **{question}** (**MUST be ≤ 6 months old** on Attempt-1).
+2) If none, a credible, recent article on the **{condition}** (**MUST be ≤ 6 months old** on Attempt-1).
+3) If none, the most recent **authoritative guideline/overview** (see recency rules below).
 
 **Recency rules:**
-- Prefer articles **≤ 6 months** old.
-- If none satisfy all rules, you may use a source **≤ 12 months** old as a fallback.
+- **Attempt-1:** Article **MUST** be **≤ 6 months** old relative to `{todays_date}`.
+- **On retry only (if a `RETRY CONTEXT` is present):** you **may** use a source **≤ 12 months** old as a fallback.
+- If still none satisfy all rules, a guideline/overview may exceed 12 months **only if** no ≤12-month option exists.
 
 **Uniqueness preference (uses REGISTRY):**
-- Prefer a **unique** `Related Article URL` not in `URLS_USED`.
-- If **no suitable unique URL** exists that satisfies page-type and recency rules, you **may reuse** a prior URL (ensure it is still relevant to the {question} or, if necessary, the {condition}).
+- **Attempt-1:** `Related Article URL` **MUST** be **unique** (not in `URLS_USED`).
+- **On retry:** if no suitable unique URL exists under page-type and recency rules, you **may reuse** a prior URL (ensure it is still relevant to the {question} or, if necessary, the {condition}).
 
 **Retry context:**
 - If a previous attempt for this question failed, you will receive a `RETRY CONTEXT` indicating the failure reason and listing already-used items. Choose a **different** URL/statistic/insight when possible; otherwise follow the fallback rules above.
@@ -149,7 +154,7 @@ Your response MUST reflect their **tone of voice** preference.
 Additionally, include **one** illustrative **Related Article** that supports your response:
 - Do not rely on a single article when forming reasoning — use multiple credible sources to inform your explanation.
 - Choose the most **representative and credible** related article to include as reference for the user.
-- The article must be **clearly relevant**, written within the last six months of `{todays_date}` (or **≤ 12 months** if none ≤ 6 months are available), and drawn from a credible medical/health source, including the Related Article source URL.
+- The article must be **clearly relevant**, written within the last six months of `{todays_date}` (or **≤ 12 months** if none ≤ 6 months are available **only when a `RETRY CONTEXT` is present**), and drawn from a credible medical/health source, including the Related Article source URL.
 - If no relevant or credible source exists after full search, use the fallback guideline rule above. Do not fabricate or infer.
 
 ---
@@ -160,14 +165,16 @@ Additionally, include **one** illustrative **Related Article** that supports you
 - Begin with a web search for an article **directly related to the {question}**.
 - If no verified article is found, **immediately search** for a credible recent article on the overall **{condition}**.
 - If still none, search for the most recent **authoritative guideline/overview**.
-- Continue until at least **one** valid article with a working `https://` URL is confirmed, following the **recency** and **uniqueness preference** rules.
+- Continue until at least **one** valid article with a working `https://` URL is confirmed, following the **recency** and **uniqueness** rules above.
 
 **Verification Rules:**
 - Open the page to ensure it loads successfully (no 404/403, no interstitial/captcha).
-- Prefer articles **≤ 6 months** old; if none exist, you may use **≤ 12 months** old.
+- **Attempt-1:** Article **MUST** be ≤ 6 months old; **on retry only**, ≤ 12 months is allowed.
 - Copy the **final loaded** `https://` URL exactly (no AMP/proxy/redirector links).
 - Output the article’s exact publication date in `DD/MM/YYYY` format. If only “Month YYYY” is shown, infer the last day of that month (e.g., “May 2025” → “31/05/2025”).
 - **Never** return a direct download link or PDF; pick a different article page instead.
+- **Reject** abstract-only / access-controlled paths such as `*/article-abstract/*`, `*/advance-article-abstract/*`, `*/abs/*`, `*/amp/*`, `amp.*/*`, `*/drc-*`, `*/pure.com/*`.
+- **Avoid pages likely to trigger** `status=403`, `waf_cookie_present`, `amp_or_proxy_url`, `ua_inconsistent_blocked`, or `ua_inconsistent_body_shrink`.
 - If the best available result is only tangentially related, clearly explain the connection in `Related Article Relevance`.
 
 ---
@@ -227,7 +234,7 @@ Before output, verify silently:
 - All acronyms are expanded on first use **within this page**.
 - Related Article URL is publicly viewable HTML (HTTP 200), begins with `https://`, and points to an article page (not a download, AMP, proxy, or interstitial).
 - If no question-specific article is found, you provided a verified condition-level or guideline article that meets the recency rule.
-- You used **exactly one** Related Article and followed the uniqueness preference and fallback rules.
+- You used **exactly one** Related Article and followed the uniqueness preference and fallback rules (**Attempt-1 must be ≤6 months and unique; retry may use ≤12 months or reuse URLs**).
 - All fields comply with output formatting rules and **no extra keys** are present.
 - Ensure no statements imply personalised outcomes, treatment recommendations, or endorsement.
 
