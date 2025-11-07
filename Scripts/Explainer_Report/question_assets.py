@@ -406,6 +406,8 @@ def supabase_paths(run_id: str) -> Dict[str, str]:
         "base": base,
         "manifest": f"{base}/manifest.json",
         "checkpoint": f"{base}/checkpoint.json",
+        # single sidecar folder to keep working directory clean
+        "sidecar_longurl_dir": f"{base}/LongURL",
     }
 
 # =========================
@@ -604,7 +606,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             item_meta = {
                 "q_id": q_id,
                 "index": idx,
-                "question_filled": filled_q,  # kept for debug/trace; remove if you want an even lighter manifest
+                "question_filled": filled_q,
                 "status": "started",
                 "started_at": now_iso(),
                 "output_path": outfile
@@ -679,19 +681,24 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     if canonical_url and canonical_url != "Unavailable":
                         short_url = maybe_shorten(canonical_url)
 
+                    # Sidecar paths (kept outside working folder)
+                    longurl_sidecar = f'{paths["sidecar_longurl_dir"]}/{q_id}_longurl.txt'
+                    shorturl_sidecar = f'{paths["sidecar_longurl_dir"]}/{q_id}_shorturl.txt'
+
                     if short_url and URL_SHORTENING_MODE == "replace":
-                        # Replace in the OUTPUT JSON, keep canonical sidecar for audit
+                        # Replace in the OUTPUT JSON, keep canonical sidecar for audit (in LongURL/)
                         ra_out = obj_out.get("Related Article") or {}
                         ra_out["Related Article URL"] = short_url
                         obj_out["Related Article"] = ra_out
-                        supabase_write_txt(outfile.replace(".txt", "_longurl.txt"), canonical_url)
-                        item_meta["short_url"] = short_url
-                    elif short_url and URL_SHORTENING_MODE == "sidecar":
-                        # Keep canonical in JSON; write short link sidecar
-                        supabase_write_txt(outfile.replace(".txt", "_shorturl.txt"), short_url)
+                        supabase_write_txt(longurl_sidecar, canonical_url)
                         item_meta["short_url"] = short_url
 
-                    # Write the final (possibly shortened) output JSON
+                    elif short_url and URL_SHORTENING_MODE == "sidecar":
+                        # Keep canonical in JSON; write short link sidecar (in LongURL/)
+                        supabase_write_txt(shorturl_sidecar, short_url)
+                        item_meta["short_url"] = short_url
+
+                    # Write the final (possibly shortened) output JSON to working folder
                     supabase_write_txt(outfile, json.dumps(obj_out, ensure_ascii=False, indent=2))
                     supabase_write_textjson(paths["manifest"], manifest)
 
