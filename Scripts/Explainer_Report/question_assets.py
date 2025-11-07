@@ -25,6 +25,9 @@ QUESTIONS_PATH = "Prompts/Explainer_Report/Questions/questions.txt"
 PROMPT_PATH = "Prompts/Explainer_Report/prompt_1_question_assets.txt"
 SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
 
+# NEW: file-driven domain blacklist
+BLACKLIST_PATH = "Prompts/Blacklist_Domains/blacklist_domains.txt"
+
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
 TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.2"))
 
@@ -76,8 +79,21 @@ def load_text(path: str) -> str:
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
+def load_lines_file(path: str) -> List[str]:
+    if not os.path.exists(path):
+        return []
+    with open(path, "r", encoding="utf-8") as f:
+        # ignore blanks and comments
+        return [ln.strip() for ln in f if ln.strip() and not ln.strip().startswith("#")]
+
 def load_questions(path: str) -> List[str]:
     return [ln.strip() for ln in load_text(path).splitlines() if ln.strip()]
+
+def load_blacklist_domains() -> set:
+    try:
+        return {ln.lower() for ln in load_lines_file(BLACKLIST_PATH)}
+    except Exception:
+        return set()
 
 def format_question(q_template: str, ctx: Dict[str, Any]) -> str:
     safe_ctx = {k: safe_escape_braces(str(v)) for k, v in ctx.items()}
@@ -109,11 +125,9 @@ def strip_links(text: str) -> str:
     def _strip_md(m):
         inner = m.group(0)
         inner = re.sub(r'\(\s*https?://[^)]+\)', '', inner)
-        # drop surrounding [ and ] only
         return re.sub(r'^\[|\]$', '', inner)
 
     text = MD_LINK_RE.sub(_strip_md, text)
-    # Remove raw URLs, leave whitespace untouched
     return URL_RE.sub('', text)
 
 def hostname(url: str) -> str:
@@ -121,6 +135,15 @@ def hostname(url: str) -> str:
         return urlparse(url).netloc.split(":")[0].lower()
     except Exception:
         return ""
+
+def host_is_blacklisted(host: str, blacklist: set) -> bool:
+    if not host:
+        return False
+    h = host.lower()
+    for dom in blacklist:
+        if h == dom or h.endswith("." + dom):
+            return True
+    return False
 
 def is_bad_article_url(url: str) -> bool:
     if not url or not url.startswith("https://"):
@@ -171,7 +194,6 @@ def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
             return False, "amp_or_proxy_url", final_url
 
         # ---- WAF/CDN cookie / header detection (domain-agnostic) ----
-        # If the response sets known bot/WAF cookies, treat as gated content: reject.
         set_cookie = "; ".join([v.lower() for k, v in r.headers.items() if k.lower() == "set-cookie"])
         waf_cookies = ("_abck", "bm_sv", "bm_sz", "bm_mi", "ak_bmsc", "akavpwr_", "aka_")
         if any(tok in set_cookie for tok in waf_cookies):
@@ -219,7 +241,6 @@ def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
             return False, "no_links_low_content", final_url
 
         # ---- Cross-UA GET consistency (detect WAF serving different content to browsers) ----
-        # Fetch once more with a different *real* consumer UA and no-cache. If the body shrinks massively or changes type, reject.
         ua_desktop_safari = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
         r2 = _HTTP_SESSION.get(
             final_url,
@@ -235,10 +256,9 @@ def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
         )
         ctype2 = (r2.headers.get("Content-Type") or "").lower()
         bl2 = (r2.text or "")
-        # If second UA is blocked, you will typically get: status >= 400, non-HTML, or a tiny/blank body.
         if r2.status_code != 200 or "text/html" not in ctype2 or "<html" not in (bl2.lower()):
             return False, "ua_inconsistent_blocked", r2.url
-        if len(bl2) < 0.5 * body_len:  # >50% shrink = likely interstitial/error for consumer UA
+        if len(bl2) < 0.5 * body_len:
             return False, "ua_inconsistent_body_shrink", r2.url
 
         # 8) Public reachability probes (robust: HEAD first, tiny GET fallback; majority wins)
@@ -248,7 +268,6 @@ def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
                 return ("text/html" in ct) or ("application/xhtml+xml" in ct)
 
             try:
-                # First try HEAD (cheap)
                 rr = _HTTP_SESSION.head(
                     u,
                     headers={"User-Agent": ua, "Accept-Language": "en-GB,en;q=0.9"},
@@ -258,7 +277,6 @@ def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
                 if rr.status_code == 200 and _is_html_ctype(rr.headers.get("Content-Type")):
                     return True
 
-                # HEAD often fails on good sites (403/405/406/429 or no useful headers) → tiny GET fallback
                 if rr.status_code in (403, 405, 406, 429) or not _is_html_ctype(rr.headers.get("Content-Type")):
                     rg = _HTTP_SESSION.get(
                         u,
@@ -266,23 +284,19 @@ def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
                             "User-Agent": ua,
                             "Accept": "text/html,application/xhtml+xml",
                             "Accept-Language": "en-GB,en;q=0.9",
-                            "Range": "bytes=0-4095",  # first 4 KB only
+                            "Range": "bytes=0-4095",
                             "Cache-Control": "no-cache",
                             "Pragma": "no-cache",
                         },
                         timeout=HTTP_TIMEOUT,
                         allow_redirects=True,
                     )
-                    # Accept small GET if it looks like HTML
                     if rg.status_code == 200:
                         ctg = (rg.headers.get("Content-Type") or "").lower()
                         body_start = (rg.text or "")[:4096].lower()
                         if _is_html_ctype(ctg) or "<html" in body_start:
                             return True
-
-                # Other 2xx without HTML ctype is still suspicious → fail
                 return False
-
             except Exception:
                 return False
 
@@ -296,11 +310,9 @@ def is_http_html_ok(url: str) -> Tuple[bool, str, str]:
             _probe_ok(final_url, ua_mobile_safari),
         ]
 
-        # Majority pass (≥ 2 of 3) instead of "all must pass"
         if sum(1 for ok in probes if ok) < 2:
             return False, "unreachable_for_common_UA", final_url
 
-        # All checks passed
         return True, "ok", final_url
 
     except Exception as exc:
@@ -382,8 +394,8 @@ def sanitise_and_validate(
 ) -> Tuple[Dict[str, Any], List[str]]:
     """
     Returns (clean_obj, warnings). Hard failures raise to trigger retry.
-    Hard fail conditions depend on policy:
       - bad/missing article URL (download or invalid)
+      - domain blacklisted (file-driven)
       - live check not HTML/200, interstitial/AMP/proxy, or not article-like
       - recency beyond policy['max_months'] (if provided)
       - duplicate URL if policy['require_unique'] is True
@@ -406,12 +418,17 @@ def sanitise_and_validate(
     if inp and inp in run_seen_insfp:
         raise ValueError("insight_near_duplicate")
 
-    # Validate article URL (shape + live HTML + not an interstitial/AMP + canonical final URL)
+    # Validate article URL (shape + blacklist + live HTML + canonical URL)
     ra = obj.get("Related Article") or {}
     url = (ra.get("Related Article URL") or "").strip()
 
     if is_bad_article_url(url):
         raise ValueError(f"Related Article URL is a download or invalid: {url}")
+
+    host = hostname(url)
+    # File-driven blacklist hard check
+    if host_is_blacklisted(host, BLACKLISTED_DOMAINS_GLOBAL):
+        raise ValueError(f"related_article_domain_blacklisted:{host}")
 
     ok, info, final_url = is_http_html_ok(url)
     if not ok:
@@ -431,7 +448,6 @@ def sanitise_and_validate(
             raise ValueError("related_article_older_than_12m")
         if within_12 and not within_6 and max_months > 6:
             warnings.append("related_article_between_6_and_12_months")
-    # Attempt 3 uses max_months=None -> skip recency entirely
 
     # URL uniqueness policy
     require_unique = bool(policy.get("require_unique", True))
@@ -467,6 +483,9 @@ def fallback_not_applicable(question_text: str) -> Dict[str, Any]:
 # Core worker
 # =========================
 
+# Load blacklist once at module import; also expose a fresh copy per run for prompt mapping
+BLACKLISTED_DOMAINS_GLOBAL: set = load_blacklist_domains()
+
 def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
     try:
         logger.info(f"🚀 [Explainer.Run] start run_id={run_id}")
@@ -493,6 +512,10 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
         run_seen_ins_exact: set = set(registry.get("INSIGHTS_USED", []) or [])
         run_seen_acros: set = set(registry.get("ACRONYMS_SEEN", []) or [])
 
+        # Fresh read for this run (in case repo updated)
+        blacklisted_domains = load_blacklist_domains()
+        blacklisted_domains_sorted = sorted(blacklisted_domains)
+
         manifest = {
             "run_id": run_id,
             "created_at": now_iso(),
@@ -510,7 +533,8 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     "STATS_USED": len(run_seen_stats_exact),
                     "INSIGHTS_USED": len(run_seen_ins_exact),
                     "ACRONYMS_SEEN": len(run_seen_acros),
-                }
+                },
+                "blacklist_domains_count": len(blacklisted_domains_sorted),
             },
         }
         ckpt = {"last_completed_index": -1, "updated_at": now_iso()}
@@ -524,14 +548,15 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                 continue
 
             filled_q = format_question(q_tmpl, ctx)
+
+            # Helper to newline-join lists for prompt placeholders
+            def _lines(xs):
+                return "\n".join(sorted(xs)) if xs else ""
+
             mapping = {k: safe_escape_braces(str(v)) for k, v in ctx.items()}
             mapping["question"] = safe_escape_braces(filled_q)
 
-            # --- Inject REGISTRY placeholders into mapping before formatting the prompt ---
-            def _lines(xs):
-                """Return sorted newline-joined string or empty string."""
-                return "\n".join(sorted(xs)) if xs else ""
-
+            # --- Inject REGISTRY placeholders + blacklist into mapping before formatting the prompt ---
             mapping.update({
                 "urls_used_each_on_new_line": _lines(run_seen_urls),
                 "stats_used_each_on_new_line": _lines(run_seen_stats_exact),
@@ -539,9 +564,11 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                 "stats_fps_each_on_new_line": _lines(run_seen_statfp),
                 "insights_fps_each_on_new_line": _lines(run_seen_insfp),
                 "acronyms_each_on_new_line": _lines(run_seen_acros),
+                # NEW: visible to prompt from Attempt-1
+                "blacklisted_domains_each_on_new_line": _lines(blacklisted_domains_sorted),
             })
 
-            # Build prompt (REGISTRY placeholders now populated)
+            # Build prompt (REGISTRY + blacklist + prior context)
             prior_block = build_prior_context(history_for_prompt)
             base_prompt = prompt_template.format(**mapping) + prior_block
 
@@ -651,7 +678,8 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     # ---- Attempt 3 salvage: if live HTML/URL shape failed, accept output but blank the URL ----
                     is_last_attempt = (attempt == gen_attempts)
                     url_failure_signals = (
-                        "Related Article URL failed live check" in hard_error
+                        "related_article_domain_blacklisted" in hard_error
+                            or "Related Article URL failed live check" in hard_error
                             or "Related Article URL is a download or invalid" in hard_error
                             or "amp_or_proxy_url" in hard_error
                             or "no_html_marker" in hard_error
@@ -738,6 +766,7 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             "STATS_FINGERPRINTS_USED": sorted(run_seen_statfp),
             "INSIGHTS_FINGERPRINTS_USED": sorted(run_seen_insfp),
             "ACRONYMS_SEEN": sorted(run_seen_acros),
+            "BLACKLISTED_DOMAINS": blacklisted_domains_sorted,
         }
         manifest["updated_at"] = now_iso()
         supabase_write_textjson(paths["manifest"], manifest)
