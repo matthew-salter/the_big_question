@@ -26,7 +26,7 @@ QUESTIONS_PATH = "Prompts/Explainer_Report/Questions/questions.txt"
 PROMPT_PATH = "Prompts/Explainer_Report/prompt_1_question_assets.txt"
 SUPABASE_BASE_DIR = "Explainer_Report/Ai_Responses/Question_Assets"
 
-# NEW: file-driven domain blacklist
+# File-driven domain blacklist (optional; file may be empty/missing)
 BLACKLIST_PATH = "Prompts/Blacklist_Domains/blacklist_domains.txt"
 
 DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-5-mini")
@@ -62,6 +62,9 @@ _OPENAI_CLIENT = OpenAI()
 # --- Free URL Shortening (is.gd) ---
 URL_SHORTENING = os.getenv("URL_SHORTENING", "off").strip().lower()  # "off" | "isgd"
 URL_SHORTENING_MODE = os.getenv("URL_SHORTENING_MODE", "replace").strip().lower()  # "replace" | "sidecar"
+
+# --- Zapier callback config ---
+ZAPIER_STAGE2_HOOK_URL = os.getenv("ZAPIER_STAGE2_HOOK_URL", "").strip()  # e.g. https://hooks.zapier.com/hooks/catch/21230623/usvk7gr/
 
 # =========================
 # Helpers
@@ -361,6 +364,32 @@ def maybe_shorten(long_url: str) -> Optional[str]:
         return shorten_url_isgd(long_url)
     return None
 
+# --- Zapier callback helper (no secret) ---
+
+def _post_zapier_callback(hook_url: str, payload: Dict[str, Any], max_tries: int = 5) -> None:
+    """
+    POST a flat JSON payload to a Zapier Catch Hook.
+    Retries with exponential backoff.
+    """
+    if not hook_url:
+        logger.warning("[Callback] ZAPIER_STAGE2_HOOK_URL not set; skipping callback")
+        return
+
+    body = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+
+    for attempt in range(1, max_tries + 1):
+        try:
+            r = _HTTP_SESSION.post(hook_url, data=body, headers=headers, timeout=10)
+            if 200 <= r.status_code < 300:
+                logger.info(f"[Callback] Sent to Zapier (attempt {attempt}) status={r.status_code}")
+                return
+            logger.warning(f"[Callback] Non-2xx from Zapier (attempt {attempt}) status={r.status_code} body={r.text[:200]}")
+        except Exception as e:
+            logger.warning(f"[Callback] Error posting to Zapier (attempt {attempt}): {e}")
+        time.sleep(min(2 ** attempt, 30))
+    logger.error("[Callback] Failed to notify Zapier after retries")
+
 # =========================
 # OpenAI call (Responses API + web_search)
 # =========================
@@ -507,6 +536,30 @@ def fallback_not_applicable(question_text: str) -> Dict[str, Any]:
             "Related Article URL": "Not Applicable"
         }
     }
+
+# =========================
+# Completion readiness guard
+# =========================
+
+ALLOWED_DONE_STATUSES = {"done", "done_with_warnings", "done_with_fallback"}
+
+def _stage1_ready_to_callback(manifest: Dict[str, Any], ckpt: Dict[str, Any], total: int) -> bool:
+    # 1) All items accounted for
+    items = manifest.get("items", [])
+    if len(items) != total:
+        return False
+
+    # 2) Checkpoint has reached the final index
+    if ckpt.get("last_completed_index", -1) != (total - 1):
+        return False
+
+    # 3) No item is left in an in-flight state
+    for it in items:
+        st = (it.get("status") or "").lower()
+        if st not in ALLOWED_DONE_STATUSES:
+            return False
+
+    return True
 
 # =========================
 # Core worker
@@ -813,7 +866,12 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                 fb = fallback_not_applicable(filled_q)
                 supabase_write_txt(outfile, json.dumps(fb, ensure_ascii=False, indent=2))
 
-                item_meta.update({"status": "done_with_fallback", "completed_at": now_iso(), "warnings": ["fallback_not_applicable"], "error": hard_error})
+                item_meta.update({
+                    "status": "done_with_fallback",
+                    "completed_at": now_iso(),
+                    "warnings": ["fallback_not_applicable"],
+                    "error": hard_error
+                })
                 supabase_write_textjson(paths["manifest"], manifest)
 
                 ckpt.update({"last_completed_index": idx, "updated_at": now_iso()})
@@ -822,7 +880,11 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                 # keep history minimal for fallback (do not add to run_seen to avoid poisoning uniqueness)
                 history_for_prompt.append(json.dumps(fb, ensure_ascii=False))
 
-        # Optionally persist final REGISTRY snapshot for cross-run seeding
+        # =========================
+        # Finalise + readiness check + callback
+        # =========================
+
+        # Finalise manifest and compute simple metrics
         manifest["final_registry"] = {
             "URLS_USED": sorted(run_seen_urls),
             "STATS_USED": sorted(run_seen_stats_exact),
@@ -832,13 +894,63 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             "ACRONYMS_SEEN": sorted(run_seen_acros),
             "BLACKLISTED_DOMAINS": blacklisted_domains_sorted,
         }
-        manifest["updated_at"] = now_iso()
+
+        items = manifest.get("items", [])
+        status_counts = {}
+        for it in items:
+            status_counts[it.get("status","unknown")] = status_counts.get(it.get("status","unknown"), 0) + 1
+
+        manifest["metrics"] = {
+            "total_questions": total,
+            "completed": len(items),
+            "status_counts": status_counts,
+        }
+        manifest["completed_at"] = now_iso()
+        manifest["updated_at"] = manifest["completed_at"]
+
+        # Persist manifest
         supabase_write_textjson(paths["manifest"], manifest)
+
+        # Positive, explicit readiness check
+        ready = _stage1_ready_to_callback(manifest, ckpt, total)
+        if not ready:
+            logger.error(
+                f"[Explainer.Run] Not ready for callback: len(items)={len(items)} total={total} "
+                f"ckpt={ckpt.get('last_completed_index')} "
+                f"bad_statuses={[it['q_id'] for it in items if (it.get('status') or '').lower() not in ALLOWED_DONE_STATUSES]}"
+            )
+            return
+
+        # Write a clear completion marker (handy for Stage 2 sanity check)
+        done_marker_path = f"{paths['base']}/__STAGE1_DONE__.txt"
+        supabase_write_txt(done_marker_path, json.dumps({
+            "run_id": run_id,
+            "completed_at": manifest["completed_at"],
+            "metrics": manifest["metrics"],
+        }, ensure_ascii=False))
 
         logger.info(f"✅ [Explainer.Run] completed run_id={run_id} total={total}")
 
+        # Fire Zapier Catch Hook (flat JSON; leave Pick off Child Key empty)
+        callback_payload = {
+            "run_id": run_id,
+            "stage": "stage1_done",
+            "supabase_manifest": paths["manifest"],
+            "supabase_done_marker": done_marker_path,
+            "metrics": manifest["metrics"],
+        }
+        _post_zapier_callback(ZAPIER_STAGE2_HOOK_URL, callback_payload)
+
     except Exception as outer:
         logger.exception(f"❌ [Explainer.Run] fatal for run_id={run_id}: {outer}")
+        # Notify Zapier of failure so the Stage 2 Zap can alert or halt
+        fail_payload = {
+            "run_id": run_id,
+            "stage": "stage1_failed",
+            "error": str(outer),
+            "ts": now_iso(),
+        }
+        _post_zapier_callback(ZAPIER_STAGE2_HOOK_URL, fail_payload)
 
 # =========================
 # Entrypoint
