@@ -342,26 +342,64 @@ def is_recent_ddmmyyyy(ddmmyyyy: str, months_primary=6, months_max=12) -> Tuple[
     delta_days = (today - d).days
     return (delta_days <= months_primary * 30), (delta_days <= months_max * 30)
 
-# --- URL Shortening helpers (is.gd) ---
+# --- URL Shortening helpers (is.gd only, with retry/backoff & logging) ---
+import random
+from requests.utils import requote_uri
+
+SHORTENER_MAX_TRIES    = int(os.getenv("SHORTENER_MAX_TRIES", "4"))
+SHORTENER_TIMEOUT_SEC  = float(os.getenv("SHORTENER_TIMEOUT_SEC", "8.0"))
+SHORTENER_BACKOFF_BASE = float(os.getenv("SHORTENER_BACKOFF_BASE", "0.75"))
+SHORTENER_JITTER_SEC   = float(os.getenv("SHORTENER_JITTER_SEC", "0.35"))
 
 def shorten_url_isgd(long_url: str) -> Optional[str]:
-    try:
-        r = _HTTP_SESSION.get(
-            "https://is.gd/create.php",
-            params={"format": "simple", "url": long_url},
-            timeout=8.0,
-        )
-        if r.status_code == 200 and r.text.startswith("http"):
-            return r.text.strip()
-    except Exception:
-        pass
+    """
+    Try to shorten via is.gd using POST, percent-encoded URL, and retries.
+    Logs failures to Render logs only. Returns short URL or None.
+    """
+    if not long_url:
+        return None
+
+    enc_url = requote_uri(long_url)
+
+    for attempt in range(1, SHORTENER_MAX_TRIES + 1):
+        try:
+            r = _HTTP_SESSION.post(
+                "https://is.gd/create.php",
+                data={"format": "simple", "url": enc_url},
+                timeout=SHORTENER_TIMEOUT_SEC,
+            )
+            txt = (r.text or "").strip()
+
+            if r.status_code == 200 and txt.startswith("http"):
+                if attempt > 1:
+                    logger.info(f"[shorten:is.gd] success after retries attempt={attempt}")
+                return txt
+
+            body_preview = txt[:160].replace("\n", " ")
+            logger.warning(
+                f"[shorten:is.gd] attempt={attempt}/{SHORTENER_MAX_TRIES} "
+                f"status={r.status_code} body_preview='{body_preview}'"
+            )
+
+        except Exception as e:
+            logger.warning(f"[shorten:is.gd] attempt={attempt}/{SHORTENER_MAX_TRIES} error={e}")
+
+        sleep_s = SHORTENER_BACKOFF_BASE * (2 ** (attempt - 1)) + random.uniform(0, SHORTENER_JITTER_SEC)
+        time.sleep(min(sleep_s, 5.0))
+
+    logger.info(
+        f"[shorten:is.gd] giving up after {SHORTENER_MAX_TRIES} attempts "
+        f"host={hostname(long_url)} url_len={len(long_url)}"
+    )
     return None
 
 def maybe_shorten(long_url: str) -> Optional[str]:
-    if not long_url or not long_url.startswith("https://"):
+    if not long_url or not long_url.lower().startswith("https://"):
+        logger.info(f"[shorten] skip: non-https or empty url='{long_url}'")
         return None
     if URL_SHORTENING == "isgd":
         return shorten_url_isgd(long_url)
+    logger.info(f"[shorten] disabled: URL_SHORTENING='{URL_SHORTENING}'")
     return None
 
 # --- Zapier callback helper (no secret) ---
@@ -732,6 +770,11 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
                     # Optional: shorten for output
                     short_url = None
                     if canonical_url and canonical_url != "Unavailable":
+                        # visibility log (nice-to-have)
+                        logger.info(
+                            f"[shorten] mode={URL_SHORTENING} replace_mode={URL_SHORTENING_MODE} "
+                            f"url_host={hostname(canonical_url)} url_len={len(canonical_url)}"
+                        )
                         short_url = maybe_shorten(canonical_url)
 
                     # Sidecar paths (kept outside working folder)
