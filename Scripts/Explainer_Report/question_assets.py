@@ -963,13 +963,21 @@ def _process_run(run_id: str, payload: Dict[str, Any]) -> None:
             )
             return
 
-        # Write a clear completion marker (handy for Stage 2 sanity check)
-        done_marker_path = f"{paths['base']}/__STAGE1_DONE__.txt"
-        supabase_write_txt(done_marker_path, json.dumps({
-            "run_id": run_id,
-            "completed_at": manifest["completed_at"],
-            "metrics": manifest["metrics"],
-        }, ensure_ascii=False))
+        # Write a clear completion marker in its own subdirectory (excluded from merge)
+        done_marker_subdir = f"{paths['base']}/Stage_1_Done"
+        done_marker_path = f"{done_marker_subdir}/__STAGE1_DONE__.txt"
+
+        # Ensure the directory exists conceptually in Supabase (Supabase auto-creates on write)
+        supabase_write_txt(
+            done_marker_path,
+            json.dumps({
+                "run_id": run_id,
+                "completed_at": manifest["completed_at"],
+                "metrics": manifest["metrics"],
+            }, ensure_ascii=False)
+        )
+
+        logger.info(f"✅ [Explainer.Run] wrote Stage_1_Done marker to {done_marker_path}")
 
         logger.info(f"✅ [Explainer.Run] completed run_id={run_id} total={total}")
 
