@@ -357,4 +357,16 @@
 "REVOLUTIONIZES": "REVOLUTIONISES",
 "revolutionizing": "revolutionising",
 "Revolutionizing": "Revolutionising",
-"REVOLUTIONIZING": "REVOLUTIONISING"
+"REVOLUTIONIZING": "REVOLUTIONISING",
+"randomize": "randomise",
+"Randomize": "Randomise",
+"RANDOMIZE": "RANDOMISE",
+"randomized": "randomised",
+"Randomized": "Randomised",
+"RANDOMIZED": "RANDOMISED",
+"randomizes": "randomises",
+"Randomizes": "Randomises",
+"RANDOMIZES": "RANDOMISES",
+"randomizing": "randomising",
+"Randomizing": "Randomising",
+"RANDOMIZING": "RANDOMISING"
